@@ -28,13 +28,26 @@ function isGreeting(content: string): boolean {
   return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening)[!. ]*$/i.test(content.trim());
 }
 
+function isFollowUpReference(content: string): boolean {
+  return /\b(that|it|this|these|those|same|previous|earlier|above|one|issue|problem)\b/i.test(content);
+}
+
+function retrievalQuery(content: string, history: ConversationHistoryMessage[]): string {
+  if (!history.length || !isFollowUpReference(content)) return content;
+  const previousUserMessages = history
+    .filter((message) => message.role === "user")
+    .slice(-3)
+    .map((message) => message.content);
+  return [content, ...previousUserMessages].join("\n");
+}
+
 export async function prepareSupportRequest(
   context: SupportRequestContext,
   content: string,
   imageOnly: boolean,
   history: ConversationHistoryMessage[] = [],
 ): Promise<PreparedSupportRequest> {
-  const result = await toolGateway.execute("knowledge.retrieve", { query: content }, context) as KnowledgeToolResult;
+  const result = await toolGateway.execute("knowledge.retrieve", { query: retrievalQuery(content, history) }, context) as KnowledgeToolResult;
   const retrieved = result.ok && result.data?.articles ? result.data.articles : [];
   const evidence = retrieved.map((article) => ({
     id: article.id,

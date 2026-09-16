@@ -1,0 +1,92 @@
+export type KnowledgeEvaluationCase = {
+  topic: string;
+  query: string;
+  expectedTitle: string;
+  history?: Array<{ role: "user" | "assistant"; content: string }>;
+};
+
+/**
+ * Representative customer wording for the approved KAMALO master knowledge.
+ *
+ * Keep these questions close to language customers use in support. The
+ * expected title is deliberately a stable knowledge topic, not an article ID,
+ * so the catalog remains useful when knowledge is re-seeded.
+ */
+export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
+  {
+    topic: "registration",
+    query: "I cannot signup for KAMALO",
+    expectedTitle: `I can't register.`,
+  },
+  {
+    topic: "OTP delivery",
+    query: "I did not recieve OTP",
+    expectedTitle: "I didn't receive OTP.",
+  },
+  {
+    topic: "Coins",
+    query: "Where are my reward coins?",
+    expectedTitle: "Why didn't I receive my Coins?",
+  },
+  {
+    topic: "payments",
+    query: "My card payment was declined",
+    expectedTitle: "My payment failed.",
+  },
+  {
+    topic: "Silver",
+    query: "How do I qualify for the silver milestone?",
+    expectedTitle: "How do I earn Silver?",
+  },
+  {
+    topic: "Gold",
+    query: "What is my gold target?",
+    expectedTitle: "How much do I need for Gold?",
+  },
+  {
+    topic: "FINCADO",
+    query: "What does FINCADO do?",
+    expectedTitle: "What is FINCADO?",
+  },
+  {
+    topic: "Auto KAMALO",
+    query: "Why did my autopay fail?",
+    expectedTitle: "My Auto KAMALO payment failed.",
+  },
+  {
+    topic: "referrals",
+    query: "My friend signed up but I got no referral rewards",
+    expectedTitle: "My friend joined but I didn't get referral Coins.",
+  },
+  {
+    topic: "notifications",
+    query: "I did not get my alert",
+    expectedTitle: "I didn't receive my notification.",
+  },
+  {
+    topic: "merchant settlement",
+    query: "Why is my seller settlement lower?",
+    expectedTitle: "Why is my settlement amount lower?",
+  },
+  {
+    topic: "physical delivery",
+    query: "Where is my silver shipment?",
+    expectedTitle: "Where is my Silver Coin?",
+  },
+  {
+    topic: "Booster",
+    query: "Why am I getting this promotion?",
+    expectedTitle: "Why am I getting this Booster?",
+  },
+  {
+    topic: "Shop & KAMALO",
+    query: "Where can I shop with KAMALO?",
+    expectedTitle: "Where can I use KAMALO?",
+  },
+  {
+    topic: "follow-up payment reference",
+    query: "What happened to that?",
+    history: [{ role: "user", content: "My payment failed." }],
+    expectedTitle: "My payment failed.",
+  },
+];

@@ -6,8 +6,10 @@ import { and, eq, inArray } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, type SupportRequestContext } from "../src/lib/context";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
+import { retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest } from "../src/lib/orchestrator";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
+import { representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
   conversationsTable,
   db,
@@ -126,7 +128,8 @@ async function createConversation(title = testPrefix): Promise<{ id: string }> {
 before(async () => {
   const approvedId = crypto.randomUUID();
   const draftId = crypto.randomUUID();
-  articleIds.push(approvedId, draftId);
+  const expiredId = crypto.randomUUID();
+  articleIds.push(approvedId, draftId, expiredId);
   const now = new Date();
   await db.insert(knowledgeArticlesTable).values([
     {
@@ -150,6 +153,18 @@ before(async () => {
       status: "draft",
       effectiveFrom: null,
       effectiveUntil: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: expiredId,
+      title: `${evidenceToken} expired article`,
+      category: "test",
+      content: `${evidenceToken} expired support guidance`,
+      version: 2,
+      status: "approved",
+      effectiveFrom: null,
+      effectiveUntil: new Date(now.getTime() - 60_000),
       createdAt: now,
       updatedAt: now,
     },
@@ -265,6 +280,43 @@ test("selects unknown-question fallback and prompt-extraction decisions", async 
 
   const greeting = await prepareSupportRequest(testContext(), "hello", false);
   assert.equal(greeting.decision, "greeting");
+});
+
+test("evaluates representative customer questions by approved knowledge topic", async () => {
+  const failures: string[] = [];
+
+  for (const evaluationCase of representativeKnowledgeQuestions) {
+    const prepared = await prepareSupportRequest(
+      testContext(),
+      evaluationCase.query,
+      false,
+      evaluationCase.history,
+    );
+    const matchedArticle = prepared.retrieved.find((article) => article.title.includes(evaluationCase.expectedTitle));
+    if (!matchedArticle) {
+      failures.push([
+        evaluationCase.topic,
+        `query=${JSON.stringify(evaluationCase.query)}`,
+        `expected=${JSON.stringify(evaluationCase.expectedTitle)}`,
+        `retrieved=${prepared.retrieved.map((article) => article.title).join(" | ") || "none"}`,
+      ].join(" "));
+    }
+  }
+
+  assert.equal(
+    failures.length,
+    0,
+    `Knowledge evaluation failures (topic, query, expected, retrieved):\n${failures.join("\n")}`,
+  );
+});
+
+test("keeps draft and expired knowledge out of evidence", async () => {
+  const retrieved = await retrieveKnowledge(evidenceToken);
+  assert.deepEqual(retrieved.map((article) => article.id), [articleIds[0]]);
+
+  const prepared = await prepareSupportRequest(testContext(), evidenceToken, false);
+  assert.deepEqual(prepared.evidence.map((article) => article.id), [articleIds[0]]);
+  assert.equal(prepared.evidence.some((article) => article.title.includes("draft") || article.title.includes("expired")), false);
 });
 
 test("parses local OpenRouter SSE frames without exposing malformed provider data", async () => {
