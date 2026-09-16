@@ -10,7 +10,7 @@ import {
   useListConversations,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Clipboard, Eraser, RefreshCw, Send, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlineTrash } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 
 const firstUsePrompts = [
@@ -43,7 +43,7 @@ function ConversationHistory({ conversations, selectedId, loading, onSelect, onD
                 <div className="truncate text-[12px] font-semibold">{conversation.title || 'Untitled conversation'}</div>
                 <div className="mt-1 font-mono text-[9px] text-muted-foreground">{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'} · {compactDate(conversation.updatedAt)}</div>
               </button>
-              <button onClick={() => onDelete(conversation)} className="ml-1 rounded-md p-1.5 text-muted-foreground opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive md:opacity-0 md:group-hover:opacity-100" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-delete-conversation-${conversation.id}`}><Trash2 size={13} /></button>
+              <button onClick={() => onDelete(conversation)} className="ml-1 rounded-md p-1.5 text-muted-foreground opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive md:opacity-0 md:group-hover:opacity-100" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-delete-conversation-${conversation.id}`}><HiOutlineTrash size={13} /></button>
             </div>
           ))}
         </div>
@@ -65,10 +65,10 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
           {assistant && (
             <>
               <span className="mx-1 opacity-40">·</span>
-              <button onClick={() => onCopy(message.content)} className="rounded-md p-1.5 hover:bg-muted hover:text-foreground" aria-label="Copy assistant response" data-testid={`button-copy-message-${message.id}`}><Clipboard size={13} /></button>
-              <button onClick={() => onFeedback(message, 'helpful')} className={`rounded-md p-1.5 hover:bg-muted hover:text-primary ${message.feedback === 'helpful' ? 'text-primary' : ''}`} aria-label="Mark response helpful" data-testid={`button-helpful-${message.id}`}><ThumbsUp size={13} /></button>
-              <button onClick={() => onFeedback(message, 'not_helpful')} className={`rounded-md p-1.5 hover:bg-muted hover:text-destructive ${message.feedback === 'not_helpful' ? 'text-destructive' : ''}`} aria-label="Mark response not helpful" data-testid={`button-not-helpful-${message.id}`}><ThumbsDown size={13} /></button>
-              <button onClick={onRetry} className="rounded-md p-1.5 hover:bg-muted hover:text-foreground" aria-label="Retry last prompt" data-testid={`button-retry-message-${message.id}`}><RefreshCw size={13} /></button>
+              <button onClick={() => onCopy(message.content)} className="rounded-md p-1.5 hover:bg-muted hover:text-foreground" aria-label="Copy assistant response" data-testid={`button-copy-message-${message.id}`}><HiOutlineClipboardDocument size={13} /></button>
+              <button onClick={() => onFeedback(message, 'helpful')} className={`rounded-md p-1.5 hover:bg-muted hover:text-primary ${message.feedback === 'helpful' ? 'text-primary' : ''}`} aria-label="Mark response helpful" data-testid={`button-helpful-${message.id}`}><HiOutlineHandThumbUp size={13} /></button>
+              <button onClick={() => onFeedback(message, 'not_helpful')} className={`rounded-md p-1.5 hover:bg-muted hover:text-destructive ${message.feedback === 'not_helpful' ? 'text-destructive' : ''}`} aria-label="Mark response not helpful" data-testid={`button-not-helpful-${message.id}`}><HiOutlineHandThumbDown size={13} /></button>
+              <button onClick={onRetry} className="rounded-md p-1.5 hover:bg-muted hover:text-foreground" aria-label="Retry last prompt" data-testid={`button-retry-message-${message.id}`}><HiOutlineArrowPath size={13} /></button>
             </>
           )}
         </div>
@@ -248,7 +248,7 @@ export function HomePage() {
       <div className="mx-auto flex min-h-[calc(100dvh-57px)] max-w-[1320px] flex-col px-4 pb-4 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-7 lg:px-12">
         <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
-          <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><Eraser size={14} /> Clear</button>
+          <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
         </header>
 
         <div className="mt-3 flex items-center justify-end border-y border-border/60 py-2.5 xl:hidden">
@@ -266,11 +266,11 @@ export function HomePage() {
               </div>
             )}
             {errorMessage && <div className="mb-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" data-testid="status-send-error"><span>{errorMessage}</span><button onClick={() => void sendMessage()} className="font-semibold underline" data-testid="button-retry-send">Try again</button></div>}
-            {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" data-testid="status-feedback"><Check size={13} />{notice}</div>}
+            {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             <div className="safe-bottom sticky bottom-0 z-10 -mx-1 bg-background/95 pt-2 backdrop-blur-sm">
               <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
                 <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
-                <div className="flex items-center justify-between px-2 pb-1"><span className="hidden font-mono text-[9px] text-muted-foreground/70 sm:block">Enter to send · Shift + Enter for a new line</span><span className="font-mono text-[9px] text-muted-foreground/70 sm:hidden">Enter to send</span><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><Send size={15} /></button></div>
+                <div className="flex items-center justify-between px-2 pb-1"><span className="hidden font-mono text-[9px] text-muted-foreground/70 sm:block">Enter to send · Shift + Enter for a new line</span><span className="font-mono text-[9px] text-muted-foreground/70 sm:hidden">Enter to send</span><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
               </div>
             </div>
           </section>

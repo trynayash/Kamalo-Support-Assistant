@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { BookOpenText, Library, MessageSquareText, PanelLeftClose, PanelLeftOpen, Plus } from 'lucide-react';
+import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlinePlus, HiOutlineXMark } from 'react-icons/hi2';
 
 type KamaloShellProps = {
   children: ReactNode;
@@ -60,12 +60,12 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
       />
       <aside id="workspace-navigation" aria-label="Workspace navigation" className={`fixed inset-y-0 left-0 z-40 flex flex-col border-r border-sidebar-border bg-sidebar py-6 text-sidebar-foreground transition-[width,transform,padding] duration-300 md:static md:translate-x-0 ${collapsed ? 'w-[72px] px-3' : 'w-[276px] px-5'} ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className={`flex items-start ${collapsed ? 'justify-center' : 'justify-between'}`}>
-          <Link href="/" onClick={closeMobile} className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
-          {!collapsed && <button ref={closeNavigationRef} onClick={closeMobile} className="rounded-lg p-2 text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden" aria-label="Close navigation" data-testid="button-close-sidebar"><PanelLeftClose size={17} /></button>}
+          <Link href="/" onClick={closeMobile} className="block" data-testid="link-kamalo-home"><KamaloMark small={collapsed} /></Link>
+          {!collapsed && <button ref={closeNavigationRef} onClick={closeMobile} className="rounded-lg p-2 text-sidebar-foreground/55 hover:bg-sidebar-accent hover:text-sidebar-foreground md:hidden" aria-label="Close navigation" data-testid="button-close-sidebar"><HiOutlineXMark size={17} /></button>}
         </div>
 
         <button onClick={() => setCollapsed((value) => !value)} className="absolute -right-3 top-7 z-50 hidden h-6 w-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/65 shadow-sm hover:text-sidebar-foreground md:grid" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} data-testid="button-toggle-sidebar">
-          {collapsed ? <PanelLeftOpen size={13} /> : <PanelLeftClose size={13} />}
+          {collapsed ? <HiOutlineChevronDoubleRight size={13} /> : <HiOutlineChevronDoubleLeft size={13} />}
         </button>
 
         <div className="mt-12">
@@ -74,18 +74,18 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
             className={`group flex w-full items-center rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] py-3 text-left transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent ${collapsed ? 'justify-center px-0' : 'justify-between px-3.5'}`}
             data-testid="button-new-conversation"
           >
-             <span className="flex items-center gap-2.5 text-[13px] font-semibold"><Plus size={16} className="text-[hsl(var(--accent))]" /> <span className={collapsed ? 'sr-only' : ''}>New conversation</span></span>
+             <span className="flex items-center gap-2.5 text-[13px] font-semibold"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span className={collapsed ? 'sr-only' : ''}>New conversation</span></span>
              {!collapsed && <span className="font-mono text-[10px] text-sidebar-foreground/40">N</span>}
           </button>
         </div>
 
         <nav className="mt-8 space-y-1" aria-label="Primary navigation">
           <Link href="/" onClick={closeMobile} className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${!isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
-            <MessageSquareText size={16} className={!isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Conversations</span>
+            <HiOutlineChatBubbleLeftRight size={16} className={!isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Conversations</span>
             {!collapsed && conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
           <Link href="/admin/knowledge" onClick={closeMobile} className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
-            <BookOpenText size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Knowledge base</span>
+            <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Knowledge base</span>
           </Link>
         </nav>
 
@@ -93,7 +93,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
       </aside>
       <main className="min-w-0 flex-1">
         <div className="flex items-center border-b border-border/70 px-4 py-3 md:hidden">
-          <button ref={openNavigationRef} onClick={() => onMobileOpenChange?.(true)} className="rounded-lg p-2 hover:bg-muted" aria-label="Open navigation" aria-controls="workspace-navigation" aria-expanded={mobileOpen} data-testid="button-open-navigation"><PanelLeftOpen size={19} /></button>
+          <button ref={openNavigationRef} onClick={() => onMobileOpenChange?.(true)} className="rounded-lg p-2 hover:bg-muted" aria-label="Open navigation" aria-controls="workspace-navigation" aria-expanded={mobileOpen} data-testid="button-open-navigation"><HiOutlineChevronDoubleRight size={19} /></button>
           <span className="ml-3 font-mono text-[10px] uppercase tracking-[.2em] text-muted-foreground">{isKnowledge ? 'Knowledge base' : 'Conversations'}</span>
         </div>
         {children}
@@ -107,5 +107,5 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 export function KnowledgeIcon() {
-  return <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[hsl(var(--primary)/.1)] text-primary"><Library size={18} /></div>;
+  return <div className="grid h-10 w-10 shrink-0 place-items-center rounded-lg bg-[hsl(var(--primary)/.1)] text-primary"><HiOutlineBookOpen size={18} /></div>;
 }
