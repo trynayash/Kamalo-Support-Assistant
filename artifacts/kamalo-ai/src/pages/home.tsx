@@ -15,14 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
-import { Link } from 'wouter';
-
-const firstUsePrompts = [
-  { label: 'Rewards', text: 'How do KAMALO Coins work?' },
-  { label: 'Auto KAMALO', text: 'Explain Auto KAMALO in simple terms.' },
-  { label: 'FINCADO', text: 'What is FINCADO and how do I use it?' },
-  { label: 'Transactions', text: 'Where can I see my recent transactions?' },
-];
+import { Link, useLocation } from 'wouter';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
@@ -222,7 +215,7 @@ function ChatClosedState({ onNewConversation }: { onNewConversation: () => void 
 
 export function HomePage() {
   const queryClient = useQueryClient();
-  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const [location] = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -257,8 +250,12 @@ export function HomePage() {
   }, [pendingImage]);
 
   useEffect(() => {
-    if (!selectedId && conversations.length > 0) setSelectedId(conversations[0].id);
-  }, [conversations, selectedId]);
+    const conversationId = new URLSearchParams(window.location.search).get('conversation');
+    if (conversationId) {
+      setSelectedId(conversationId);
+      setLocalMessages([]);
+    }
+  }, [location]);
 
   useEffect(() => {
     if (conversationQuery.data?.id === selectedId && !isSending) setLocalMessages(conversationQuery.data.messages);
@@ -328,7 +325,6 @@ export function HomePage() {
   const startNewConversation = () => {
     if (isSending) return;
     setErrorMessage('');
-    setMobileHistoryOpen(false);
     setSelectedId(null);
     setLocalMessages([]);
     setInput('');
@@ -490,14 +486,14 @@ export function HomePage() {
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
        <div className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-44 sm:px-6 sm:pb-40 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-          <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
-          <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
-          <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
-        </header>
+         {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
+           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
+           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
+         </header>}
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
             {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
-                <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
+                <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1 xl:hidden" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-7 sm:py-12">
                    <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
                  </div>
