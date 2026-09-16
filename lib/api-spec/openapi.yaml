@@ -10,6 +10,14 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: conversations
+    description: KAMALO AI conversations
+  - name: assistant
+    description: Grounded KAMALO AI responses
+  - name: feedback
+    description: Response feedback
+  - name: knowledge
+    description: Approved KAMALO knowledge management
 paths:
   /healthz:
     get:
@@ -24,7 +32,229 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /conversations:
+    get:
+      operationId: listConversations
+      tags: [conversations]
+      summary: List conversations
+      responses:
+        "200":
+          description: Conversation summaries
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ConversationSummary"
+    post:
+      operationId: createConversation
+      tags: [conversations]
+      summary: Create a conversation
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "201":
+          description: Created conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+  /conversations/{conversationId}:
+    get:
+      operationId: getConversation
+      tags: [conversations]
+      summary: Get a conversation with messages
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "200":
+          description: Conversation detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationDetail"
+        "404":
+          description: Conversation not found
+    delete:
+      operationId: deleteConversation
+      tags: [conversations]
+      summary: Delete a conversation
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      responses:
+        "204":
+          description: Conversation deleted
+        "404":
+          description: Conversation not found
+  /conversations/{conversationId}/messages:
+    post:
+      operationId: streamAssistantMessage
+      tags: [assistant]
+      summary: Stream a grounded KAMALO AI response
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessageInput"
+      responses:
+        "200":
+          description: Server-sent events containing response chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "400":
+          description: Invalid message
+        "404":
+          description: Conversation not found
+  /messages/{messageId}/feedback:
+    post:
+      operationId: createMessageFeedback
+      tags: [feedback]
+      summary: Rate an assistant response
+      parameters:
+        - $ref: "#/components/parameters/MessageId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FeedbackInput"
+      responses:
+        "201":
+          description: Saved feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageFeedback"
+        "404":
+          description: Message not found
+  /knowledge/articles:
+    get:
+      operationId: listKnowledgeArticles
+      tags: [knowledge]
+      summary: Search knowledge articles
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, approved, archived]
+      responses:
+        "200":
+          description: Knowledge articles
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/KnowledgeArticle"
+    post:
+      operationId: createKnowledgeArticle
+      tags: [knowledge]
+      summary: Create a knowledge article
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeArticleInput"
+      responses:
+        "201":
+          description: Created article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+  /knowledge/articles/{articleId}:
+    patch:
+      operationId: updateKnowledgeArticle
+      tags: [knowledge]
+      summary: Update a knowledge article
+      parameters:
+        - $ref: "#/components/parameters/ArticleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/KnowledgeArticleUpdate"
+      responses:
+        "200":
+          description: Updated article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+        "404":
+          description: Article not found
+  /knowledge/articles/{articleId}/approve:
+    post:
+      operationId: approveKnowledgeArticle
+      tags: [knowledge]
+      summary: Approve a knowledge article
+      parameters:
+        - $ref: "#/components/parameters/ArticleId"
+      responses:
+        "200":
+          description: Approved article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+        "404":
+          description: Article not found
+  /knowledge/articles/{articleId}/archive:
+    post:
+      operationId: archiveKnowledgeArticle
+      tags: [knowledge]
+      summary: Archive a knowledge article
+      parameters:
+        - $ref: "#/components/parameters/ArticleId"
+      responses:
+        "200":
+          description: Archived article
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/KnowledgeArticle"
+        "404":
+          description: Article not found
 components:
+  parameters:
+    ConversationId:
+      name: conversationId
+      in: path
+      required: true
+      schema:
+        type: string
+    MessageId:
+      name: messageId
+      in: path
+      required: true
+      schema:
+        type: string
+    ArticleId:
+      name: articleId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +263,166 @@ components:
           type: string
       required:
         - status
+    ConversationSummary:
+      type: object
+      required: [id, title, createdAt, updatedAt, messageCount]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messageCount:
+          type: integer
+    Conversation:
+      type: object
+      required: [id, title, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    ConversationDetail:
+      allOf:
+        - $ref: "#/components/schemas/Conversation"
+        - type: object
+          required: [messages]
+          properties:
+            messages:
+              type: array
+              items:
+                $ref: "#/components/schemas/ChatMessage"
+    ChatMessage:
+      type: object
+      required: [id, conversationId, role, content, createdAt]
+      properties:
+        id:
+          type: string
+        conversationId:
+          type: string
+        role:
+          type: string
+          enum: [user, assistant]
+        content:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        feedback:
+          type: ["string", "null"]
+          enum: [helpful, not_helpful, null]
+    ConversationInput:
+      type: object
+      properties:
+        title:
+          type: string
+          maxLength: 120
+    MessageInput:
+      type: object
+      required: [content]
+      properties:
+        content:
+          type: string
+          minLength: 1
+          maxLength: 4000
+    FeedbackInput:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: string
+          enum: [helpful, not_helpful]
+        feedback:
+          type: ["string", "null"]
+          maxLength: 1000
+    MessageFeedback:
+      type: object
+      required: [id, messageId, rating, feedback, createdAt]
+      properties:
+        id:
+          type: string
+        messageId:
+          type: string
+        rating:
+          type: string
+          enum: [helpful, not_helpful]
+        feedback:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    KnowledgeArticle:
+      type: object
+      required: [id, title, category, content, version, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        category:
+          type: string
+        content:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, approved, archived]
+        effectiveFrom:
+          type: ["string", "null"]
+          format: date-time
+        effectiveUntil:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    KnowledgeArticleInput:
+      type: object
+      required: [title, category, content]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+        content:
+          type: string
+          minLength: 1
+          maxLength: 20000
+        status:
+          type: string
+          enum: [draft, approved]
+    KnowledgeArticleUpdate:
+      type: object
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 180
+        category:
+          type: string
+          minLength: 1
+          maxLength: 60
+        content:
+          type: string
+          minLength: 1
+          maxLength: 20000
 
