@@ -43,6 +43,25 @@ export const ChatMessageFeedback = {
   not_helpful: 'not_helpful',
 } as const;
 
+export type ImageAttachmentMediaType = typeof ImageAttachmentMediaType[keyof typeof ImageAttachmentMediaType];
+
+
+export const ImageAttachmentMediaType = {
+  'image/jpeg': 'image/jpeg',
+  'image/png': 'image/png',
+} as const;
+
+export interface ImageAttachment {
+  id: string;
+  /** @maxLength 255 */
+  filename: string;
+  mediaType: ImageAttachmentMediaType;
+  /** @minimum 1 */
+  size: number;
+  url: string;
+  uploadedAt: string;
+}
+
 export interface ChatMessage {
   id: string;
   conversationId: string;
@@ -51,6 +70,8 @@ export interface ChatMessage {
   createdAt: string;
   /** @nullable */
   feedback?: ChatMessageFeedback;
+  /** @maxItems 1 */
+  attachments: ImageAttachment[];
 }
 
 export type ConversationDetail = Conversation & {
@@ -63,11 +84,17 @@ export interface ConversationInput {
 }
 
 export interface MessageInput {
+  /** @maxLength 4000 */
+  content?: string;
   /**
-     * @minLength 1
-     * @maxLength 4000
+     * @maxLength 120
+     * @nullable
      */
-  content: string;
+  attachmentId?: string | null;
+}
+
+export interface ImageUploadInput {
+  file: Blob;
 }
 
 export type FeedbackInputRating = typeof FeedbackInputRating[keyof typeof FeedbackInputRating];

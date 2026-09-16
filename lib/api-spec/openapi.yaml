@@ -114,6 +114,56 @@ paths:
           description: Invalid message
         "404":
           description: Conversation not found
+  /conversations/{conversationId}/attachments:
+    post:
+      operationId: uploadConversationImage
+      tags: [conversations]
+      summary: Upload a JPG or PNG conversation image
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+                $ref: "#/components/schemas/ImageUploadInput"
+      responses:
+        "201":
+          description: Uploaded conversation image
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageAttachment"
+        "400":
+          description: Invalid image
+        "413":
+          description: Image is too large
+  /conversations/{conversationId}/attachments/{attachmentId}:
+    get:
+      operationId: getConversationImage
+      tags: [conversations]
+      summary: Get a conversation image
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+        - name: attachmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Conversation image
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Image not found
   /messages/{messageId}/feedback:
     post:
       operationId: createMessageFeedback
@@ -305,7 +355,7 @@ components:
                 $ref: "#/components/schemas/ChatMessage"
     ChatMessage:
       type: object
-      required: [id, conversationId, role, content, createdAt]
+      required: [id, conversationId, role, content, createdAt, attachments]
       properties:
         id:
           type: string
@@ -322,6 +372,11 @@ components:
         feedback:
           type: ["string", "null"]
           enum: [helpful, not_helpful, null]
+        attachments:
+          type: array
+          maxItems: 1
+          items:
+            $ref: "#/components/schemas/ImageAttachment"
     ConversationInput:
       type: object
       properties:
@@ -330,12 +385,40 @@ components:
           maxLength: 120
     MessageInput:
       type: object
-      required: [content]
       properties:
         content:
           type: string
-          minLength: 1
           maxLength: 4000
+        attachmentId:
+          type: ["string", "null"]
+          maxLength: 120
+    ImageUploadInput:
+      type: object
+      required: [file]
+      properties:
+        file:
+          type: string
+          format: binary
+    ImageAttachment:
+      type: object
+      required: [id, filename, mediaType, size, url, uploadedAt]
+      properties:
+        id:
+          type: string
+        filename:
+          type: string
+          maxLength: 255
+        mediaType:
+          type: string
+          enum: [image/jpeg, image/png]
+        size:
+          type: integer
+          minimum: 1
+        url:
+          type: string
+        uploadedAt:
+          type: string
+          format: date-time
     FeedbackInput:
       type: object
       required: [rating]

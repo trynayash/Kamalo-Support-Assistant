@@ -19,5 +19,6 @@
 
 export * from "./conversations";
 export * from "./messages";
+export * from "./message-attachments";
 export * from "./knowledge";
 export * from "./feedback";

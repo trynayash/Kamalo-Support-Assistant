@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChatMessage, ConversationSummary } from '@workspace/api-client-react';
+import type { ChatMessage, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
 import {
   getGetConversationQueryKey,
   getListConversationsQueryKey,
@@ -8,9 +8,10 @@ import {
   useDeleteConversation,
   useGetConversation,
   useListConversations,
+  uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 
 const firstUsePrompts = [
@@ -21,8 +22,25 @@ const firstUsePrompts = [
 ];
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
+const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
+
+type PendingImage = {
+  file: File;
+  previewUrl: string;
+};
+
+function imageValidationError(file: File): string | null {
+  const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+  const allowedExtension = extension === '.jpg' || extension === '.jpeg' || extension === '.png';
+  const allowedType = file.type === 'image/jpeg' || file.type === 'image/png';
+  if (!allowedExtension || !allowedType) return 'Only JPG and PNG images can be attached.';
+  if (file.size === 0) return 'That image is empty. Choose another file.';
+  if (file.size > MAX_IMAGE_BYTES) return 'That image is too large. Choose an image smaller than 5 MB.';
+  return null;
+}
 
 function cleanDisplayedAssistantContent(content: string) {
   let cleaned = content.trim();
@@ -95,6 +113,14 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
     <div className={`animate-rise flex gap-3 ${assistant ? 'items-start' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
       <div className={`min-w-0 max-w-[min(680px,87%)] ${assistant ? '' : 'order-first'}`}>
         <div className={`max-w-full rounded-xl px-4 py-3.5 text-[13px] leading-[1.75] [overflow-wrap:anywhere] ${assistant ? 'rounded-tl-sm border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-sm bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
+          {(message.attachments?.length || 0) > 0 && <div className="mb-3 space-y-2">
+            {(message.attachments || []).map((attachment) => <div key={attachment.id} className="max-w-full overflow-hidden rounded-lg border border-current/15 bg-black/10">
+              <img src={attachment.url} alt={`Attached image: ${attachment.filename}`} loading="lazy" referrerPolicy="no-referrer" className="max-h-64 w-full max-w-[min(360px,100%)] object-contain" />
+              <a href={attachment.url} target="_blank" rel="noreferrer" className="flex items-center justify-between gap-3 border-t border-current/15 px-3 py-2 text-[10px] font-semibold underline-offset-2 hover:underline" aria-label={`Open attached image ${attachment.filename}`}>
+                <span className="min-w-0 truncate">{attachment.filename}</span><span className="shrink-0">Open image</span>
+              </a>
+            </div>)}
+          </div>}
           <div className="min-w-0 whitespace-pre-wrap [overflow-wrap:anywhere]"><FormattedMessage content={displayContent} /></div>
         </div>
         <div className={`mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground ${assistant ? '' : 'justify-end'}`}>
@@ -130,11 +156,11 @@ function StreamingBubble({ content }: { content: string }) {
   );
 }
 
-async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void): Promise<{ content: string; messageId: string | null }> {
+async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null): Promise<{ content: string; messageId: string | null }> {
   const response = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, attachmentId: attachmentId || undefined }),
   });
   if (!response.ok) throw new Error('Assistant request failed');
   if (!response.body) {
@@ -212,7 +238,10 @@ export function HomePage() {
   const [newConversationNotice, setNewConversationNotice] = useState(false);
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
+  const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
+  const [attachmentError, setAttachmentError] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -224,6 +253,12 @@ export function HomePage() {
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
   const activeConversation = conversations.find((conversation) => conversation.id === selectedId);
   const messages = localMessages.length > 0 ? localMessages : (conversationQuery.data?.messages || []);
+
+  useEffect(() => {
+    return () => {
+      if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    };
+  }, [pendingImage]);
 
   useEffect(() => {
     if (!selectedId && !isCreatingConversation && conversations.length > 0) setSelectedId(conversations[0].id);
@@ -263,6 +298,29 @@ export function HomePage() {
     setInactivityResetToken((value) => value + 1);
   };
 
+  const chooseImage = (file: File | undefined) => {
+    setAttachmentError('');
+    if (!file) return;
+    const validationError = imageValidationError(file);
+    if (validationError) {
+      setAttachmentError(validationError);
+      return;
+    }
+    if (pendingImage && pendingImage.file.name === file.name && pendingImage.file.size === file.size && pendingImage.file.lastModified === file.lastModified) {
+      setAttachmentError('That image is already attached.');
+      return;
+    }
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage({ file, previewUrl: URL.createObjectURL(file) });
+  };
+
+  const removeImage = () => {
+    if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
+    setPendingImage(null);
+    setAttachmentError('');
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const startNewConversation = async () => {
     if (isCreatingConversation || isSending) return;
     setIsCreatingConversation(true);
@@ -272,6 +330,7 @@ export function HomePage() {
     setSelectedId(null);
     setLocalMessages([]);
     setInput('');
+    removeImage();
     setStreamingText('');
     setInactivityState('active');
     setInactivityResetToken((value) => value + 1);
@@ -288,29 +347,45 @@ export function HomePage() {
     }
   };
 
-  const sendMessage = async (contentOverride?: string) => {
+  const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null) => {
     const content = (contentOverride ?? input).trim();
-    if (!content || isSending) return;
+    const image = imageOverride === undefined ? pendingImage : imageOverride;
+    if ((!content && !image) || isSending) return;
     setErrorMessage('');
+    setAttachmentError('');
     setNotice('');
     setInput('');
     let conversationId = selectedId;
+    const hasImage = Boolean(image);
+    let uploadFailed = false;
     try {
        if (!conversationId) {
-        const created = await createConversation.mutateAsync({ data: { title: content.slice(0, 64) } });
+        const created = await createConversation.mutateAsync({ data: { title: (content || IMAGE_ATTACHMENT_MESSAGE).slice(0, 64) } });
         conversationId = created.id;
         setSelectedId(created.id);
       }
-      const userMessage: ChatMessage = { id: `local-user-${Date.now()}`, conversationId, role: 'user', content, createdAt: new Date().toISOString(), feedback: null };
-      setLocalMessages((current) => [...current, userMessage]);
       setIsSending(true);
+      let uploadedImage: ImageAttachment | null = null;
+      if (image) {
+        try {
+          uploadedImage = await uploadConversationImage(conversationId, { file: image.file });
+        } catch {
+          uploadFailed = true;
+          throw new Error('Image upload failed');
+        }
+        removeImage();
+      }
+      const messageContent = content || IMAGE_ATTACHMENT_MESSAGE;
+      const userMessage: ChatMessage = { id: `local-user-${Date.now()}`, conversationId, role: 'user', content: messageContent, createdAt: new Date().toISOString(), feedback: null, attachments: uploadedImage ? [uploadedImage] : [] };
+      setLocalMessages((current) => [...current, userMessage]);
       setStreamingText('');
-      const response = await streamAssistantResponse(conversationId, content, setStreamingText);
-      const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null };
+      const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id);
+      const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
       setLocalMessages((current) => [...current, assistantMessage]);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
+      if (uploadFailed) setAttachmentError('The image could not be uploaded. Check the file and try again.');
       setErrorMessage('That did not go through. Check your connection and try again.');
       setInput(content);
     } finally {
@@ -321,7 +396,7 @@ export function HomePage() {
 
   const retryLast = () => {
     const previous = [...messages].reverse().find((message) => message.role === 'user');
-    if (previous) void sendMessage(previous.content);
+    if (previous) void sendMessage(previous.content === IMAGE_ATTACHMENT_MESSAGE ? '' : previous.content);
   };
 
   const handleFeedback = async (message: ChatMessage, rating: 'helpful' | 'not_helpful') => {
@@ -403,9 +478,22 @@ export function HomePage() {
              {inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-4 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[1320px]">
                  <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
-                   <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
-                   <div className="flex justify-end px-2 pb-1"><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
+                    {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
+                      <img src={pendingImage.previewUrl} alt={`Preview of ${pendingImage.file.name}`} className="h-12 w-12 shrink-0 rounded-md object-cover" />
+                      <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{pendingImage.file.name}</div><div className="mt-0.5 font-mono text-[9px] text-muted-foreground">Ready to send · JPG/PNG</div></div>
+                      <button type="button" onClick={removeImage} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Remove ${pendingImage.file.name}`} data-testid="button-remove-attachment"><HiOutlineXMark size={15} /></button>
+                    </div>}
+                    <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
+                    <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
+                        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
+                        <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB</span>
+                      </div>
+                      <button onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button>
+                    </div>
                  </div>
+                  {attachmentError && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" data-testid="status-attachment-error">{attachmentError}</div>}
                  <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
                </div>
             </div>}

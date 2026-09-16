@@ -26,6 +26,8 @@ import type {
   ConversationSummary,
   FeedbackInput,
   HealthStatus,
+  ImageAttachment,
+  ImageUploadInput,
   KnowledgeArticle,
   KnowledgeArticleInput,
   KnowledgeArticleUpdate,
@@ -543,6 +545,165 @@ export const useStreamAssistantMessage = <TError = ErrorType<void>,
       > => {
       return useMutation(getStreamAssistantMessageMutationOptions(options));
     }
+
+export const getUploadConversationImageUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/conversations/${conversationId}/attachments`
+}
+
+/**
+ * @summary Upload a JPG or PNG conversation image
+ */
+export const uploadConversationImage = async (conversationId: string,
+    imageUploadInput: ImageUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<ImageAttachment> => {
+    const formData = new FormData();
+formData.append(`file`, imageUploadInput.file);
+
+  return customFetch<ImageAttachment>(getUploadConversationImageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+    ,
+    body: formData
+  }
+);}
+
+
+
+
+
+export const getUploadConversationImageMutationKey = () => ['uploadConversationImage'] as const;
+
+export const getUploadConversationImageMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadConversationImage>>, TError,UploadConversationImageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof uploadConversationImage>>, TError,UploadConversationImageMutationVariables, TContext> => {
+
+const mutationKey = getUploadConversationImageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof uploadConversationImage>>, UploadConversationImageMutationVariables> = (props) => {
+          const {conversationId,data} = props ?? {};
+
+          return  uploadConversationImage(conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UploadConversationImageMutationResult = NonNullable<Awaited<ReturnType<typeof uploadConversationImage>>>
+    export type UploadConversationImageMutationBody = BodyType<ImageUploadInput>
+    export type UploadConversationImageMutationError = ErrorType<void>
+    export type UploadConversationImageMutationVariables = {conversationId: string;data: BodyType<ImageUploadInput>}
+
+    /**
+ * @summary Upload a JPG or PNG conversation image
+ */
+export const useUploadConversationImage = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof uploadConversationImage>>, TError,UploadConversationImageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof uploadConversationImage>>,
+        TError,
+        UploadConversationImageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUploadConversationImageMutationOptions(options));
+    }
+
+export const getGetConversationImageUrl = (conversationId: string,
+    attachmentId: string,) => {
+
+
+
+
+  return `/api/conversations/${conversationId}/attachments/${attachmentId}`
+}
+
+/**
+ * @summary Get a conversation image
+ */
+export const getConversationImage = async (conversationId: string,
+    attachmentId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
+
+  return customFetch<Blob>(getGetConversationImageUrl(conversationId,attachmentId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetConversationImageQueryKey = (conversationId: string,
+    attachmentId: string,) => {
+    return [
+    `/api/conversations/${conversationId}/attachments/${attachmentId}`
+    ] as const;
+    }
+
+
+export const getGetConversationImageQueryOptions = <TData = Awaited<ReturnType<typeof getConversationImage>>, TError = ErrorType<void>>(conversationId: string,
+    attachmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetConversationImageQueryKey(conversationId,attachmentId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversationImage>>> = ({ signal }) => getConversationImage(conversationId,attachmentId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: conversationId !== null && conversationId !== undefined && attachmentId !== null && attachmentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getConversationImage>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetConversationImageQueryResult = NonNullable<Awaited<ReturnType<typeof getConversationImage>>>
+export type GetConversationImageQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get a conversation image
+ */
+
+export function useGetConversationImage<TData = Awaited<ReturnType<typeof getConversationImage>>, TError = ErrorType<void>>(
+ conversationId: string,
+    attachmentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getConversationImage>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetConversationImageQueryOptions(conversationId,attachmentId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getCreateMessageFeedbackUrl = (messageId: string,) => {
 

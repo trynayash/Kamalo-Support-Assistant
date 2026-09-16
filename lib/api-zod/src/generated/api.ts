@@ -56,6 +56,13 @@ export const GetConversationParams = zod.object({
   "conversationId": zod.coerce.string()
 })
 
+export const getConversationResponseTwoMessagesItemAttachmentsItemFilenameMax = 255;
+
+
+export const getConversationResponseTwoMessagesItemAttachmentsMax = 1;
+
+
+
 export const GetConversationResponse = zod.object({
   "id": zod.string(),
   "title": zod.string(),
@@ -68,7 +75,15 @@ export const GetConversationResponse = zod.object({
   "role": zod.enum(['user', 'assistant']),
   "content": zod.string(),
   "createdAt": zod.coerce.date(),
-  "feedback": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish()
+  "feedback": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "attachments": zod.array(zod.object({
+  "id": zod.string(),
+  "filename": zod.string().max(getConversationResponseTwoMessagesItemAttachmentsItemFilenameMax),
+  "mediaType": zod.enum(['image/jpeg', 'image/png']),
+  "size": zod.number().int().min(1),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})).max(getConversationResponseTwoMessagesItemAttachmentsMax)
 }))
 }))
 
@@ -92,13 +107,53 @@ export const StreamAssistantMessageParams = zod.object({
 
 export const streamAssistantMessageBodyContentMax = 4000;
 
+export const streamAssistantMessageBodyAttachmentIdMax = 120;
+
 
 
 export const StreamAssistantMessageBody = zod.object({
-  "content": zod.string().min(1).max(streamAssistantMessageBodyContentMax)
+  "content": zod.string().max(streamAssistantMessageBodyContentMax).optional(),
+  "attachmentId": zod.string().max(streamAssistantMessageBodyAttachmentIdMax).nullish()
 })
 
 export const StreamAssistantMessageResponse = zod.unknown()
+
+
+/**
+ * @summary Upload a JPG or PNG conversation image
+ */
+export const UploadConversationImageParams = zod.object({
+  "conversationId": zod.coerce.string()
+})
+
+export const UploadConversationImageBody = zod.object({
+  "file": zod.instanceof(Blob)
+})
+
+export const uploadConversationImageResponseFilenameMax = 255;
+
+
+
+
+export const UploadConversationImageResponse = zod.object({
+  "id": zod.string(),
+  "filename": zod.string().max(uploadConversationImageResponseFilenameMax),
+  "mediaType": zod.enum(['image/jpeg', 'image/png']),
+  "size": zod.number().int().min(1),
+  "url": zod.string(),
+  "uploadedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a conversation image
+ */
+export const GetConversationImageParams = zod.object({
+  "conversationId": zod.coerce.string(),
+  "attachmentId": zod.coerce.string()
+})
+
+export const GetConversationImageResponse = zod.unknown()
 
 
 /**

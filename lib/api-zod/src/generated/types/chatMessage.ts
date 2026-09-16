@@ -7,6 +7,7 @@
  */
 import type { ChatMessageFeedback } from './chatMessageFeedback';
 import type { ChatMessageRole } from './chatMessageRole';
+import type { ImageAttachment } from './imageAttachment';
 
 export interface ChatMessage {
   id: string;
@@ -16,4 +17,6 @@ export interface ChatMessage {
   createdAt: Date;
   /** @nullable */
   feedback?: ChatMessageFeedback;
+  /** @maxItems 1 */
+  attachments: ImageAttachment[];
 }
