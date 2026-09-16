@@ -1296,6 +1296,80 @@ export const useAnalyzeSupportTicket = <TError = ErrorType<void>,
       return useMutation(getAnalyzeSupportTicketMutationOptions(options));
     }
 
+export const getRetrySupportTicketEmailUrl = (ticketId: string,) => {
+
+
+
+
+  return `/api/tickets/${ticketId}/email`
+}
+
+/**
+ * @summary Retry the latest customer support email
+ */
+export const retrySupportTicketEmail = async (ticketId: string, options?: Parameters<typeof customFetch>[1]): Promise<SupportTicket> => {
+
+  return customFetch<SupportTicket>(getRetrySupportTicketEmailUrl(ticketId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getRetrySupportTicketEmailMutationKey = () => ['retrySupportTicketEmail'] as const;
+
+export const getRetrySupportTicketEmailMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySupportTicketEmail>>, TError,RetrySupportTicketEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof retrySupportTicketEmail>>, TError,RetrySupportTicketEmailMutationVariables, TContext> => {
+
+const mutationKey = getRetrySupportTicketEmailMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof retrySupportTicketEmail>>, RetrySupportTicketEmailMutationVariables> = (props) => {
+          const {ticketId} = props ?? {};
+
+          return  retrySupportTicketEmail(ticketId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RetrySupportTicketEmailMutationResult = NonNullable<Awaited<ReturnType<typeof retrySupportTicketEmail>>>
+
+    export type RetrySupportTicketEmailMutationError = ErrorType<void>
+    export type RetrySupportTicketEmailMutationVariables = {ticketId: string}
+
+    /**
+ * @summary Retry the latest customer support email
+ */
+export const useRetrySupportTicketEmail = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof retrySupportTicketEmail>>, TError,RetrySupportTicketEmailMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof retrySupportTicketEmail>>,
+        TError,
+        RetrySupportTicketEmailMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRetrySupportTicketEmailMutationOptions(options));
+    }
+
 export const getListKnowledgeArticlesUrl = (params?: ListKnowledgeArticlesParams,) => {
   const normalizedParams = new URLSearchParams();
 

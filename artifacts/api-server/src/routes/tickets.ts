@@ -73,6 +73,39 @@ async function ticketById(id: string): Promise<TicketRow | null> {
   return ticket || null;
 }
 
+type TicketNotificationResult = {
+  status: "sent" | "failed" | "skipped";
+  error?: unknown;
+};
+
+async function sendTicketNotification(ticket: TicketRow): Promise<TicketNotificationResult> {
+  if (!ticket.contactEmail) return { status: "skipped" };
+
+  const isResolution = ticket.status === "resolved" && Boolean(ticket.resolution);
+  try {
+    await sendTicketEmail({
+      to: ticket.contactEmail,
+      subject: isResolution
+        ? `KAMALO support ticket ${ticket.ticketNumber} resolved`
+        : `KAMALO support ticket ${ticket.ticketNumber} received`,
+      ticketNumber: ticket.ticketNumber,
+      title: isResolution ? "Your support request has been resolved" : "We received your support request",
+      body: isResolution
+        ? "A KAMALO specialist reviewed your request and added the resolution below."
+        : "Your request is now in the KAMALO support queue. A specialist will review the conversation and follow up with a resolution.",
+      resolution: isResolution ? ticket.resolution || undefined : undefined,
+    });
+    return { status: "sent" };
+  } catch (error) {
+    return { status: "failed", error };
+  }
+}
+
+async function persistEmailStatus(ticketId: string, emailStatus: "sent" | "failed" | "skipped"): Promise<TicketRow | null> {
+  await db.update(supportTicketsTable).set({ emailStatus, updatedAt: new Date() }).where(eq(supportTicketsTable.id, ticketId));
+  return ticketById(ticketId);
+}
+
 router.get("/tickets", async (_req, res): Promise<void> => {
   const tickets = await db.select().from(supportTicketsTable)
     .where(eq(supportTicketsTable.userId, DEMO_USER_ID))
@@ -240,6 +273,32 @@ Do not claim account access, transaction checks, balances, refunds, completed ac
   }
   draftResolution = capAssistantOutput(sanitizeAssistantOutput(draftResolution || "AI analysis could not produce a verified draft. Please review this ticket manually."));
   res.json(AnalyzeSupportTicketResponse.parse({ mode: "ai", draftResolution }));
+});
+
+router.post("/tickets/:ticketId/email", async (req, res): Promise<void> => {
+  const params = GetSupportTicketParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const ticket = await ticketById(params.data.ticketId);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  if (!ticket.contactEmail) {
+    res.status(400).json({ error: "This ticket does not have a customer email address." });
+    return;
+  }
+
+  const notification = await sendTicketNotification(ticket);
+  if (notification.status === "failed") {
+    req.log.warn({ err: notification.error, ticketNumber: ticket.ticketNumber }, "Ticket email retry failed");
+  } else {
+    req.log.info({ ticketNumber: ticket.ticketNumber }, "Ticket email retry sent");
+  }
+  const refreshed = await persistEmailStatus(ticket.id, notification.status);
+  res.json(UpdateSupportTicketResponse.parse(await ticketResponse(refreshed || ticket)));
 });
 
 router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {

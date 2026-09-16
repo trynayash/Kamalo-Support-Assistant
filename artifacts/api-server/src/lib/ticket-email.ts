@@ -9,6 +9,14 @@ type TicketEmail = {
   resolution?: string;
 };
 
+function configuredSender(): string {
+  const sender = process.env.RESEND_FROM_EMAIL?.trim();
+  if (!sender) {
+    throw new Error("RESEND_FROM_EMAIL is not configured");
+  }
+  return sender;
+}
+
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;",
@@ -28,7 +36,7 @@ export async function sendTicketEmail({ to, subject, ticketNumber, title, body, 
     `<p>${escapeHtml(body)}</p>`,
     `<p><strong>Ticket ID:</strong> ${escapeHtml(ticketNumber)}</p>`,
     resolution ? `<div style="margin-top:20px;padding:16px;border:1px solid #d7e0dc;border-radius:10px;background:#f6faf7"><strong>Resolution</strong><p>${escapeHtml(resolution)}</p></div>` : "",
-    `<p style="font-size:12px;color:#6b7c7f;margin-top:28px">This is a support update from the KAMALO test workspace.</p>`,
+    `<p style="font-size:12px;color:#6b7c7f;margin-top:28px">This is a support update from KAMALO.</p>`,
     `</div>`,
   ].join("");
 
@@ -36,7 +44,7 @@ export async function sendTicketEmail({ to, subject, ticketNumber, title, body, 
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: process.env.RESEND_FROM_EMAIL || "KAMALO Support <onboarding@resend.dev>",
+      from: configuredSender(),
       to: [to],
       subject,
       html,

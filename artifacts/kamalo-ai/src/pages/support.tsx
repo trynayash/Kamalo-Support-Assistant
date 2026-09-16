@@ -30,7 +30,7 @@ function TicketRow({ ticket }: { ticket: SupportTicket }) {
           <div className="mt-2 font-mono text-[9px] text-muted-foreground/70">Opened {dateTime(ticket.createdAt)} · {ticket.category}{ticket.attachmentIds.length > 0 ? ` · ${ticket.attachmentIds.length} image${ticket.attachmentIds.length === 1 ? '' : 's'}` : ''}</div>
         </div>
       </div>
-      <div className="flex items-center gap-2 text-[11px] text-muted-foreground xl:justify-center"><HiOutlineEnvelope size={14} />{ticket.emailStatus === 'sent' ? 'Email sent' : ticket.emailStatus === 'failed' ? 'Email needs retry' : ticket.emailStatus === 'skipped' ? 'No email added' : 'Email pending'}</div>
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground xl:justify-center"><HiOutlineEnvelope size={14} />{ticket.emailStatus === 'sent' ? 'Email sent' : ticket.emailStatus === 'failed' ? 'Email delivery failed' : ticket.emailStatus === 'skipped' ? 'No email added' : 'Email pending'}</div>
       <Link href={`/support/${ticket.id}`} className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-bold text-primary hover:border-primary/40 hover:bg-primary/5 xl:justify-self-end" data-testid={`link-support-ticket-${ticket.id}`}>View ticket <HiOutlineArrowUpRight size={13} /></Link>
     </article>
   );

@@ -300,6 +300,24 @@ paths:
           description: Invalid analysis request
         "404":
           description: Ticket not found
+  /tickets/{ticketId}/email:
+    post:
+      operationId: retrySupportTicketEmail
+      tags: [tickets]
+      summary: Retry the latest customer support email
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      responses:
+        "200":
+          description: Ticket with the latest email delivery status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "400":
+          description: Ticket has no customer email address
+        "404":
+          description: Ticket not found
   /knowledge/articles:
     get:
       operationId: listKnowledgeArticles

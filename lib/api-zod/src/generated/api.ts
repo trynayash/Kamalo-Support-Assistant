@@ -384,6 +384,36 @@ export const AnalyzeSupportTicketResponse = zod.object({
 
 
 /**
+ * @summary Retry the latest customer support email
+ */
+export const RetrySupportTicketEmailParams = zod.object({
+  "ticketId": zod.coerce.string()
+})
+
+export const RetrySupportTicketEmailResponse = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+
+
+/**
  * @summary Search knowledge articles
  */
 export const ListKnowledgeArticlesQueryParams = zod.object({
