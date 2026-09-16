@@ -117,8 +117,12 @@ function StreamingBubble({ content }: { content: string }) {
     <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming">
       <div className="min-w-[min(340px,80%)] max-w-[min(680px,87%)] rounded-xl rounded-tl-sm border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
         {content && <div className="mb-3 whitespace-pre-wrap text-[13px] leading-[1.75] text-card-foreground"><FormattedMessage content={content} /></div>}
-        <div className="flex items-center justify-between gap-4 text-[11px] text-muted-foreground"><span>Checking approved sources</span><span className="font-mono text-[10px] text-primary">working</span></div>
-        <div className="mt-3 h-1 overflow-hidden rounded-sm bg-muted"><div className="h-full w-2/5 rounded-sm bg-primary transition-transform duration-700" /></div>
+        <div className="flex items-center gap-1.5 py-1" role="status" aria-label="KAMALO is responding">
+          <span className="sr-only">KAMALO is responding</span>
+          <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '0ms' }} />
+          <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '140ms' }} />
+          <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '280ms' }} />
+        </div>
       </div>
     </div>
   );
@@ -183,7 +187,6 @@ function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
 
 export function HomePage() {
   const queryClient = useQueryClient();
-  const [mobileOpen, setMobileOpen] = useState(false);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
@@ -195,6 +198,7 @@ export function HomePage() {
   const [notice, setNotice] = useState('');
   const [newConversationNotice, setNewConversationNotice] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messagesScrollRef = useRef<HTMLDivElement>(null);
 
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
@@ -212,6 +216,15 @@ export function HomePage() {
   useEffect(() => {
     if (conversationQuery.data?.id === selectedId && !isSending) setLocalMessages(conversationQuery.data.messages);
   }, [conversationQuery.data, selectedId, isSending]);
+
+  useEffect(() => {
+    const container = messagesScrollRef.current;
+    if (!container || (messages.length === 0 && !isSending)) return;
+    const frame = window.requestAnimationFrame(() => {
+      container.scrollTo({ top: container.scrollHeight, behavior: isSending ? 'auto' : 'smooth' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [messages.length, streamingText, isSending, selectedId]);
 
   const startNewConversation = async () => {
     if (isCreatingConversation || isSending) return;
@@ -296,7 +309,7 @@ export function HomePage() {
   };
 
   return (
-    <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} mobileOpen={mobileOpen} onMobileOpenChange={setMobileOpen}>
+    <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
       <div className="mx-auto flex min-h-[calc(100dvh-57px)] max-w-[1320px] flex-col px-4 pb-4 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-7 lg:px-12">
           <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
@@ -312,7 +325,7 @@ export function HomePage() {
         <div className="grid min-h-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 flex-col pt-5 md:pt-12">
             {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : messages.length === 0 && !conversationQuery.isLoading ? <ChatEmptyState onPrompt={(text) => void sendMessage(text)} /> : (
-              <div className="thin-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
+              <div ref={messagesScrollRef} className="thin-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void navigator.clipboard?.writeText(content); setNotice('Answer copied to clipboard.'); window.setTimeout(() => setNotice(''), 2200); }} onRetry={retryLast} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
@@ -322,9 +335,10 @@ export function HomePage() {
             {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             <div className="safe-bottom sticky bottom-0 z-10 -mx-1 bg-background/95 pt-2 backdrop-blur-sm">
               <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
-                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
-                <div className="flex items-center justify-between px-2 pb-1"><span className="hidden font-mono text-[9px] text-muted-foreground/70 sm:block">Enter to send · Shift + Enter for a new line</span><span className="font-mono text-[9px] text-muted-foreground/70 sm:hidden">Enter to send</span><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
+                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
+                <div className="flex justify-end px-2 pb-1"><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
               </div>
+              <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
             </div>
           </section>
 

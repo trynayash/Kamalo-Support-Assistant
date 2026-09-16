@@ -121,6 +121,12 @@
 .animate-rise { animation: rise-in .45s ease-out both; }
 .skeleton { background: linear-gradient(100deg, hsl(var(--muted)) 30%, hsl(var(--card)) 50%, hsl(var(--muted)) 70%); background-size: 220% 100%; animation: shimmer 1.4s infinite; }
 .safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+.safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
+.typing-dot { animation: typing-dot 1.1s ease-in-out infinite; }
+@keyframes typing-dot {
+  0%, 60%, 100% { transform: translateY(0); opacity: .45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
 .thin-scrollbar { scrollbar-width: thin; scrollbar-color: hsl(var(--border)) transparent; }
 .thin-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
 .thin-scrollbar::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }

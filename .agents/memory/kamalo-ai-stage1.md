@@ -20,3 +20,9 @@ Assistant replies should be plain international English with restrained formatti
 **Why:** The support experience is intended to feel like clear human guidance rather than a model transcript, including when older stored replies are displayed.
 
 **How to apply:** Keep the server prompt and client display cleanup aligned whenever response formatting changes.
+
+On small screens, navigation is a compact top bar rather than a drawer: brand left, new conversation and knowledge navigation actions right; the desktop sidebar remains available at desktop widths.
+
+**Why:** The support chat is intended for mobile first use, where a full height navigation rail consumes too much space and interrupts the conversation.
+
+**How to apply:** Keep the composer, live response scroll position, and safe area spacing optimized for touch devices whenever the mobile shell changes.
