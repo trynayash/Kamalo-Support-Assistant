@@ -158,9 +158,23 @@ async function setupKnowledge(): Promise<void> {
   const masterMarker = "001 · Master guidance / 1. THE KAMALO SUPPORT PHILOSOPHY";
   if (existingTitles.has(masterMarker)) return;
 
-  const sourcePath = path.resolve(process.cwd(), "attached_assets", masterKnowledgeFilename);
+  const sourcePaths = [
+    path.resolve(process.cwd(), "attached_assets", masterKnowledgeFilename),
+    path.resolve(process.cwd(), "..", "..", "attached_assets", masterKnowledgeFilename),
+  ];
   try {
-    const source = await readFile(sourcePath, "utf8");
+    let source = "";
+    let sourcePath = sourcePaths[0];
+    for (const candidate of sourcePaths) {
+      try {
+        source = await readFile(candidate, "utf8");
+        sourcePath = candidate;
+        break;
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      }
+    }
+    if (!source) throw new Error(`Knowledge source was not found in: ${sourcePaths.join(", ")}`);
     for (const article of parseMasterKnowledge(source)) {
       if (existingTitles.has(article.title)) continue;
       await insertKnowledgeArticle(article);
@@ -168,7 +182,7 @@ async function setupKnowledge(): Promise<void> {
     }
     console.info(`Imported ${parseMasterKnowledge(source).length} KAMALO master knowledge articles.`);
   } catch (error) {
-    console.warn(`KAMALO master knowledge file was not imported from ${sourcePath}.`, error);
+    console.warn(`KAMALO master knowledge file was not imported from ${sourcePaths.join(" or ")}.`, error);
   }
 }
 
