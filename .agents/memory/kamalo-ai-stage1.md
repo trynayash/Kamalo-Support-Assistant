@@ -14,3 +14,9 @@ Preview workflow restarts can fail with `EADDRINUSE` when an older Vite or API p
 **Why:** Replit workflow restarts do not always terminate a stale process from a previous preview session.
 
 **How to apply:** Check the listeners for the artifact ports first, then restart the exact managed workflows once the ports are clear.
+
+Assistant replies should be plain international English with restrained formatting: useful bold labels are allowed, while quote marks, decorative headings, hyphen bullets, and generic follow up offers are removed.
+
+**Why:** The support experience is intended to feel like clear human guidance rather than a model transcript, including when older stored replies are displayed.
+
+**How to apply:** Keep the server prompt and client display cleanup aligned whenever response formatting changes.
