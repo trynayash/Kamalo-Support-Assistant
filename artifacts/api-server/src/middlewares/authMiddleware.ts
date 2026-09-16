@@ -59,3 +59,11 @@ export function requireRole(...roles: SupportRole[]) {
     next();
   };
 }
+
+export function requireAdminRoleManagement(req: Request, res: Response, next: NextFunction): void {
+  if (!req.isAuthenticated() || req.user.role !== "admin") {
+    res.status(404).json({ error: "The requested resource was not found." });
+    return;
+  }
+  next();
+}

@@ -22,4 +22,22 @@ export const usersTable = pgTable("users", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export const roleChangesTable = pgTable(
+  "role_changes",
+  {
+    id: text("id").primaryKey(),
+    actorId: varchar("actor_id").notNull(),
+    targetUserId: varchar("target_user_id").notNull(),
+    previousRole: text("previous_role").notNull(),
+    nextRole: text("next_role").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("role_changes_actor_idx").on(table.actorId),
+    index("role_changes_target_idx").on(table.targetUserId),
+    index("role_changes_created_at_idx").on(table.createdAt),
+  ],
+);
+
 export type User = typeof usersTable.$inferSelect;
+export type RoleChange = typeof roleChangesTable.$inferSelect;

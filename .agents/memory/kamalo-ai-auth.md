@@ -7,4 +7,4 @@ KAMALO web access uses Replit OIDC with PKCE and PostgreSQL cookie sessions. Cus
 
 **Why:** The support product must not expose conversation, attachment, feedback, or ticket data through shared demo identities or direct-ID requests.
 
-**How to apply:** Keep `context.ts` as the identity seam, load the current role from the users table on requests, use generic sign-in/access-denied states in the web app, and bootstrap support/admin roles only through the configured allowlists or an explicit database role change.
+**How to apply:** Keep `context.ts` as the identity seam, load the current role from the users table on requests, use generic sign-in/access-denied states in the web app, and use configured allowlists only to bootstrap new accounts; explicit database role changes are authoritative for existing accounts.

@@ -1,6 +1,9 @@
+import { asc, desc } from "drizzle-orm";
 import { Router, type IRouter, type Request, type Response } from "express";
 import * as oidc from "openid-client";
-import { createSession, clearSession, deleteSession, getOidcConfig, getSessionId, ISSUER_URL, SESSION_COOKIE, SESSION_TTL, upsertUser, type SessionData } from "../lib/auth";
+import { db, roleChangesTable, usersTable } from "@workspace/db";
+import { requireAdminRoleManagement } from "../middlewares/authMiddleware";
+import { changeUserRole, clearSession, createSession, deleteSession, getOidcConfig, getSessionId, isManageableRole, ISSUER_URL, SESSION_COOKIE, SESSION_TTL, LastAdminError, upsertUser, type SessionData } from "../lib/auth";
 
 const router: IRouter = Router();
 const OIDC_COOKIE_TTL = 10 * 60 * 1000;
@@ -37,6 +40,54 @@ function setOidcCookie(res: Response, name: string, value: string): void {
 
 router.get("/auth/user", (req, res) => {
   res.json({ user: req.isAuthenticated() ? req.user : null });
+});
+
+router.use("/auth/roles", requireAdminRoleManagement);
+
+router.get("/auth/roles", async (_req, res): Promise<void> => {
+  const users = await db.select({
+    id: usersTable.id,
+    email: usersTable.email,
+    firstName: usersTable.firstName,
+    lastName: usersTable.lastName,
+    role: usersTable.role,
+    updatedAt: usersTable.updatedAt,
+  }).from(usersTable).orderBy(asc(usersTable.email), asc(usersTable.id));
+  res.json({ users });
+});
+
+router.get("/auth/roles/audit", async (_req, res): Promise<void> => {
+  const changes = await db.select().from(roleChangesTable).orderBy(desc(roleChangesTable.createdAt)).limit(100);
+  res.json({ changes });
+});
+
+router.patch("/auth/roles/:userId", async (req, res): Promise<void> => {
+  const nextRole = req.body?.role;
+  if (!isManageableRole(nextRole) || !req.params.userId) {
+    res.status(400).json({ error: "A valid role is required." });
+    return;
+  }
+  try {
+    const result = await changeUserRole(req.params.userId, req.user!.id, nextRole);
+    if (!result) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+    req.log.info({
+      actorId: req.user!.id,
+      targetUserId: result.user.id,
+      previousRole: result.previousRole,
+      nextRole,
+      changed: result.changed,
+    }, "Account role management request completed");
+    res.json(result);
+  } catch (error) {
+    if (error instanceof LastAdminError) {
+      res.status(409).json({ error: error.message, code: "LAST_ADMIN_REQUIRED" });
+      return;
+    }
+    throw error;
+  }
 });
 
 router.get("/login", async (req, res): Promise<void> => {

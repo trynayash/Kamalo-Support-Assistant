@@ -1,8 +1,8 @@
 import crypto from "node:crypto";
 import type { Request, Response } from "express";
 import * as oidc from "openid-client";
-import { eq } from "drizzle-orm";
-import { db, sessionsTable, usersTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
+import { db, roleChangesTable, sessionsTable, usersTable } from "@workspace/db";
 import type { SupportRole } from "./context";
 
 export type AuthUser = {
@@ -24,6 +24,15 @@ export type SessionData = {
 export const ISSUER_URL = process.env.ISSUER_URL ?? "https://replit.com/oidc";
 export const SESSION_COOKIE = "sid";
 export const SESSION_TTL = 7 * 24 * 60 * 60 * 1000;
+export const MANAGEABLE_ROLES = ["customer", "support", "admin"] as const;
+export type ManageableRole = (typeof MANAGEABLE_ROLES)[number];
+
+export class LastAdminError extends Error {
+  constructor() {
+    super("At least one admin account must remain.");
+    this.name = "LastAdminError";
+  }
+}
 
 let oidcConfig: oidc.Configuration | null = null;
 
@@ -94,7 +103,7 @@ function configuredIds(name: string): Set<string> {
 }
 
 function roleForClaims(claims: Record<string, unknown>, existingRole?: string | null): SupportRole {
-  if (existingRole === "admin" || existingRole === "support") return existingRole;
+  if (existingRole === "admin" || existingRole === "support" || existingRole === "customer") return existingRole;
   const id = typeof claims.sub === "string" ? claims.sub : "";
   const email = typeof claims.email === "string" ? claims.email.toLowerCase() : "";
   if (configuredIds("KAMALO_ADMIN_USER_IDS").has(id) || configuredIds("KAMALO_ADMIN_EMAILS").has(email)) return "admin";
@@ -127,6 +136,76 @@ export async function upsertUser(claims: Record<string, unknown>): Promise<AuthU
     profileImageUrl: user.profileImageUrl,
     role: user.role as SupportRole,
   };
+}
+
+export function isManageableRole(value: unknown): value is ManageableRole {
+  return typeof value === "string" && (MANAGEABLE_ROLES as readonly string[]).includes(value);
+}
+
+export type RoleChangeResult = {
+  user: AuthUser;
+  previousRole: SupportRole;
+  changed: boolean;
+};
+
+export async function changeUserRole(
+  targetUserId: string,
+  actorUserId: string,
+  nextRole: ManageableRole,
+): Promise<RoleChangeResult | null> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`select pg_advisory_xact_lock(1938142351)`);
+    const [target] = await tx.select().from(usersTable).where(eq(usersTable.id, targetUserId)).limit(1);
+    if (!target) return null;
+
+    const previousRole = target.role as SupportRole;
+    if (previousRole === nextRole) {
+      return {
+        user: {
+          id: target.id,
+          email: target.email,
+          firstName: target.firstName,
+          lastName: target.lastName,
+          profileImageUrl: target.profileImageUrl,
+          role: previousRole,
+        },
+        previousRole,
+        changed: false,
+      };
+    }
+
+    if (previousRole === "admin" && nextRole !== "admin") {
+      const admins = await tx.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.role, "admin")).limit(2);
+      if (admins.length < 2) throw new LastAdminError();
+    }
+
+    const [updated] = await tx.update(usersTable)
+      .set({ role: nextRole, updatedAt: new Date() })
+      .where(eq(usersTable.id, targetUserId))
+      .returning();
+    if (!updated) return null;
+
+    await tx.insert(roleChangesTable).values({
+      id: crypto.randomUUID(),
+      actorId: actorUserId,
+      targetUserId,
+      previousRole,
+      nextRole,
+    });
+
+    return {
+      user: {
+        id: updated.id,
+        email: updated.email,
+        firstName: updated.firstName,
+        lastName: updated.lastName,
+        profileImageUrl: updated.profileImageUrl,
+        role: updated.role as SupportRole,
+      },
+      previousRole,
+      changed: true,
+    };
+  });
 }
 
 export async function refreshSessionIfExpired(sid: string, session: SessionData): Promise<SessionData | null> {

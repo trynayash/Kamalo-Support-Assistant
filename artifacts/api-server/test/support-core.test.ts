@@ -20,6 +20,7 @@ import {
   messagesTable,
   pool,
   supportTicketsTable,
+  roleChangesTable,
   sessionsTable,
   usersTable,
 } from "@workspace/db";
@@ -220,6 +221,7 @@ after(async () => {
     await db.delete(knowledgeArticlesTable).where(inArray(knowledgeArticlesTable.id, articleIds));
   }
   await db.delete(sessionsTable).where(inArray(sessionsTable.sid, [testSession, otherSession, adminSession]));
+  await db.delete(roleChangesTable).where(inArray(roleChangesTable.actorId, [testUserId, otherUserId, adminUserId]));
   await db.delete(usersTable).where(inArray(usersTable.id, [testUserId, otherUserId, adminUserId]));
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
@@ -645,5 +647,45 @@ test("enforces account ownership and support roles across direct IDs", async () 
     body: JSON.stringify({ status: "resolved", resolution: "Should be denied." }),
   })).status, 403);
   assert.equal((await request("/api/knowledge/articles")).status, 403);
+  assert.equal((await requestAs("/api/tickets/admin", adminSession)).status, 200);
+});
+
+test("lets admins grant and revoke roles with immediate effect and actor audit", async () => {
+  assert.equal((await request("/api/auth/roles")).status, 404);
+  assert.equal((await request("/api/auth/roles/" + otherUserId, {
+    method: "PATCH",
+    body: JSON.stringify({ role: "support" }),
+  })).status, 404);
+
+  const grantResponse = await requestAs(`/api/auth/roles/${otherUserId}`, adminSession, {
+    method: "PATCH",
+    body: JSON.stringify({ role: "support" }),
+  });
+  assert.equal(grantResponse.status, 200, await grantResponse.clone().text());
+  const grant = await json<{ user: { role: string }; changed: boolean }>(grantResponse);
+  assert.equal(grant.user.role, "support");
+  assert.equal(grant.changed, true);
+  assert.equal((await requestAs("/api/tickets/admin", otherSession)).status, 200);
+
+  const revokeResponse = await requestAs(`/api/auth/roles/${otherUserId}`, adminSession, {
+    method: "PATCH",
+    body: JSON.stringify({ role: "customer" }),
+  });
+  assert.equal(revokeResponse.status, 200, await revokeResponse.clone().text());
+  assert.equal((await requestAs("/api/tickets/admin", otherSession)).status, 403);
+
+  const auditResponse = await requestAs("/api/auth/roles/audit", adminSession);
+  assert.equal(auditResponse.status, 200);
+  const audit = await json<{ changes: Array<{ actorId: string; targetUserId: string; previousRole: string; nextRole: string }> }>(auditResponse);
+  assert.deepEqual(audit.changes.slice(0, 2).map((change) => [change.actorId, change.targetUserId, change.previousRole, change.nextRole]), [
+    [adminUserId, otherUserId, "support", "customer"],
+    [adminUserId, otherUserId, "customer", "support"],
+  ]);
+
+  const lastAdminResponse = await requestAs(`/api/auth/roles/${adminUserId}`, adminSession, {
+    method: "PATCH",
+    body: JSON.stringify({ role: "customer" }),
+  });
+  assert.equal(lastAdminResponse.status, 409);
   assert.equal((await requestAs("/api/tickets/admin", adminSession)).status, 200);
 });
