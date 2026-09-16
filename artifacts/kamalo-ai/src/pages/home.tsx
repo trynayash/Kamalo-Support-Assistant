@@ -58,7 +58,7 @@ function ConversationHistory({ conversations, selectedId, loading, error, onSele
       {error ? <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center text-[11px] leading-relaxed text-destructive" data-testid="status-conversation-history-error">History is temporarily unavailable. Please try again shortly.</div> : loading ? <ConversationSkeleton /> : conversations.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-4 text-center text-[11px] leading-relaxed text-muted-foreground" data-testid="empty-conversations">Your conversation history will appear here.</div>
       ) : (
-        <div className="thin-scrollbar max-h-[min(47vh,440px)] space-y-1 overflow-y-auto pr-1">
+        <div className="space-y-1 pr-1">
           {conversations.map((conversation) => (
             <div key={conversation.id} className={`group flex items-center rounded-lg border px-2.5 py-2.5 transition-colors ${selectedId === conversation.id ? 'border-[hsl(var(--primary)/.28)] bg-[hsl(var(--primary)/.09)]' : 'border-transparent hover:border-border hover:bg-card'}`} data-testid={`conversation-item-${conversation.id}`}>
               <button onClick={() => onSelect(conversation.id)} className="min-w-0 flex-1 text-left" data-testid={`button-select-conversation-${conversation.id}`}>
@@ -371,7 +371,7 @@ export function HomePage() {
 
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
-      <div className="chat-workspace mx-auto flex min-h-0 max-w-[1320px] flex-col overflow-hidden px-4 pb-4 sm:px-6 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+      <div className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-44 sm:px-6 sm:pb-40 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
           <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
@@ -386,11 +386,11 @@ export function HomePage() {
         <div className="grid min-h-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
             {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
-              <div ref={messagesScrollRef} className="thin-scrollbar min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pb-7 pr-1" data-testid="conversation-messages">
+               <div ref={messagesScrollRef} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                 <ChatEmptyState onPrompt={(text) => void sendMessage(text)} />
               </div>
             ) : (
-              <div ref={messagesScrollRef} className="thin-scrollbar min-h-0 min-w-0 flex-1 space-y-6 overflow-x-hidden overflow-y-auto overscroll-contain pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
+               <div ref={messagesScrollRef} className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={retryLast} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
@@ -400,12 +400,14 @@ export function HomePage() {
             {errorMessage && <div className="mb-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" data-testid="status-send-error"><span>{errorMessage}</span><button onClick={() => void sendMessage()} className="font-semibold underline" data-testid="button-retry-send">Try again</button></div>}
             {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
-            {inactivityState !== 'closed' && <div className="safe-bottom shrink-0 -mx-1 bg-background/95 pt-2 backdrop-blur-sm">
-              <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
-                <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
-                <div className="flex justify-end px-2 pb-1"><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
-              </div>
-              <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
+             {inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-4 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+               <div className="mx-auto max-w-[1320px]">
+                 <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
+                   <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
+                   <div className="flex justify-end px-2 pb-1"><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
+                 </div>
+                 <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
+               </div>
             </div>}
           </section>
 

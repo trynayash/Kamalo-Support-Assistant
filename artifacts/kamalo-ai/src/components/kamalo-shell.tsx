@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
 import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlinePlus } from 'react-icons/hi2';
 
@@ -26,8 +26,10 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
   const [collapsed, setCollapsed] = useState(false);
   const isKnowledge = location.startsWith('/admin/knowledge');
 
+  const shellStyle = { '--kamalo-sidebar-width': collapsed ? '72px' : '276px' } as CSSProperties;
+
   return (
-    <div className="flex min-h-[100dvh] bg-background">
+    <div className="flex min-h-[100dvh] bg-background" style={shellStyle}>
       <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar py-6 text-sidebar-foreground transition-[width,padding] duration-300 md:static md:flex ${collapsed ? 'w-[72px] px-3' : 'w-[276px] px-5'}`}>
         <div className={`flex items-start ${collapsed ? 'justify-center' : 'justify-between'}`}>
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark small={collapsed} /></Link>
