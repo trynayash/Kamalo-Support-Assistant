@@ -60,7 +60,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
 
         <div className="mt-auto" />
       </aside>
-      <main className="min-w-0 flex-1">
+      <main className="min-w-0 flex-1 overflow-x-hidden">
         <div className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-border/70 bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:hidden">
           <Link href="/" aria-label="Open KAMALO home" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="flex items-center gap-1.5">
