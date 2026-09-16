@@ -1,6 +1,6 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { type CSSProperties, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck } from 'react-icons/hi2';
+import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck } from 'react-icons/hi2';
 
 type KamaloShellProps = {
   children: ReactNode;
@@ -23,48 +23,43 @@ export function KamaloMark({ small = false, onLight = false }: { small?: boolean
 
 export function KamaloShell({ children, conversationCount = 0, onNewConversation }: KamaloShellProps) {
   const [location] = useLocation();
-  const [collapsed, setCollapsed] = useState(false);
   const isKnowledge = location.startsWith('/admin/knowledge');
   const isSupport = location.startsWith('/support');
   const isTickets = location.startsWith('/admin/tickets');
 
-  const shellStyle = { '--kamalo-sidebar-width': collapsed ? '72px' : '276px' } as CSSProperties;
+  const shellStyle = { '--kamalo-sidebar-width': '276px' } as CSSProperties;
 
   return (
     <div className="flex min-h-[100dvh] w-full max-w-full overflow-x-clip bg-background" style={shellStyle}>
-      <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar py-6 text-sidebar-foreground transition-[width,padding] duration-300 md:static md:flex ${collapsed ? 'w-[72px] px-3' : 'w-[276px] px-5'}`}>
-        <div className={`flex items-start ${collapsed ? 'justify-center' : 'justify-between'}`}>
-          <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark small={collapsed} /></Link>
+      <aside id="workspace-navigation" aria-label="Workspace navigation" className="relative fixed inset-y-0 left-0 z-40 hidden w-[276px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-6 text-sidebar-foreground md:static md:flex">
+        <div className="flex items-start">
+          <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
         </div>
-
-        <button onClick={() => setCollapsed((value) => !value)} className="absolute -right-3 top-7 z-50 hidden h-6 w-6 place-items-center rounded-full border border-sidebar-border bg-sidebar text-sidebar-foreground/65 shadow-sm hover:text-sidebar-foreground md:grid" aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} aria-expanded={!collapsed} data-testid="button-toggle-sidebar">
-          {collapsed ? <HiOutlineChevronDoubleRight size={13} /> : <HiOutlineChevronDoubleLeft size={13} />}
-        </button>
 
         <div className="mt-12">
           <button
             onClick={() => onNewConversation?.()}
-            className={`group flex w-full items-center rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] py-3 text-left transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent ${collapsed ? 'justify-center px-0' : 'justify-between px-3.5'}`}
+            className="group flex w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 py-3 text-left transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
             data-testid="button-new-conversation"
           >
-             <span className="flex items-center gap-2.5 text-[13px] font-semibold"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span className={collapsed ? 'sr-only' : ''}>New conversation</span></span>
-             {!collapsed && <span className="font-mono text-[10px] text-sidebar-foreground/40">N</span>}
+             <span className="flex items-center gap-2.5 text-[13px] font-semibold"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
+             <span className="font-mono text-[10px] text-sidebar-foreground/40">N</span>
           </button>
         </div>
 
         <nav className="mt-8 space-y-1" aria-label="Primary navigation">
-          <Link href="/" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${!isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
-            <HiOutlineChatBubbleLeftRight size={16} className={!isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Conversations</span>
-            {!collapsed && conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
+          <Link href="/" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${!isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
+            <HiOutlineChatBubbleLeftRight size={16} className={!isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
+            {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
-          <Link href="/admin/knowledge" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
-            <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Knowledge base</span>
+          <Link href="/admin/knowledge" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
+            <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Knowledge base</span>
           </Link>
-          <Link href="/support" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isSupport ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-support">
-            <HiOutlineLifebuoy size={16} className={isSupport ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Help &amp; Support</span>
+          <Link href="/support" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isSupport ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-support">
+            <HiOutlineLifebuoy size={16} className={isSupport ? 'text-[hsl(var(--accent))]' : ''} /> <span>Help &amp; Support</span>
           </Link>
-          <Link href="/admin/tickets" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isTickets ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-admin-tickets">
-            <HiOutlineShieldCheck size={16} className={isTickets ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Admin access <span className="font-mono text-[8px] uppercase text-[hsl(var(--accent))]">test</span></span>
+          <Link href="/admin/tickets" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isTickets ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-admin-tickets">
+            <HiOutlineShieldCheck size={16} className={isTickets ? 'text-[hsl(var(--accent))]' : ''} /> <span>Admin access <span className="font-mono text-[8px] uppercase text-[hsl(var(--accent))]">test</span></span>
           </Link>
         </nav>
 
