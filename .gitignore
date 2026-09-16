@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# KAMALO server-controlled attachment storage
+/artifacts/api-server/data/
