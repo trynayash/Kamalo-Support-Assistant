@@ -20,6 +20,11 @@ import { Link, useLocation } from 'wouter';
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const quickPrompts = [
+  { label: 'Coins', text: 'How do KAMALO Coins work?' },
+  { label: 'Transactions', text: 'Where can I see my recent transactions?' },
+  { label: 'Auto KAMALO', text: 'What is Auto KAMALO?' },
+];
 
 const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
 
@@ -60,6 +65,27 @@ function cleanDisplayedAssistantContent(content: string) {
 
 function ConversationSkeleton() {
   return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
+}
+
+function ChatWelcomeState({ onPrompt }: { onPrompt: (text: string) => void }) {
+  return (
+    <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" data-testid="chat-welcome">
+      <div className="max-w-md">
+        <h1 className="text-[clamp(1.9rem,7vw,3.1rem)] font-extrabold leading-[1.04] tracking-[-.06em] text-foreground">
+          Hey there.<br />How can I help today?
+        </h1>
+        <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">Choose a common question or type your own.</p>
+        <div className="mt-7 grid gap-2 sm:grid-cols-3">
+          {quickPrompts.map((prompt) => (
+            <button key={prompt.label} onClick={() => onPrompt(prompt.text)} className="rounded-lg border border-border/80 bg-card/60 px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-card" data-testid={`button-prompt-${prompt.label.toLowerCase()}`}>
+              <span className="block text-[11px] font-semibold text-foreground">{prompt.label}</span>
+              <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{prompt.text}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete, limit = 1 }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void; limit?: number }) {
@@ -495,6 +521,7 @@ export function HomePage() {
                 <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1 xl:hidden" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                    <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
+                   <ChatWelcomeState onPrompt={(text) => void sendMessage(text)} />
                  </div>
               </div>
             ) : (
