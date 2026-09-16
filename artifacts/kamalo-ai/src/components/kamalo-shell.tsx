@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlinePlus } from 'react-icons/hi2';
+import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck } from 'react-icons/hi2';
 
 type KamaloShellProps = {
   children: ReactNode;
@@ -25,6 +25,8 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
   const [location] = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const isKnowledge = location.startsWith('/admin/knowledge');
+  const isSupport = location.startsWith('/support');
+  const isTickets = location.startsWith('/admin/tickets');
 
   const shellStyle = { '--kamalo-sidebar-width': collapsed ? '72px' : '276px' } as CSSProperties;
 
@@ -58,6 +60,12 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
           <Link href="/admin/knowledge" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
             <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Knowledge base</span>
           </Link>
+          <Link href="/support" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isSupport ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-support">
+            <HiOutlineLifebuoy size={16} className={isSupport ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Help &amp; Support</span>
+          </Link>
+          <Link href="/admin/tickets" className={`flex items-center gap-3 rounded-lg py-2.5 text-[13px] transition-colors ${collapsed ? 'justify-center px-0' : 'px-3'} ${isTickets ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-admin-tickets">
+            <HiOutlineShieldCheck size={16} className={isTickets ? 'text-[hsl(var(--accent))]' : ''} /> <span className={collapsed ? 'sr-only' : ''}>Admin access <span className="font-mono text-[8px] uppercase text-[hsl(var(--accent))]">test</span></span>
+          </Link>
         </nav>
 
         <div className="mt-auto" />
@@ -67,8 +75,14 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
           <Link href="/" aria-label="Open KAMALO home" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="flex items-center gap-1.5">
             {onNewConversation && <button onClick={() => onNewConversation()} className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card text-foreground transition-colors hover:border-primary/40 hover:text-primary" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button>}
+            <Link href="/support" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
+            <Link href="/admin/tickets" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open temporary admin access" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
             <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
           </div>
+        </div>
+        <div className="hidden items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm md:flex lg:px-12">
+          <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
+          <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>
         {children}
       </main>

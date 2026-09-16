@@ -16,6 +16,8 @@ tags:
     description: Grounded KAMALO AI responses
   - name: feedback
     description: Response feedback
+  - name: tickets
+    description: Customer support tickets and resolutions
   - name: knowledge
     description: Approved KAMALO knowledge management
 paths:
@@ -186,6 +188,118 @@ paths:
                 $ref: "#/components/schemas/MessageFeedback"
         "404":
           description: Message not found
+  /tickets:
+    get:
+      operationId: listMySupportTickets
+      tags: [tickets]
+      summary: List support tickets for the current demo user
+      responses:
+        "200":
+          description: Support tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportTicket"
+    post:
+      operationId: createSupportTicket
+      tags: [tickets]
+      summary: Create a support ticket from an answer or conversation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketInput"
+      responses:
+        "201":
+          description: Created support ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "400":
+          description: Invalid ticket details
+        "404":
+          description: Conversation or message not found
+  /tickets/admin:
+    get:
+      operationId: listSupportTickets
+      tags: [tickets]
+      summary: List support tickets for the test admin workspace
+      responses:
+        "200":
+          description: Support tickets
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SupportTicket"
+  /tickets/{ticketId}:
+    get:
+      operationId: getSupportTicket
+      tags: [tickets]
+      summary: Get a support ticket
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      responses:
+        "200":
+          description: Support ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "404":
+          description: Ticket not found
+  /tickets/{ticketId}/analyze:
+    post:
+      operationId: analyzeSupportTicket
+      tags: [tickets]
+      summary: Analyze a support ticket with AI or route it to a human
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketAnalysisInput"
+      responses:
+        "200":
+          description: Analysis result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicketAnalysis"
+        "400":
+          description: Invalid analysis request
+        "404":
+          description: Ticket not found
+    patch:
+      operationId: updateSupportTicket
+      tags: [tickets]
+      summary: Update a support ticket from the test admin workspace
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketUpdate"
+      responses:
+        "200":
+          description: Updated support ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "400":
+          description: Invalid ticket update
+        "404":
+          description: Ticket not found
   /knowledge/articles:
     get:
       operationId: listKnowledgeArticles
@@ -301,6 +415,12 @@ components:
         type: string
     ArticleId:
       name: articleId
+      in: path
+      required: true
+      schema:
+        type: string
+    TicketId:
+      name: ticketId
       in: path
       required: true
       schema:
@@ -429,6 +549,11 @@ components:
         feedback:
           type: ["string", "null"]
           maxLength: 1000
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
     MessageFeedback:
       type: object
       required: [id, messageId, rating, feedback, createdAt]
@@ -440,11 +565,132 @@ components:
         rating:
           type: string
           enum: [helpful, not_helpful]
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+          nullable: true
         feedback:
           type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
+    SupportTicket:
+      type: object
+      required: [id, ticketNumber, conversationId, category, summary, details, status, priority, emailStatus, createdAt, updatedAt, attachmentIds]
+      properties:
+        id:
+          type: string
+        ticketNumber:
+          type: string
+        conversationId:
+          type: string
+        messageId:
+          type: ["string", "null"]
+        category:
+          type: string
+        summary:
+          type: string
+        details:
+          type: string
+        contactEmail:
+          type: ["string", "null"]
+          format: email
+        feedbackRating:
+          type: ["string", "null"]
+          enum: [helpful, not_helpful, null]
+        status:
+          type: string
+          enum: [open, in_review, resolved, closed]
+        priority:
+          type: string
+          enum: [low, normal, high, urgent]
+        assignedTo:
+          type: ["string", "null"]
+        resolution:
+          type: ["string", "null"]
+        resolutionSource:
+          type: ["string", "null"]
+          enum: [human, ai, null]
+        emailStatus:
+          type: string
+          enum: [not_sent, sent, failed, skipped]
+        attachmentIds:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        resolvedAt:
+          type: ["string", "null"]
+          format: date-time
+    SupportTicketInput:
+      type: object
+      required: [conversationId, category, summary, details]
+      properties:
+        conversationId:
+          type: string
+        messageId:
+          type: ["string", "null"]
+        category:
+          type: string
+          minLength: 2
+          maxLength: 80
+        summary:
+          type: string
+          minLength: 3
+          maxLength: 180
+        details:
+          type: string
+          minLength: 3
+          maxLength: 4000
+        contactEmail:
+          type: ["string", "null"]
+          format: email
+        feedbackRating:
+          type: ["string", "null"]
+          enum: [helpful, not_helpful, null]
+        attachmentIds:
+          type: array
+          maxItems: 10
+          items:
+            type: string
+    SupportTicketUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [open, in_review, resolved, closed]
+        assignedTo:
+          type: ["string", "null"]
+          maxLength: 120
+        resolution:
+          type: ["string", "null"]
+          maxLength: 4000
+        resolutionSource:
+          type: ["string", "null"]
+          enum: [human, ai, null]
+    SupportTicketAnalysisInput:
+      type: object
+      required: [mode]
+      properties:
+        mode:
+          type: string
+          enum: [human, ai]
+    SupportTicketAnalysis:
+      type: object
+      required: [mode, draftResolution]
+      properties:
+        mode:
+          type: string
+          enum: [human, ai]
+        draftResolution:
+          type: string
     KnowledgeArticle:
       type: object
       required: [id, title, category, content, version, status, createdAt, updatedAt]

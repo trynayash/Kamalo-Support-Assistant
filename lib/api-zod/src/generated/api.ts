@@ -165,19 +165,221 @@ export const CreateMessageFeedbackParams = zod.object({
 
 export const createMessageFeedbackBodyFeedbackMax = 1000;
 
+export const createMessageFeedbackBodyScoreMax = 5;
+
 
 
 export const CreateMessageFeedbackBody = zod.object({
   "rating": zod.enum(['helpful', 'not_helpful']),
-  "feedback": zod.string().max(createMessageFeedbackBodyFeedbackMax).nullish()
+  "feedback": zod.string().max(createMessageFeedbackBodyFeedbackMax).nullish(),
+  "score": zod.number().int().min(1).max(createMessageFeedbackBodyScoreMax).nullish()
 })
+
+export const createMessageFeedbackResponseScoreMax = 5;
+
+
 
 export const CreateMessageFeedbackResponse = zod.object({
   "id": zod.string(),
   "messageId": zod.string(),
   "rating": zod.enum(['helpful', 'not_helpful']),
+  "score": zod.number().int().min(1).max(createMessageFeedbackResponseScoreMax).nullish(),
   "feedback": zod.string().nullable(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List support tickets for the current demo user
+ */
+export const ListMySupportTicketsResponseItem = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+export const ListMySupportTicketsResponse = zod.array(ListMySupportTicketsResponseItem)
+
+
+/**
+ * @summary Create a support ticket from an answer or conversation
+ */
+export const createSupportTicketBodyCategoryMin = 2;
+export const createSupportTicketBodyCategoryMax = 80;
+
+export const createSupportTicketBodySummaryMin = 3;
+export const createSupportTicketBodySummaryMax = 180;
+
+export const createSupportTicketBodyDetailsMin = 3;
+export const createSupportTicketBodyDetailsMax = 4000;
+
+export const createSupportTicketBodyAttachmentIdsMax = 10;
+
+
+
+export const CreateSupportTicketBody = zod.object({
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string().min(createSupportTicketBodyCategoryMin).max(createSupportTicketBodyCategoryMax),
+  "summary": zod.string().min(createSupportTicketBodySummaryMin).max(createSupportTicketBodySummaryMax),
+  "details": zod.string().min(createSupportTicketBodyDetailsMin).max(createSupportTicketBodyDetailsMax),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "attachmentIds": zod.array(zod.string()).max(createSupportTicketBodyAttachmentIdsMax).optional()
+})
+
+export const CreateSupportTicketResponse = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary List support tickets for the test admin workspace
+ */
+export const ListSupportTicketsResponseItem = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+export const ListSupportTicketsResponse = zod.array(ListSupportTicketsResponseItem)
+
+
+/**
+ * @summary Get a support ticket
+ */
+export const GetSupportTicketParams = zod.object({
+  "ticketId": zod.coerce.string()
+})
+
+export const GetSupportTicketResponse = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Analyze a support ticket with AI or route it to a human
+ */
+export const AnalyzeSupportTicketParams = zod.object({
+  "ticketId": zod.coerce.string()
+})
+
+export const AnalyzeSupportTicketBody = zod.object({
+  "mode": zod.enum(['human', 'ai'])
+})
+
+export const AnalyzeSupportTicketResponse = zod.object({
+  "mode": zod.enum(['human', 'ai']),
+  "draftResolution": zod.string()
+})
+
+
+/**
+ * @summary Update a support ticket from the test admin workspace
+ */
+export const UpdateSupportTicketParams = zod.object({
+  "ticketId": zod.coerce.string()
+})
+
+export const updateSupportTicketBodyAssignedToMax = 120;
+
+export const updateSupportTicketBodyResolutionMax = 4000;
+
+
+
+export const UpdateSupportTicketBody = zod.object({
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "assignedTo": zod.string().max(updateSupportTicketBodyAssignedToMax).nullish(),
+  "resolution": zod.string().max(updateSupportTicketBodyResolutionMax).nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish()
+})
+
+export const UpdateSupportTicketResponse = zod.object({
+  "id": zod.string(),
+  "ticketNumber": zod.string(),
+  "conversationId": zod.string(),
+  "messageId": zod.string().nullish(),
+  "category": zod.string(),
+  "summary": zod.string(),
+  "details": zod.string(),
+  "contactEmail": zod.string().email().nullish(),
+  "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
+  "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
+  "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "assignedTo": zod.string().nullish(),
+  "resolution": zod.string().nullish(),
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "emailStatus": zod.enum(['not_sent', 'sent', 'failed', 'skipped']),
+  "attachmentIds": zod.array(zod.string()),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "resolvedAt": zod.coerce.date().nullish()
 })
 
 

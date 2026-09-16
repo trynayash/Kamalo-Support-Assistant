@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { messagesTable } from "./messages";
 
@@ -9,6 +9,7 @@ export const messageFeedbackTable = pgTable("message_feedback", {
     .notNull()
     .references(() => messagesTable.id, { onDelete: "cascade" }),
   rating: text("rating").notNull(),
+  score: integer("score"),
   feedback: text("feedback"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

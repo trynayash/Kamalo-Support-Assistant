@@ -26,12 +26,14 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
     id: crypto.randomUUID(),
     messageId: message.id,
     rating: body.data.rating,
+    score: body.data.score ?? null,
     feedback: body.data.feedback ?? null,
   }).returning();
   res.status(201).json(CreateMessageFeedbackResponse.parse({
     id: feedback.id,
     messageId: feedback.messageId,
     rating: feedback.rating,
+    score: feedback.score,
     feedback: feedback.feedback,
     createdAt: feedback.createdAt.toISOString(),
   }));

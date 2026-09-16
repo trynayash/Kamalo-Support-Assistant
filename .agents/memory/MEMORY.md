@@ -1,1 +1,2 @@
 - [KAMALO AI Stage 1](kamalo-ai-stage1.md) — preserve grounded answers, approved-knowledge retrieval, and the controlled provider/tool boundary.
+- [KAMALO AI escalation](kamalo-ai-escalation.md) — tickets are controlled handoffs; AI drafts require specialist verification before resolution.

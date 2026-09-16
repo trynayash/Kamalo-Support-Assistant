@@ -112,6 +112,11 @@ export interface FeedbackInput {
      * @nullable
      */
   feedback?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  score?: number | null;
 }
 
 export type MessageFeedbackRating = typeof MessageFeedbackRating[keyof typeof MessageFeedbackRating];
@@ -126,9 +131,195 @@ export interface MessageFeedback {
   id: string;
   messageId: string;
   rating: MessageFeedbackRating;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  score?: number | null;
   /** @nullable */
   feedback: string | null;
   createdAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type SupportTicketFeedbackRating = typeof SupportTicketFeedbackRating[keyof typeof SupportTicketFeedbackRating] | null;
+
+
+export const SupportTicketFeedbackRating = {
+  helpful: 'helpful',
+  not_helpful: 'not_helpful',
+} as const;
+
+export type SupportTicketStatus = typeof SupportTicketStatus[keyof typeof SupportTicketStatus];
+
+
+export const SupportTicketStatus = {
+  open: 'open',
+  in_review: 'in_review',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+export type SupportTicketPriority = typeof SupportTicketPriority[keyof typeof SupportTicketPriority];
+
+
+export const SupportTicketPriority = {
+  low: 'low',
+  normal: 'normal',
+  high: 'high',
+  urgent: 'urgent',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SupportTicketResolutionSource = typeof SupportTicketResolutionSource[keyof typeof SupportTicketResolutionSource] | null;
+
+
+export const SupportTicketResolutionSource = {
+  human: 'human',
+  ai: 'ai',
+} as const;
+
+export type SupportTicketEmailStatus = typeof SupportTicketEmailStatus[keyof typeof SupportTicketEmailStatus];
+
+
+export const SupportTicketEmailStatus = {
+  not_sent: 'not_sent',
+  sent: 'sent',
+  failed: 'failed',
+  skipped: 'skipped',
+} as const;
+
+export interface SupportTicket {
+  id: string;
+  ticketNumber: string;
+  conversationId: string;
+  /** @nullable */
+  messageId?: string | null;
+  category: string;
+  summary: string;
+  details: string;
+  /** @nullable */
+  contactEmail?: string | null;
+  /** @nullable */
+  feedbackRating?: SupportTicketFeedbackRating;
+  status: SupportTicketStatus;
+  priority: SupportTicketPriority;
+  /** @nullable */
+  assignedTo?: string | null;
+  /** @nullable */
+  resolution?: string | null;
+  /** @nullable */
+  resolutionSource?: SupportTicketResolutionSource;
+  emailStatus: SupportTicketEmailStatus;
+  attachmentIds: string[];
+  createdAt: string;
+  updatedAt: string;
+  /** @nullable */
+  resolvedAt?: string | null;
+}
+
+/**
+ * @nullable
+ */
+export type SupportTicketInputFeedbackRating = typeof SupportTicketInputFeedbackRating[keyof typeof SupportTicketInputFeedbackRating] | null;
+
+
+export const SupportTicketInputFeedbackRating = {
+  helpful: 'helpful',
+  not_helpful: 'not_helpful',
+} as const;
+
+export interface SupportTicketInput {
+  conversationId: string;
+  /** @nullable */
+  messageId?: string | null;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  category: string;
+  /**
+     * @minLength 3
+     * @maxLength 180
+     */
+  summary: string;
+  /**
+     * @minLength 3
+     * @maxLength 4000
+     */
+  details: string;
+  /** @nullable */
+  contactEmail?: string | null;
+  /** @nullable */
+  feedbackRating?: SupportTicketInputFeedbackRating;
+  /** @maxItems 10 */
+  attachmentIds?: string[];
+}
+
+export type SupportTicketUpdateStatus = typeof SupportTicketUpdateStatus[keyof typeof SupportTicketUpdateStatus];
+
+
+export const SupportTicketUpdateStatus = {
+  open: 'open',
+  in_review: 'in_review',
+  resolved: 'resolved',
+  closed: 'closed',
+} as const;
+
+/**
+ * @nullable
+ */
+export type SupportTicketUpdateResolutionSource = typeof SupportTicketUpdateResolutionSource[keyof typeof SupportTicketUpdateResolutionSource] | null;
+
+
+export const SupportTicketUpdateResolutionSource = {
+  human: 'human',
+  ai: 'ai',
+} as const;
+
+export interface SupportTicketUpdate {
+  status: SupportTicketUpdateStatus;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  assignedTo?: string | null;
+  /**
+     * @maxLength 4000
+     * @nullable
+     */
+  resolution?: string | null;
+  /** @nullable */
+  resolutionSource?: SupportTicketUpdateResolutionSource;
+}
+
+export type SupportTicketAnalysisInputMode = typeof SupportTicketAnalysisInputMode[keyof typeof SupportTicketAnalysisInputMode];
+
+
+export const SupportTicketAnalysisInputMode = {
+  human: 'human',
+  ai: 'ai',
+} as const;
+
+export interface SupportTicketAnalysisInput {
+  mode: SupportTicketAnalysisInputMode;
+}
+
+export type SupportTicketAnalysisMode = typeof SupportTicketAnalysisMode[keyof typeof SupportTicketAnalysisMode];
+
+
+export const SupportTicketAnalysisMode = {
+  human: 'human',
+  ai: 'ai',
+} as const;
+
+export interface SupportTicketAnalysis {
+  mode: SupportTicketAnalysisMode;
+  draftResolution: string;
 }
 
 export type KnowledgeArticleStatus = typeof KnowledgeArticleStatus[keyof typeof KnowledgeArticleStatus];

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
 import {
+  useCreateSupportTicket,
   getGetConversationQueryKey,
   getListConversationsQueryKey,
   useCreateConversation,
@@ -13,6 +14,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
+import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 
 const firstUsePrompts = [
   { label: 'Rewards', text: 'How do KAMALO Coins work?' },
@@ -238,6 +240,7 @@ export function HomePage() {
   const [newConversationNotice, setNewConversationNotice] = useState(false);
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
+  const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful' } | null>(null);
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -250,6 +253,7 @@ export function HomePage() {
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
   const createFeedback = useCreateMessageFeedback();
+  const createSupportTicket = useCreateSupportTicket();
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
   const activeConversation = conversations.find((conversation) => conversation.id === selectedId);
   const messages = localMessages.length > 0 ? localMessages : (conversationQuery.data?.messages || []);
@@ -399,11 +403,46 @@ export function HomePage() {
     if (previous) void sendMessage(previous.content === IMAGE_ATTACHMENT_MESSAGE ? '' : previous.content);
   };
 
-  const handleFeedback = async (message: ChatMessage, rating: 'helpful' | 'not_helpful') => {
+  const handleFeedback = (message: ChatMessage, rating: 'helpful' | 'not_helpful') => {
+    setFeedbackDialog({ message, reaction: rating });
+  };
+
+  const submitFeedback = async (submission: FeedbackDialogSubmission) => {
+    if (!feedbackDialog) return;
+    const { message, reaction } = feedbackDialog;
     try {
-      await createFeedback.mutateAsync({ messageId: message.id, data: { rating, feedback: null } });
-      setLocalMessages((current) => current.map((item) => item.id === message.id ? { ...item, feedback: rating } : item));
-      setNotice(rating === 'helpful' ? 'Thanks. That signal helps keep answers useful.' : 'Thanks for the signal. We will review this answer.');
+      await createFeedback.mutateAsync({ messageId: message.id, data: { rating: reaction, score: submission.score, feedback: submission.feedback || null } });
+      setLocalMessages((current) => current.map((item) => item.id === message.id ? { ...item, feedback: reaction } : item));
+      if (submission.escalate && selectedId) {
+        const messageIndex = messages.findIndex((item) => item.id === message.id);
+        const relatedUserMessage = [...messages.slice(0, messageIndex)].reverse().find((item) => item.role === 'user');
+        const conversationContext = [
+          relatedUserMessage ? `User message:\n${relatedUserMessage.content}` : '',
+          `Assistant answer:\n${message.content}`,
+          submission.feedback ? `Feedback:\n${submission.feedback}` : '',
+          `Ticket details:\n${submission.details}`,
+        ].filter(Boolean).join('\n\n').slice(0, 3900);
+        try {
+          const ticket = await createSupportTicket.mutateAsync({
+            data: {
+              conversationId: selectedId,
+              messageId: message.id,
+              category: submission.category,
+              summary: submission.summary,
+              details: conversationContext,
+              contactEmail: submission.contactEmail,
+              feedbackRating: reaction,
+              attachmentIds: relatedUserMessage?.attachments?.map((attachment) => attachment.id) || [],
+            },
+          });
+          setNotice(`Ticket ${ticket.ticketNumber} was raised. We will email the resolution and show it in Help & Support.`);
+        } catch {
+          setNotice('Feedback was saved, but the support ticket could not be raised. Please try again.');
+        }
+      } else {
+        setNotice(reaction === 'helpful' ? 'Thanks. That signal helps keep answers useful.' : 'Thanks for the signal. We will review this answer.');
+      }
+      setFeedbackDialog(null);
       window.setTimeout(() => setNotice(''), 3200);
     } catch {
       setNotice('Feedback could not be saved right now.');
@@ -446,7 +485,7 @@ export function HomePage() {
 
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
-      <div className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-44 sm:px-6 sm:pb-40 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+       <div className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-44 sm:px-6 sm:pb-40 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
           <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
@@ -467,7 +506,7 @@ export function HomePage() {
             ) : (
                <div ref={messagesScrollRef} className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
-                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={retryLast} />)}
+               {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={retryLast} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
               </div>
@@ -504,6 +543,11 @@ export function HomePage() {
           </aside>
         </div>
       </div>
+      {feedbackDialog && (() => {
+        const index = messages.findIndex((item) => item.id === feedbackDialog.message.id);
+        const relatedUserMessage = [...messages.slice(0, index)].reverse().find((item) => item.role === 'user');
+        return <FeedbackDialog message={feedbackDialog.message} reaction={feedbackDialog.reaction} imageCount={relatedUserMessage?.attachments?.length || 0} saving={createFeedback.isPending || createSupportTicket.isPending} onClose={() => setFeedbackDialog(null)} onSubmit={(submission) => void submitFeedback(submission)} />;
+      })()}
     </KamaloShell>
   );
 }

@@ -11,6 +11,11 @@ export interface MessageFeedback {
   id: string;
   messageId: string;
   rating: MessageFeedbackRating;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  score?: number | null;
   /** @nullable */
   feedback: string | null;
   createdAt: Date;

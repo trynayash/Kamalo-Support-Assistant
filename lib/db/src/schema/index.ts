@@ -22,3 +22,5 @@ export * from "./messages";
 export * from "./message-attachments";
 export * from "./knowledge";
 export * from "./feedback";
+export * from "./support-tickets";
+export * from "./support-ticket-attachments";

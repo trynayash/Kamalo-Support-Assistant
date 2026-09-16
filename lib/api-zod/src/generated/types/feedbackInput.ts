@@ -14,4 +14,9 @@ export interface FeedbackInput {
      * @nullable
      */
   feedback?: string | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  score?: number | null;
 }
