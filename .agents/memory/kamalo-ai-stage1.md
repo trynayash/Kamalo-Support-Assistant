@@ -56,3 +56,9 @@ Stage 1 responses must be sanitized before reaching the browser; provider failur
 **Why:** Client-visible streaming or development error surfaces can leak information even when the final saved response is cleaned.
 
 **How to apply:** Keep provider output buffered until sanitized, keep API errors generic, log diagnostics server-side without request bodies, and make browser crash fallbacks non-diagnostic.
+
+The support chat uses a fixed-height workspace: only the message list scrolls, while the composer and its safety note remain stationary; message bubbles must allow arbitrary long tokens to wrap without horizontal overflow.
+
+**Why:** A page-level scroll lets the composer drift and unbroken user text can push the whole interface sideways on narrow screens.
+
+**How to apply:** Preserve the isolated vertical scroll region and overflow-safe bubble styles when adding message actions, loading states, or responsive layout changes.
