@@ -77,6 +77,39 @@ const seedArticles: SeedArticle[] = [
   },
 ];
 
+const trainingPromptArticles: SeedArticle[] = [
+  {
+    title: "Commission structure and processing",
+    category: "Commission",
+    content: "The current KAMALO support training guidance documents a 5-level commission structure. Commission processing is associated with successful transactions. Individual level percentages, eligibility, personal commission balances, payout amounts, and payout dates must not be invented and require verified account information where applicable.",
+  },
+  {
+    title: "Coin conversion, value, and expiry",
+    category: "Coins",
+    content: "The current KAMALO support training guidance documents a 1 Rupee to 1 Coin relationship within the reward system. It documents Silver at approximately ₹300 per gram and Gold at approximately ₹17,000 to ₹18,000. These are documented approximate reward values, not guaranteed returns. Coin expiration follows the documented 3-month FIFO approach, where the oldest applicable Coins are handled first.",
+  },
+  {
+    title: "FINCADO analytics and progress",
+    category: "FINCADO",
+    content: "FINCADO is KAMALO's analytics and progress experience. Documented capabilities include pie charts, community statistics, user progress, Silver progress, Gold progress, Coin-related progress, Coin-expiration handling, and festival-related rollover bonus functionality. Stage 1 cannot inspect a customer's live FINCADO data.",
+  },
+  {
+    title: "Notification scenarios",
+    category: "Notifications",
+    content: "Documented KAMALO notification scenarios include abandoned carts, sign-ins, successful transactions, failed transactions, Coin updates, and new offers. KAMALO AI must not claim that a notification was or was not sent without trusted live event information.",
+  },
+  {
+    title: "OTP support",
+    category: "OTP",
+    content: "OTP means One-Time Password and is used in applicable KAMALO authentication and verification flows. For an OTP issue, a customer should confirm that the registered mobile number is correct and that the device can receive messages, then try requesting another OTP. Persistent issues should be escalated through KAMALO support. OTPs and authentication implementation details must never be revealed.",
+  },
+  {
+    title: "Wallet, prepaid card, WhatsApp, and offers boundaries",
+    category: "Product boundaries",
+    content: "KAMALO AI may explain only approved customer-facing capabilities for WhatsApp, PPI wallet, prepaid cards, and offers. It must not invent wallet limits, fees, KYC requirements, withdrawal or transfer rules, settlement times, card fees, card limits, delivery times, ATM rules, network details, international usage, current promotions, or customer eligibility unless explicitly confirmed by approved knowledge or a trusted live source.",
+  },
+];
+
 const masterKnowledgeFilename = "Pasted--KAMALO-AI-MASTER-CUSTOMER-SUPPORT-KNOWLEDGE-BASE-Custo_1789550445810.txt";
 const stageOneGuardrail = "Stage 1 guardrail: this is approved product guidance, not evidence that a live account, transaction, engine, balance, delivery, refund, or notification was checked. Until a verified server-side tool returns that data, explain the available process and say that live information cannot be verified.";
 let knowledgeSetup: Promise<void> | null = null;
@@ -149,7 +182,7 @@ async function setupKnowledge(): Promise<void> {
     .from(knowledgeArticlesTable);
   const existingTitles = new Set(existingRows.map((row) => row.title));
 
-  for (const article of seedArticles) {
+  for (const article of [...seedArticles, ...trainingPromptArticles]) {
     if (existingTitles.has(article.title)) continue;
     await insertKnowledgeArticle(article);
     existingTitles.add(article.title);
@@ -216,8 +249,14 @@ const retrievalStopWords = new Set([
   "could",
   "do",
   "does",
+  "did",
+  "didnt",
   "for",
   "from",
+  "get",
+  "got",
+  "have",
+  "has",
   "how",
   "i",
   "if",
@@ -225,7 +264,9 @@ const retrievalStopWords = new Set([
   "is",
   "it",
   "me",
+  "many",
   "my",
+  "not",
   "of",
   "on",
   "or",
@@ -324,6 +365,7 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
     .orderBy(asc(knowledgeArticlesTable.category));
 
   const terms = expandedTerms(query);
+  const primaryTerms = new Set(tokenize(query));
   const normalizedQuery = tokenize(query).join(" ");
 
   return articles
@@ -334,18 +376,23 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
       const titleTerms = new Set(title);
       const categoryTerms = new Set(category);
       const contentTerms = new Set(content);
+      const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
+        ? 12
+        : 0;
       const score = terms.reduce((total, term) => {
-        if (titleTerms.has(term)) return total + 8;
-        if (categoryTerms.has(term)) return total + 4;
-        if (contentTerms.has(term)) return total + 1;
+        const weight = primaryTerms.has(term) ? 2 : 1;
+        if (titleTerms.has(term)) return total + (8 * weight);
+        if (categoryTerms.has(term)) return total + (4 * weight);
+        if (contentTerms.has(term)) return total + weight;
         return total;
       }, 0)
+        + numericLevelBoost
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
       return { article, score };
     })
     .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score || a.article.title.localeCompare(b.article.title))
+    .sort((a, b) => b.score - a.score || b.article.version - a.article.version || a.article.title.localeCompare(b.article.title))
     .slice(0, 6)
     .map(({ article }) => article);
 }

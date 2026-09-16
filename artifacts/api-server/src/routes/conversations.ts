@@ -21,7 +21,7 @@ import { recordSupportEvent } from "../lib/observability";
 
 const router: IRouter = Router();
 const DEMO_USER_ID = "demo-user";
-const STAGE_ONE_FALLBACK = "I don't have enough verified KAMALO information to answer that accurately yet.";
+const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
 function dateString(value: Date): string {
   return value.toISOString();

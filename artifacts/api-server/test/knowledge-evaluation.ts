@@ -26,7 +26,7 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
   {
     topic: "Coins",
     query: "Where are my reward coins?",
-    expectedTitle: "Why didn't I receive my Coins?",
+    expectedTitle: "How many Coins do I have?",
   },
   {
     topic: "payments",
@@ -82,6 +82,26 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
     topic: "Shop & KAMALO",
     query: "Where can I shop with KAMALO?",
     expectedTitle: "Where can I use KAMALO?",
+  },
+  {
+    topic: "commission structure",
+    query: "How many commission levels does KAMALO have?",
+    expectedTitle: "Commission structure and processing",
+  },
+  {
+    topic: "Coin expiry",
+    query: "How does FIFO work for Coin expiration?",
+    expectedTitle: "Coin conversion, value, and expiry",
+  },
+  {
+    topic: "OTP",
+    query: "I am not receiving my one time password",
+    expectedTitle: "OTP support",
+  },
+  {
+    topic: "Fincado",
+    query: "Does Fincado show my progress and charts?",
+    expectedTitle: "FINCADO analytics and progress",
   },
   {
     topic: "follow-up payment reference",

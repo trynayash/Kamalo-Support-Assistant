@@ -45,6 +45,12 @@ Future engine integrations must be isolated behind controlled server-side bounda
 
 **How to apply:** Keep retrieval, tools, providers, and future engines behind explicit contracts with allowlisted inputs and sanitized outputs. Return calm, actionable user-safe errors and log diagnostic detail only on the server.
 
+The support training prompt is a policy source, not raw customer-facing retrieval content; its factual claims should be curated into approved knowledge articles while its safety and response rules stay in the system policy.
+
+**Why:** Mixing instructions and product facts in one retrieved document lets customer text influence policy and makes source precedence harder to verify.
+
+**How to apply:** Keep the model policy compact and explicit, add factual coverage as versioned approved articles, and evaluate retrieval with representative customer wording.
+
 The support chat should always follow the newest user message and active assistant loading state automatically, so users never need to manually scroll to see submission progress or the current response.
 
 **Why:** The intended experience is mobile-first and low-friction, especially when future engines make responses longer or slower.

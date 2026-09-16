@@ -425,7 +425,7 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
   });
   assert.equal(unknownResponse.status, 200);
   const unknownResult = await streamResult(unknownResponse);
-  assert.equal(unknownResult.content, "I don't have enough verified KAMALO information to answer that accurately yet.");
+  assert.equal(unknownResult.content, "I don't have confirmed information about that in the KAMALO information available to me.");
 
   const providerConversation = await createConversation(`${testPrefix} provider`);
   const originalStream = llmProvider.stream;
