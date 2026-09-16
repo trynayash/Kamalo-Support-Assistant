@@ -50,3 +50,9 @@ The support chat should always follow the newest user message and active assista
 **Why:** The intended experience is mobile-first and low-friction, especially when future engines make responses longer or slower.
 
 **How to apply:** Preserve auto-scroll behavior across streaming, loading, retries, engine handoffs, and multi-step responses while avoiding disruptive jumps when a user intentionally reviews older messages.
+
+Stage 1 responses must be sanitized before reaching the browser; provider failures, malformed payloads, prompt-extraction attempts, secrets, raw calculations, hidden reasoning, and internal error details require safe user-facing fallbacks.
+
+**Why:** Client-visible streaming or development error surfaces can leak information even when the final saved response is cleaned.
+
+**How to apply:** Keep provider output buffered until sanitized, keep API errors generic, log diagnostics server-side without request bodies, and make browser crash fallbacks non-diagnostic.

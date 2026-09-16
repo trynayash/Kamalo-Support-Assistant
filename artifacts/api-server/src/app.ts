@@ -50,4 +50,17 @@ app.use((req, res, next) => {
 
 app.use("/api", router);
 
+app.use("/api", (_req, res) => {
+  res.status(404).json({ error: "The requested resource was not found." });
+});
+
+app.use((error: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  req.log.error({ err: error }, "Unhandled API error");
+  if (res.headersSent) {
+    next(error);
+    return;
+  }
+  res.status(500).json({ error: "Something went wrong. Please try again." });
+});
+
 export default app;

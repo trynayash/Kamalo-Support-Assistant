@@ -17,6 +17,7 @@ export interface LLMProvider {
 // text models. Keep this fixed to prevent an accidental paid-model fallback.
 export const OPENROUTER_MODEL = "openrouter/free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const OPENROUTER_TIMEOUT_MS = 45_000;
 
 function getOpenRouterKey(): string {
   const key = process.env.OPENROUTER_API_KEY;
@@ -38,8 +39,8 @@ function requestBody(request: LLMRequest, stream: boolean) {
 
 async function checkResponse(response: Response): Promise<void> {
   if (response.ok) return;
-  const detail = await response.text();
-  throw new Error(`OpenRouter request failed with status ${response.status}: ${detail.slice(0, 240)}`);
+  await response.body?.cancel();
+  throw new Error(`OpenRouter request failed with status ${response.status}`);
 }
 
 export class OpenRouterProvider implements LLMProvider {
@@ -53,6 +54,7 @@ export class OpenRouterProvider implements LLMProvider {
         "X-Title": "KAMALO AI",
       },
       body: JSON.stringify(requestBody(request, false)),
+      signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
     });
     await checkResponse(response);
     const payload = (await response.json()) as {
@@ -71,6 +73,7 @@ export class OpenRouterProvider implements LLMProvider {
         "X-Title": "KAMALO AI",
       },
       body: JSON.stringify(requestBody(request, true)),
+      signal: AbortSignal.timeout(OPENROUTER_TIMEOUT_MS),
     });
     await checkResponse(response);
     if (!response.body) {

@@ -20,6 +20,8 @@ const firstUsePrompts = [
   { label: 'Transactions', text: 'Where can I see my recent transactions?' },
 ];
 
+const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
+
 const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
 
 function cleanDisplayedAssistantContent(content: string) {
@@ -46,14 +48,14 @@ function ConversationSkeleton() {
   return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
 }
 
-function ConversationHistory({ conversations, selectedId, loading, onSelect, onDelete }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void }) {
+function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void }) {
   return (
     <div id="conversation-history" className="mt-7" data-testid="panel-conversation-history">
       <div className="mb-3 flex items-center justify-between px-1">
         <span className="font-mono text-[10px] uppercase tracking-[.17em] text-muted-foreground">Recent conversations</span>
         <span className="font-mono text-[10px] text-muted-foreground/70" data-testid="text-conversation-count">{conversations.length}</span>
       </div>
-      {loading ? <ConversationSkeleton /> : conversations.length === 0 ? (
+      {error ? <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center text-[11px] leading-relaxed text-destructive" data-testid="status-conversation-history-error">History is temporarily unavailable. Please try again shortly.</div> : loading ? <ConversationSkeleton /> : conversations.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-4 text-center text-[11px] leading-relaxed text-muted-foreground" data-testid="empty-conversations">Your conversation history will appear here.</div>
       ) : (
         <div className="thin-scrollbar max-h-[min(47vh,440px)] space-y-1 overflow-y-auto pr-1">
@@ -136,8 +138,8 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   });
   if (!response.ok) throw new Error('Assistant request failed');
   if (!response.body) {
-    const fallback = await response.text();
-    return { content: fallback, messageId: null };
+    await response.text();
+    return { content: CLIENT_SAFE_RESPONSE_ERROR, messageId: null };
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -149,13 +151,13 @@ async function streamAssistantResponse(conversationId: string, content: string, 
     const line = event.split('\n').find((item) => item.startsWith('data:'));
     if (!line) return;
     try {
-      const payload = JSON.parse(line.slice(5).trim()) as { content?: string; done?: boolean; messageId?: string; finalContent?: string };
-      if (payload.content) {
+      const payload = JSON.parse(line.slice(5).trim()) as { content?: unknown; done?: boolean; messageId?: unknown; finalContent?: unknown };
+      if (typeof payload.content === 'string' && payload.content) {
         fullResponse += payload.content;
         onChunk(fullResponse);
       }
-      if (payload.messageId) messageId = payload.messageId;
-      if (payload.finalContent) finalContent = payload.finalContent;
+      if (typeof payload.messageId === 'string') messageId = payload.messageId;
+      if (typeof payload.finalContent === 'string') finalContent = payload.finalContent;
     } catch {
       // Ignore incomplete event frames; the next read will complete them.
     }
@@ -327,11 +329,26 @@ export function HomePage() {
     }
   };
 
+  const copyAssistantResponse = async (content: string) => {
+    try {
+      if (!navigator.clipboard) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(content);
+      setNotice('Answer copied to clipboard.');
+    } catch {
+      setNotice('Copying is not available right now.');
+    }
+    window.setTimeout(() => setNotice(''), 2200);
+  };
+
   const deleteConversationItem = async (conversation: ConversationSummary) => {
     if (!window.confirm(`Remove “${conversation.title || 'Untitled conversation'}” from your chat history?\n\nThe visible chat and its messages will be removed and cannot be undone. KAMALO will retain an internal record for system and support continuity.`)) return;
-    await deleteConversation.mutateAsync({ conversationId: conversation.id });
-    await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-    if (selectedId === conversation.id) void startNewConversation();
+    try {
+      await deleteConversation.mutateAsync({ conversationId: conversation.id });
+      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      if (selectedId === conversation.id) void startNewConversation();
+    } catch {
+      setErrorMessage('This chat could not be removed right now. Please try again.');
+    }
   };
 
   const clearCurrent = async () => {
@@ -358,14 +375,14 @@ export function HomePage() {
         <div className="mt-3 flex items-center justify-end border-y border-border/60 py-2.5 xl:hidden">
           <button onClick={() => setMobileHistoryOpen((open) => !open)} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" aria-expanded={mobileHistoryOpen} data-testid="button-toggle-mobile-history">{mobileHistoryOpen ? 'Close history' : 'History'} <span className="font-mono text-[10px] text-muted-foreground">{conversations.length}</span></button>
         </div>
-        {mobileHistoryOpen && <div className="rounded-b-lg border-x border-b border-border bg-card px-3 pb-3 xl:hidden"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
+        {mobileHistoryOpen && <div className="rounded-b-lg border-x border-b border-border bg-card px-3 pb-3 xl:hidden"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
 
         <div className="grid min-h-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 flex-col pt-5 md:pt-12">
-            {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : messages.length === 0 && !conversationQuery.isLoading ? <ChatEmptyState onPrompt={(text) => void sendMessage(text)} /> : (
+            {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? <ChatEmptyState onPrompt={(text) => void sendMessage(text)} /> : (
               <div ref={messagesScrollRef} className="thin-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
-                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void navigator.clipboard?.writeText(content); setNotice('Answer copied to clipboard.'); window.setTimeout(() => setNotice(''), 2200); }} onRetry={retryLast} />)}
+                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={retryLast} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
               </div>
             )}
@@ -382,7 +399,7 @@ export function HomePage() {
           </section>
 
           <aside className="hidden border-l border-border/70 pl-7 xl:block">
-            <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
+            <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
           </aside>
         </div>
       </div>
