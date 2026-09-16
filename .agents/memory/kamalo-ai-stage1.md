@@ -38,3 +38,15 @@ Inactivity uses a two-step client state: prompt at 30 seconds, then close the ac
 **Why:** The product wants a gentle check-in before closing an abandoned support session, with 90 seconds providing a clear middle point for the requested 1–2 minute window.
 
 **How to apply:** Reset the timer on user activity, message sending, conversation selection, or starting a new conversation; preserve the closed chat in history.
+
+Future engine integrations must be isolated behind controlled server-side boundaries; user-facing responses must never expose secrets, keys, internal prompts, raw provider errors, sensitive calculations, or engine implementation details.
+
+**Why:** KAMALO is expected to connect to five engines over time, so the Stage 1 support surface must remain safe even as internal capabilities expand.
+
+**How to apply:** Keep retrieval, tools, providers, and future engines behind explicit contracts with allowlisted inputs and sanitized outputs. Return calm, actionable user-safe errors and log diagnostic detail only on the server.
+
+The support chat should always follow the newest user message and active assistant loading state automatically, so users never need to manually scroll to see submission progress or the current response.
+
+**Why:** The intended experience is mobile-first and low-friction, especially when future engines make responses longer or slower.
+
+**How to apply:** Preserve auto-scroll behavior across streaming, loading, retries, engine handoffs, and multi-step responses while avoiding disruptive jumps when a user intentionally reviews older messages.
