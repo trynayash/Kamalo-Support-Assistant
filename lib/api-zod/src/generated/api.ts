@@ -9,6 +9,43 @@ import * as zod from 'zod';
 
 
 /**
+ * @summary Get the current account
+ */
+export const GetCurrentAuthUserResponse = zod.object({
+  "user": zod.union([zod.object({
+  "id": zod.string(),
+  "email": zod.string().email().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "profileImageUrl": zod.string().nullable(),
+  "role": zod.enum(['customer', 'support', 'admin', 'system'])
+}),zod.null()])
+})
+
+
+/**
+ * @summary Start browser login
+ */
+export const BeginBrowserLoginQueryParams = zod.object({
+  "returnTo": zod.coerce.string().optional()
+})
+
+export const BeginBrowserLoginResponse = zod.void()
+
+
+/**
+ * @summary Complete browser login
+ */
+export const HandleBrowserLoginCallbackResponse = zod.void()
+
+
+/**
+ * @summary Log out of the current account
+ */
+export const LogoutBrowserSessionResponse = zod.void()
+
+
+/**
  * Returns server health status
  * @summary Health check
  */

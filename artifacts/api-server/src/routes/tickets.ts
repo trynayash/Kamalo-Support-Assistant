@@ -23,9 +23,11 @@ import { sendTicketEmail } from "../lib/ticket-email";
 import { llmProvider } from "../lib/llm";
 import { capAssistantOutput, sanitizeAssistantOutput } from "../lib/safety";
 import { retrieveKnowledge } from "../lib/knowledge";
+import { requireAuthenticated, requireRole } from "../middlewares/authMiddleware";
+import { ticketForUser } from "../lib/authorization";
 
 const router: IRouter = Router();
-const DEMO_USER_ID = "demo-user";
+router.use(requireAuthenticated);
 
 type TicketRow = typeof supportTicketsTable.$inferSelect;
 
@@ -106,14 +108,14 @@ async function persistEmailStatus(ticketId: string, emailStatus: "sent" | "faile
   return ticketById(ticketId);
 }
 
-router.get("/tickets", async (_req, res): Promise<void> => {
+router.get("/tickets", async (req, res): Promise<void> => {
   const tickets = await db.select().from(supportTicketsTable)
-    .where(eq(supportTicketsTable.userId, DEMO_USER_ID))
+    .where(eq(supportTicketsTable.userId, req.user!.id))
     .orderBy(desc(supportTicketsTable.createdAt));
   res.json(ListSupportTicketsResponse.parse(await ticketResponses(tickets)));
 });
 
-router.get("/tickets/admin", async (_req, res): Promise<void> => {
+router.get("/tickets/admin", requireRole("support", "admin"), async (_req, res): Promise<void> => {
   const tickets = await db.select().from(supportTicketsTable).orderBy(desc(supportTicketsTable.createdAt));
   res.json(ListSupportTicketsResponse.parse(await ticketResponses(tickets)));
 });
@@ -127,7 +129,7 @@ router.post("/tickets", async (req, res): Promise<void> => {
   const input = parsed.data;
   const [conversation] = await db.select({ id: conversationsTable.id })
     .from(conversationsTable)
-    .where(and(eq(conversationsTable.id, input.conversationId), eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
+    .where(and(eq(conversationsTable.id, input.conversationId), eq(conversationsTable.userId, req.user!.id), isNull(conversationsTable.clearedAt)))
     .limit(1);
   if (!conversation) {
     res.status(404).json({ error: "Conversation not found." });
@@ -156,7 +158,7 @@ router.post("/tickets", async (req, res): Promise<void> => {
   const ticket = {
     id: crypto.randomUUID(),
     ticketNumber: `KAM-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-    userId: DEMO_USER_ID,
+    userId: req.user!.id,
     conversationId: input.conversationId,
     messageId: input.messageId || null,
     category: input.category.trim(),
@@ -213,7 +215,7 @@ router.get("/tickets/:ticketId", async (req, res): Promise<void> => {
     res.status(404).json({ error: "Ticket not found." });
     return;
   }
-  const ticket = await ticketById(params.data.ticketId);
+  const ticket = await ticketForUser(req, params.data.ticketId);
   if (!ticket) {
     res.status(404).json({ error: "Ticket not found." });
     return;
@@ -221,7 +223,7 @@ router.get("/tickets/:ticketId", async (req, res): Promise<void> => {
   res.json(GetSupportTicketResponse.parse(await ticketResponse(ticket)));
 });
 
-router.post("/tickets/:ticketId/analyze", async (req, res): Promise<void> => {
+router.post("/tickets/:ticketId/analyze", requireRole("support", "admin"), async (req, res): Promise<void> => {
   const params = GetSupportTicketParams.safeParse(req.params);
   const parsed = AnalyzeSupportTicketBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -275,7 +277,7 @@ Do not claim account access, transaction checks, balances, refunds, completed ac
   res.json(AnalyzeSupportTicketResponse.parse({ mode: "ai", draftResolution }));
 });
 
-router.post("/tickets/:ticketId/email", async (req, res): Promise<void> => {
+router.post("/tickets/:ticketId/email", requireRole("support", "admin"), async (req, res): Promise<void> => {
   const params = GetSupportTicketParams.safeParse(req.params);
   if (!params.success) {
     res.status(404).json({ error: "Ticket not found." });
@@ -301,7 +303,7 @@ router.post("/tickets/:ticketId/email", async (req, res): Promise<void> => {
   res.json(UpdateSupportTicketResponse.parse(await ticketResponse(refreshed || ticket)));
 });
 
-router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {
+router.patch("/tickets/:ticketId", requireRole("support", "admin"), async (req, res): Promise<void> => {
   const params = GetSupportTicketParams.safeParse(req.params);
   const parsed = UpdateSupportTicketBody.safeParse(req.body);
   if (!params.success || !parsed.success) {

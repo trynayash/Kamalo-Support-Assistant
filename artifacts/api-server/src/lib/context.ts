@@ -44,6 +44,8 @@ export function createSupportRequestContext(request: Request, conversationId: st
   const requestId = headerValue(request, "x-request-id") || crypto.randomUUID();
   const sessionId = headerValue(request, "x-session-id");
   const locale = headerValue(request, "accept-language")?.split(",")[0]?.trim() || "en";
+  const authenticated = typeof request.isAuthenticated === "function" && request.isAuthenticated();
+  const user = authenticated ? request.user : undefined;
 
   return {
     requestId,
@@ -52,11 +54,15 @@ export function createSupportRequestContext(request: Request, conversationId: st
     tenantId: "kamalo",
     locale,
     identity: {
-      userId: "demo-user",
-      role: "customer",
-      authenticated: false,
+      userId: user?.id || "anonymous",
+      role: user?.role || "customer",
+      authenticated,
     },
-    permissions: ["knowledge.read"],
+    permissions: authenticated
+      ? user?.role === "customer"
+        ? ["knowledge.read"]
+        : ["knowledge.read", "tickets.read", "tickets.manage", "knowledge.write"]
+      : [],
     createdAt: new Date().toISOString(),
   };
 }

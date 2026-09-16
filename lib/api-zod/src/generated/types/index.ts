@@ -6,6 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './authUser';
+export * from './authUserEnvelope';
+export * from './authUserRole';
+export * from './beginBrowserLoginParams';
 export * from './chatMessage';
 export * from './chatMessageFeedback';
 export * from './chatMessageRole';

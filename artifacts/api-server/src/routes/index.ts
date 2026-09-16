@@ -1,5 +1,6 @@
 import { Router, type IRouter, type NextFunction, type Request, type Response } from "express";
 import healthRouter from "./health";
+import authRouter from "./auth";
 import conversationsRouter from "./conversations";
 import feedbackRouter from "./feedback";
 import knowledgeRouter from "./knowledge";
@@ -9,6 +10,7 @@ import { ImageUploadError } from "../lib/image-attachments";
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(authRouter);
 router.use(conversationsRouter);
 router.use(feedbackRouter);
 router.use(knowledgeRouter);

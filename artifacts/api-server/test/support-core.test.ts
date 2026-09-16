@@ -5,6 +5,7 @@ import type { Request } from "express";
 import { and, eq, inArray } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, type SupportRequestContext } from "../src/lib/context";
+import { createSession } from "../src/lib/auth";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest } from "../src/lib/orchestrator";
@@ -15,12 +16,18 @@ import {
   db,
   knowledgeArticlesTable,
   messageFeedbackTable,
+  messageAttachmentsTable,
   messagesTable,
   pool,
   supportTicketsTable,
+  sessionsTable,
+  usersTable,
 } from "@workspace/db";
 
 const testPrefix = `support-core-regression-${crypto.randomUUID()}`;
+const testUserId = `${testPrefix}-customer`;
+const otherUserId = `${testPrefix}-other`;
+const adminUserId = `${testPrefix}-admin`;
 const evidenceToken = `zxq${crypto.randomUUID().replaceAll("-", "")}`;
 const unknownToken = `zyq${crypto.randomUUID().replaceAll("-", "")}`;
 const articleIds: string[] = [];
@@ -29,6 +36,9 @@ const ticketIds: string[] = [];
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl = "";
+let testSession = "";
+let otherSession = "";
+let adminSession = "";
 
 function testContext(overrides: Partial<SupportRequestContext> = {}): SupportRequestContext {
   return {
@@ -38,9 +48,9 @@ function testContext(overrides: Partial<SupportRequestContext> = {}): SupportReq
     tenantId: "kamalo",
     locale: "en",
     identity: {
-      userId: "demo-user",
+      userId: testUserId,
       role: "customer",
-      authenticated: false,
+      authenticated: true,
     },
     permissions: ["knowledge.read"],
     createdAt: new Date().toISOString(),
@@ -49,10 +59,15 @@ function testContext(overrides: Partial<SupportRequestContext> = {}): SupportReq
 }
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
+  return requestAs(path, testSession, init);
+}
+
+async function requestAs(path: string, session: string, init?: RequestInit): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
+      cookie: session ? `sid=${session}` : "",
       ...(init?.headers || {}),
     },
   });
@@ -126,6 +141,23 @@ async function createConversation(title = testPrefix): Promise<{ id: string }> {
 }
 
 before(async () => {
+  await db.insert(usersTable).values([
+    { id: testUserId, email: `${testUserId}@example.test`, firstName: "Test", lastName: "Customer", profileImageUrl: null, role: "customer" },
+    { id: otherUserId, email: `${otherUserId}@example.test`, firstName: "Other", lastName: "Customer", profileImageUrl: null, role: "customer" },
+    { id: adminUserId, email: `${adminUserId}@example.test`, firstName: "Test", lastName: "Admin", profileImageUrl: null, role: "admin" },
+  ]);
+  testSession = await createSession({
+    user: { id: testUserId, email: `${testUserId}@example.test`, firstName: "Test", lastName: "Customer", profileImageUrl: null, role: "customer" },
+    access_token: "test",
+  });
+  otherSession = await createSession({
+    user: { id: otherUserId, email: `${otherUserId}@example.test`, firstName: "Other", lastName: "Customer", profileImageUrl: null, role: "customer" },
+    access_token: "test",
+  });
+  adminSession = await createSession({
+    user: { id: adminUserId, email: `${adminUserId}@example.test`, firstName: "Test", lastName: "Admin", profileImageUrl: null, role: "admin" },
+    access_token: "test",
+  });
   const approvedId = crypto.randomUUID();
   const draftId = crypto.randomUUID();
   const expiredId = crypto.randomUUID();
@@ -187,6 +219,8 @@ after(async () => {
   if (articleIds.length > 0) {
     await db.delete(knowledgeArticlesTable).where(inArray(knowledgeArticlesTable.id, articleIds));
   }
+  await db.delete(sessionsTable).where(inArray(sessionsTable.sid, [testSession, otherSession, adminSession]));
+  await db.delete(usersTable).where(inArray(usersTable.id, [testUserId, otherUserId, adminUserId]));
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
@@ -213,11 +247,11 @@ test("creates trusted support context from bounded request headers", () => {
     tenantId: "kamalo",
     locale: "fr-FR",
     identity: {
-      userId: "demo-user",
+      userId: "anonymous",
       role: "customer",
       authenticated: false,
     },
-    permissions: ["knowledge.read"],
+    permissions: [],
     createdAt: context.createdAt,
   });
   assert.doesNotThrow(() => new Date(context.createdAt).toISOString());
@@ -511,7 +545,7 @@ test("preserves readiness, conversation history, feedback, and ticket contracts"
       feedbackRating: "helpful",
     }),
   });
-  assert.equal(ticketResponse.status, 201);
+  assert.equal(ticketResponse.status, 201, await ticketResponse.clone().text());
   const ticket = await json<{ id: string; emailStatus: string; contactEmail: string | null; status: string }>(ticketResponse);
   ticketIds.push(ticket.id);
   assert.equal(ticket.emailStatus, "skipped");
@@ -526,7 +560,7 @@ test("preserves readiness, conversation history, feedback, and ticket contracts"
   assert.equal(ticketListResponse.status, 200);
   assert.ok((await json<Array<{ id: string }>>(ticketListResponse)).some((item) => item.id === ticket.id));
 
-  const updateResponse = await request(`/api/tickets/${ticket.id}`, {
+  const updateResponse = await requestAs(`/api/tickets/${ticket.id}`, adminSession, {
     method: "PATCH",
     body: JSON.stringify({
       status: "resolved",
@@ -554,8 +588,62 @@ test("does not leave feedback rows outside the synthetic conversation fixture", 
     .innerJoin(messagesTable, eq(messagesTable.id, messageFeedbackTable.messageId))
     .innerJoin(conversationsTable, and(
       eq(conversationsTable.id, messagesTable.conversationId),
-      eq(conversationsTable.userId, "demo-user"),
+      eq(conversationsTable.userId, testUserId),
     ))
     .where(inArray(conversationsTable.id, conversationIds));
   assert.ok(rows.every((row) => typeof row.messageId === "string"));
+});
+
+test("enforces account ownership and support roles across direct IDs", async () => {
+  const unauthenticated = await requestAs("/api/conversations", "");
+  assert.equal(unauthenticated.status, 401);
+
+  const conversation = await createConversation(`${testPrefix}-authorization`);
+  const messageId = crypto.randomUUID();
+  await db.insert(messagesTable).values({
+    id: messageId,
+    conversationId: conversation.id,
+    role: "assistant",
+    content: "Authorization fixture response",
+  });
+  const attachmentId = crypto.randomUUID();
+  await db.insert(messageAttachmentsTable).values({
+    id: attachmentId,
+    conversationId: conversation.id,
+    messageId,
+    originalFilename: "fixture.png",
+    mediaType: "image/png",
+    size: 10,
+    storageKey: `${attachmentId}.png`,
+  });
+  const ticketResponse = await request("/api/tickets", {
+    method: "POST",
+    body: JSON.stringify({
+      conversationId: conversation.id,
+      messageId,
+      category: "authorization",
+      summary: "Ownership fixture",
+      details: "Verifies direct-ID ownership checks.",
+    }),
+  });
+  assert.equal(ticketResponse.status, 201, await ticketResponse.clone().text());
+  const ticket = await json<{ id: string }>(ticketResponse);
+  ticketIds.push(ticket.id);
+
+  assert.equal((await requestAs(`/api/conversations/${conversation.id}`, otherSession)).status, 404);
+  assert.equal((await requestAs(`/api/conversations/${conversation.id}`, otherSession, { method: "DELETE" })).status, 404);
+  assert.equal((await requestAs(`/api/messages/${messageId}/feedback`, otherSession, {
+    method: "POST",
+    body: JSON.stringify({ rating: "helpful" }),
+  })).status, 404);
+  assert.equal((await requestAs(`/api/conversations/${conversation.id}/attachments/${attachmentId}`, otherSession)).status, 404);
+  assert.equal((await requestAs(`/api/tickets/${ticket.id}`, otherSession)).status, 404);
+
+  assert.equal((await request("/api/tickets/admin")).status, 403);
+  assert.equal((await request(`/api/tickets/${ticket.id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status: "resolved", resolution: "Should be denied." }),
+  })).status, 403);
+  assert.equal((await request("/api/knowledge/articles")).status, 403);
+  assert.equal((await requestAs("/api/tickets/admin", adminSession)).status, 200);
 });

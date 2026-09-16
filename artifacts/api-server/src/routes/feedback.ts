@@ -6,8 +6,11 @@ import {
   CreateMessageFeedbackResponse,
 } from "@workspace/api-zod";
 import { db, messageFeedbackTable, messagesTable } from "@workspace/db";
+import { conversationsTable } from "@workspace/db";
+import { requireAuthenticated } from "../middlewares/authMiddleware";
 
 const router: IRouter = Router();
+router.use(requireAuthenticated);
 
 router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => {
   const params = CreateMessageFeedbackParams.safeParse(req.params);
@@ -16,7 +19,10 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid feedback." });
     return;
   }
-  const [message] = await db.select({ id: messagesTable.id }).from(messagesTable).where(eq(messagesTable.id, params.data.messageId)).limit(1);
+  const [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId }).from(messagesTable)
+    .innerJoin(conversationsTable, eq(conversationsTable.id, messagesTable.conversationId))
+    .where(and(eq(messagesTable.id, params.data.messageId), eq(conversationsTable.userId, req.user!.id)))
+    .limit(1);
   if (!message) {
     res.status(404).json({ error: "Message not found." });
     return;

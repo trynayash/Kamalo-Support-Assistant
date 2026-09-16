@@ -5,6 +5,33 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type AuthUserRole = typeof AuthUserRole[keyof typeof AuthUserRole];
+
+
+export const AuthUserRole = {
+  customer: 'customer',
+  support: 'support',
+  admin: 'admin',
+  system: 'system',
+} as const;
+
+export interface AuthUser {
+  id: string;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  /** @nullable */
+  profileImageUrl: string | null;
+  role: AuthUserRole;
+}
+
+export interface AuthUserEnvelope {
+  user: AuthUser | null;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -390,6 +417,10 @@ export interface KnowledgeArticleUpdate {
      */
   content?: string;
 }
+
+export type BeginBrowserLoginParams = {
+returnTo?: string;
+};
 
 export type ListKnowledgeArticlesParams = {
 search?: string;

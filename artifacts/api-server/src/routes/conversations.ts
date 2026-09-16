@@ -18,9 +18,10 @@ import { readConversationImage, saveConversationImage } from "../lib/image-attac
 import { createSupportRequestContext } from "../lib/context";
 import { prepareSupportRequest, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
+import { requireAuthenticated } from "../middlewares/authMiddleware";
+import { canAccessConversation, ownsConversation } from "../lib/authorization";
 
 const router: IRouter = Router();
-const DEMO_USER_ID = "demo-user";
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
 function dateString(value: Date): string {
@@ -36,9 +37,8 @@ async function writeSse(res: import("express").Response, payload: Record<string,
   return !res.destroyed && !res.writableEnded;
 }
 
-async function conversationExists(id: string): Promise<boolean> {
-  const rows = await db.select({ id: conversationsTable.id }).from(conversationsTable).where(and(eq(conversationsTable.id, id), eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt))).limit(1);
-  return rows.length > 0;
+async function conversationExists(req: import("express").Request, id: string): Promise<boolean> {
+  return ownsConversation(req, id);
 }
 
 function attachmentResponse(conversationId: string, attachment: typeof messageAttachmentsTable.$inferSelect) {
@@ -71,7 +71,9 @@ async function getConversationHistory(conversationId: string, currentMessageId: 
     .map(({ role, content }) => ({ role, content: content.slice(0, 4000) }));
 }
 
-router.get("/conversations", async (_req, res): Promise<void> => {
+router.use(requireAuthenticated);
+
+router.get("/conversations", async (req, res): Promise<void> => {
   const rows = await db
     .select({
       id: conversationsTable.id,
@@ -82,7 +84,7 @@ router.get("/conversations", async (_req, res): Promise<void> => {
     })
     .from(conversationsTable)
     .leftJoin(messagesTable, eq(messagesTable.conversationId, conversationsTable.id))
-    .where(and(eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
+    .where(and(eq(conversationsTable.userId, req.user!.id), isNull(conversationsTable.clearedAt)))
     .groupBy(conversationsTable.id)
     .having(gt(count(messagesTable.id), 0))
     .orderBy(desc(conversationsTable.updatedAt));
@@ -103,7 +105,7 @@ router.post("/conversations", async (req, res): Promise<void> => {
   const now = new Date();
   const conversation = {
     id: crypto.randomUUID(),
-    userId: DEMO_USER_ID,
+    userId: req.user!.id,
     title: parsed.data.title?.trim() || "New KAMALO conversation",
     createdAt: now,
     updatedAt: now,
@@ -118,11 +120,11 @@ router.post("/conversations", async (req, res): Promise<void> => {
 
 router.get("/conversations/:conversationId", async (req, res): Promise<void> => {
   const params = GetConversationParams.safeParse(req.params);
-  if (!params.success || !(await conversationExists(params.data.conversationId))) {
+  if (!params.success || !(await conversationExists(req, params.data.conversationId))) {
     res.status(404).json({ error: "Conversation not found." });
     return;
   }
-  const [conversation] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, params.data.conversationId), eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)));
+  const [conversation] = await db.select().from(conversationsTable).where(and(eq(conversationsTable.id, params.data.conversationId), eq(conversationsTable.userId, req.user!.id), isNull(conversationsTable.clearedAt)));
   const messages = await db.select().from(messagesTable).where(eq(messagesTable.conversationId, params.data.conversationId)).orderBy(messagesTable.createdAt);
   const attachments = await db.select().from(messageAttachmentsTable).where(eq(messageAttachmentsTable.conversationId, params.data.conversationId));
   const attachmentsByMessage = new Map<string, ReturnType<typeof attachmentResponse>[]>();
@@ -162,7 +164,7 @@ router.delete("/conversations/:conversationId", async (req, res): Promise<void> 
   const clearedAt = new Date();
   const cleared = await db.update(conversationsTable)
     .set({ clearedAt, updatedAt: clearedAt })
-    .where(and(eq(conversationsTable.id, params.data.conversationId), eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
+    .where(and(eq(conversationsTable.id, params.data.conversationId), eq(conversationsTable.userId, req.user!.id), isNull(conversationsTable.clearedAt)))
     .returning({ id: conversationsTable.id });
   if (cleared.length === 0) {
     res.status(404).json({ error: "Conversation not found." });
@@ -174,7 +176,7 @@ router.delete("/conversations/:conversationId", async (req, res): Promise<void> 
 
 router.post("/conversations/:conversationId/attachments", async (req, res): Promise<void> => {
   const params = GetConversationParams.safeParse(req.params);
-  if (!params.success || !(await conversationExists(params.data.conversationId))) {
+  if (!params.success || !(await conversationExists(req, params.data.conversationId))) {
     res.status(404).json({ error: "Conversation not found." });
     return;
   }
@@ -199,7 +201,7 @@ router.post("/conversations/:conversationId/attachments", async (req, res): Prom
 router.get("/conversations/:conversationId/attachments/:attachmentId", async (req, res): Promise<void> => {
   const params = GetConversationParams.safeParse(req.params);
   const attachmentId = typeof req.params.attachmentId === "string" ? req.params.attachmentId : "";
-  if (!params.success || !attachmentId || !(await conversationExists(params.data.conversationId))) {
+  if (!params.success || !attachmentId || !(await canAccessConversation(req, params.data.conversationId))) {
     res.status(404).json({ error: "Image not found." });
     return;
   }
@@ -227,7 +229,7 @@ router.get("/conversations/:conversationId/attachments/:attachmentId", async (re
 router.post("/conversations/:conversationId/messages", async (req, res): Promise<void> => {
   const params = StreamAssistantMessageParams.safeParse(req.params);
   const body = StreamAssistantMessageBody.safeParse(req.body);
-  if (!params.success || !body.success || !(await conversationExists(params.data.conversationId))) {
+  if (!params.success || !body.success || !(await conversationExists(req, params.data.conversationId))) {
     res.status(400).json({ error: "Invalid conversation or message." });
     return;
   }

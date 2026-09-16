@@ -187,6 +187,7 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   const response = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    credentials: 'include',
     body: JSON.stringify({ content, attachmentId: attachmentId || undefined }),
   });
   if (!response.ok) {
@@ -197,7 +198,9 @@ async function streamAssistantResponse(conversationId: string, content: string, 
     } catch {
       // Keep the client message useful even when a proxy returns non-JSON.
     }
-    throw new Error(detail || `Assistant request failed (${response.status})`);
+    const error = new Error(detail || `Assistant request failed (${response.status})`) as Error & { status?: number };
+    error.status = response.status;
+    throw error;
   }
   if (!response.body) {
     await response.text();
