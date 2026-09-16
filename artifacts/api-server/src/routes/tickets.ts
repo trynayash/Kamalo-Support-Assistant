@@ -271,7 +271,11 @@ router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {
   await db.update(supportTicketsTable).set(updatedValues).where(eq(supportTicketsTable.id, ticket.id));
 
   let emailStatus = ticket.emailStatus;
-  const shouldNotifyResolution = parsed.data.status === "resolved" && Boolean(ticket.contactEmail) && Boolean(nextResolution);
+  const resolutionChanged = parsed.data.resolution !== undefined && (parsed.data.resolution || "").trim() !== (ticket.resolution || "").trim();
+  const shouldNotifyResolution = parsed.data.status === "resolved"
+    && Boolean(ticket.contactEmail)
+    && Boolean(nextResolution)
+    && (ticket.status !== "resolved" || ticket.emailStatus !== "sent" || resolutionChanged);
   if (shouldNotifyResolution && ticket.contactEmail) {
     try {
       await sendTicketEmail({

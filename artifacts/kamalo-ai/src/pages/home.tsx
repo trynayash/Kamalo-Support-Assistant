@@ -422,7 +422,12 @@ export function HomePage() {
               attachmentIds: relatedUserMessage?.attachments?.map((attachment) => attachment.id) || [],
             },
           });
-          setNotice(`Ticket ${ticket.ticketNumber} was raised. We will email the resolution and show it in Help & Support.`);
+           const deliveryNotice = ticket.emailStatus === 'sent'
+             ? ' We will email the resolution and show it in Help & Support.'
+             : ticket.emailStatus === 'failed'
+               ? ' The ticket is saved, but email delivery needs support sender setup. You can track it in Help & Support.'
+               : ' The ticket is saved and will be tracked in Help & Support.';
+           setNotice(`Ticket ${ticket.ticketNumber} was raised.${deliveryNotice}`);
         } catch {
           setNotice('Feedback was saved, but the support ticket could not be raised. Please try again.');
         }
