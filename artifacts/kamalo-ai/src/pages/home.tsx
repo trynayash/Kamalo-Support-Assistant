@@ -12,7 +12,7 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineSparkles, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { Link, useLocation } from 'wouter';
@@ -62,7 +62,7 @@ function ConversationSkeleton() {
   return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
 }
 
-function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete, limit = 2 }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void; limit?: number }) {
+function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete, limit = 1 }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void; limit?: number }) {
   const visibleConversations = conversations.slice(0, limit);
   return (
     <div id="conversation-history" className="mt-7" data-testid="panel-conversation-history">
@@ -90,6 +90,23 @@ function ConversationHistory({ conversations, selectedId, loading, error, onSele
           More history
         </Link>
       )}
+    </div>
+  );
+}
+
+function ChatWelcomeState() {
+  return (
+    <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" data-testid="chat-welcome">
+      <div className="max-w-md">
+        <div className="welcome-orb mx-auto grid h-14 w-14 place-items-center rounded-2xl text-primary shadow-[0_12px_28px_hsl(var(--primary)/.16)]">
+          <HiOutlineSparkles size={25} />
+        </div>
+        <p className="mt-6 font-mono text-[10px] uppercase tracking-[.22em] text-primary">KAMALO AI</p>
+        <h1 className="mt-3 text-[clamp(2rem,7vw,3.3rem)] font-extrabold leading-[1.02] tracking-[-.06em] text-foreground">
+          Hey there.<br />How can I help today?
+        </h1>
+        <p className="mx-auto mt-5 max-w-sm text-[13px] leading-7 text-muted-foreground">Ask a question, and let’s get started.</p>
+      </div>
     </div>
   );
 }
@@ -494,8 +511,9 @@ export function HomePage() {
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
             {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
                 <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1 xl:hidden" data-testid="conversation-messages">
-                 <div className="mx-auto max-w-xl px-1 py-7 sm:py-12">
+                 <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                    <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
+                   <ChatWelcomeState />
                  </div>
               </div>
             ) : (
