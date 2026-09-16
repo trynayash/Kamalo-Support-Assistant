@@ -1,4 +1,4 @@
-import { and, count, desc, eq, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateConversationBody,
@@ -66,6 +66,7 @@ router.get("/conversations", async (_req, res): Promise<void> => {
     .leftJoin(messagesTable, eq(messagesTable.conversationId, conversationsTable.id))
     .where(and(eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
     .groupBy(conversationsTable.id)
+    .having(gt(count(messagesTable.id), 0))
     .orderBy(desc(conversationsTable.updatedAt));
   res.json(ListConversationsResponse.parse(rows.map((row) => ({
     ...row,
