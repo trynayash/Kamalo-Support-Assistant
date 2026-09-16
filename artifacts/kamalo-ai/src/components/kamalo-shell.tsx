@@ -29,8 +29,8 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
   const shellStyle = { '--kamalo-sidebar-width': collapsed ? '72px' : '276px' } as CSSProperties;
 
   return (
-    <div className="flex min-h-[100dvh] bg-background" style={shellStyle}>
-      <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden flex-col border-r border-sidebar-border bg-sidebar py-6 text-sidebar-foreground transition-[width,padding] duration-300 md:static md:flex ${collapsed ? 'w-[72px] px-3' : 'w-[276px] px-5'}`}>
+    <div className="flex min-h-[100dvh] w-full max-w-full overflow-x-clip bg-background" style={shellStyle}>
+      <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar py-6 text-sidebar-foreground transition-[width,padding] duration-300 md:static md:flex ${collapsed ? 'w-[72px] px-3' : 'w-[276px] px-5'}`}>
         <div className={`flex items-start ${collapsed ? 'justify-center' : 'justify-between'}`}>
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark small={collapsed} /></Link>
         </div>
@@ -62,7 +62,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
 
         <div className="mt-auto" />
       </aside>
-      <main className="min-w-0 flex-1 overflow-x-hidden">
+      <main className="w-0 min-w-0 max-w-full flex-1 overflow-x-clip">
         <div className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-border/70 bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:hidden">
           <Link href="/" aria-label="Open KAMALO home" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="flex items-center gap-1.5">

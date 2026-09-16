@@ -458,7 +458,7 @@ export function HomePage() {
         </div>
         {mobileHistoryOpen && <div className="rounded-b-lg border-x border-b border-border bg-card px-3 pb-3 xl:hidden"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
 
-        <div className="grid min-h-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
+        <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
             {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
                <div ref={messagesScrollRef} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
