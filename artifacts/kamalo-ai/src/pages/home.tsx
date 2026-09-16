@@ -233,11 +233,9 @@ export function HomePage() {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [streamingText, setStreamingText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
-  const [newConversationNotice, setNewConversationNotice] = useState(false);
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
   const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful' } | null>(null);
@@ -265,8 +263,8 @@ export function HomePage() {
   }, [pendingImage]);
 
   useEffect(() => {
-    if (!selectedId && !isCreatingConversation && conversations.length > 0) setSelectedId(conversations[0].id);
-  }, [conversations, isCreatingConversation, selectedId]);
+    if (!selectedId && conversations.length > 0) setSelectedId(conversations[0].id);
+  }, [conversations, selectedId]);
 
   useEffect(() => {
     if (conversationQuery.data?.id === selectedId && !isSending) setLocalMessages(conversationQuery.data.messages);
@@ -325,10 +323,8 @@ export function HomePage() {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const startNewConversation = async () => {
-    if (isCreatingConversation || isSending) return;
-    setIsCreatingConversation(true);
-    setNewConversationNotice(false);
+  const startNewConversation = () => {
+    if (isSending) return;
     setErrorMessage('');
     setMobileHistoryOpen(false);
     setSelectedId(null);
@@ -338,17 +334,8 @@ export function HomePage() {
     setStreamingText('');
     setInactivityState('active');
     setInactivityResetToken((value) => value + 1);
-    try {
-      const created = await createConversation.mutateAsync({ data: { title: 'New conversation' } });
-      setSelectedId(created.id);
-      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      setNewConversationNotice(true);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
-    } catch {
-      setErrorMessage('The new conversation could not be opened. Please try again.');
-    } finally {
-      setIsCreatingConversation(false);
-    }
+    setNotice('');
+    window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
   const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null) => {
@@ -465,7 +452,13 @@ export function HomePage() {
     try {
       await deleteConversation.mutateAsync({ conversationId: conversation.id });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      if (selectedId === conversation.id) void startNewConversation();
+      if (selectedId === conversation.id) {
+        setSelectedId(null);
+        setLocalMessages([]);
+        setInactivityState('active');
+        setNotice('Conversation removed from history.');
+        window.setTimeout(() => setNotice(''), 2600);
+      }
     } catch {
       setErrorMessage('This chat could not be removed right now. Please try again.');
     }
@@ -477,7 +470,11 @@ export function HomePage() {
     try {
       await deleteConversation.mutateAsync({ conversationId: activeConversation.id });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      await startNewConversation();
+      setSelectedId(null);
+      setLocalMessages([]);
+      setInactivityState('active');
+      setNotice('Conversation removed from history.');
+      window.setTimeout(() => setNotice(''), 2600);
     } catch {
       setErrorMessage('This chat could not be cleared right now. Please try again.');
     }
@@ -490,8 +487,6 @@ export function HomePage() {
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
         </header>
-          {newConversationNotice && <div className="mt-4 flex items-center justify-between gap-4 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="status" data-testid="status-new-conversation"><div><div className="font-semibold">New conversation created</div><div className="mt-1 text-muted-foreground">Your earlier chat is saved in History. The same approved KAMALO knowledge is available here.</div></div><div className="flex shrink-0 items-center gap-2"><button onClick={() => { setMobileHistoryOpen(true); window.setTimeout(() => document.getElementById('conversation-history')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 0); }} className="rounded-lg border border-primary/25 bg-background px-3 py-2 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-view-history">View history</button><button onClick={() => setNewConversationNotice(false)} className="rounded-md px-2 py-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Dismiss new conversation notice" data-testid="button-dismiss-new-conversation">×</button></div></div>}
-
         <div className="mt-3 flex items-center justify-end border-y border-border/60 py-2.5 xl:hidden">
           <button onClick={() => setMobileHistoryOpen((open) => !open)} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" aria-expanded={mobileHistoryOpen} data-testid="button-toggle-mobile-history">{mobileHistoryOpen ? 'Close history' : 'History'} <span className="font-mono text-[10px] text-muted-foreground">{conversations.length}</span></button>
         </div>
@@ -499,7 +494,7 @@ export function HomePage() {
 
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
-            {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
+            {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
                <div ref={messagesScrollRef} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                 <ChatEmptyState onPrompt={(text) => void sendMessage(text)} />
               </div>

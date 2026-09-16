@@ -1,4 +1,6 @@
 import { and, asc, eq } from "drizzle-orm";
+import { readFile } from "node:fs/promises";
+import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
 
 type SeedArticle = {
@@ -75,31 +77,109 @@ const seedArticles: SeedArticle[] = [
   },
 ];
 
-export async function ensureSeedKnowledge(): Promise<void> {
-  const existing = await db
-    .select({ id: knowledgeArticlesTable.id })
-    .from(knowledgeArticlesTable)
-    .limit(1);
-  if (existing.length > 0) return;
+const masterKnowledgeFilename = "Pasted--KAMALO-AI-MASTER-CUSTOMER-SUPPORT-KNOWLEDGE-BASE-Custo_1789550445810.txt";
+const stageOneGuardrail = "Stage 1 guardrail: this is approved product guidance, not evidence that a live account, transaction, engine, balance, delivery, refund, or notification was checked. Until a verified server-side tool returns that data, explain the available process and say that live information cannot be verified.";
+let knowledgeSetup: Promise<void> | null = null;
+
+function parseMasterKnowledge(source: string): SeedArticle[] {
+  const articles: SeedArticle[] = [];
+  let part = "Master guidance";
+  let title = "";
+  let body: string[] = [];
+  let articleNumber = 0;
+  const flush = () => {
+    const content = body.join("\n").trim();
+    if (!title || !content) return;
+    articles.push({
+      title: `${part} / ${title}`,
+      category: part.replace(/^PART [A-Z]+\s+—\s*/, "").trim() || "KAMALO Support",
+      content: `${stageOneGuardrail}\n\n${content}`,
+    });
+  };
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const partMatch = line.match(/^PART\s+[A-Z]+\s+—\s+(.+)$/i);
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    if (partMatch) {
+      flush();
+      title = "";
+      body = [];
+      part = line;
+      continue;
+    }
+    if (numberedMatch) {
+      flush();
+      articleNumber += 1;
+      title = `${numberedMatch[1]}. ${numberedMatch[2]}`;
+      body = [];
+      continue;
+    }
+    if (title) body.push(rawLine);
+  }
+  flush();
+  return articles.map((article, index) => ({
+    ...article,
+    title: `${String(index + 1).padStart(3, "0")} · ${article.title}`,
+  }));
+}
+
+async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
+  const id = crypto.randomUUID();
+  await db.insert(knowledgeArticlesTable).values({
+    id,
+    title: article.title,
+    category: article.category,
+    content: article.content,
+    status: "approved",
+    effectiveFrom: new Date(),
+    version: 1,
+  });
+  await db.insert(knowledgeChunksTable).values({
+    id: crypto.randomUUID(),
+    articleId: id,
+    content: article.content,
+    embedding: null,
+  });
+}
+
+async function setupKnowledge(): Promise<void> {
+  const existingRows = await db
+    .select({ title: knowledgeArticlesTable.title })
+    .from(knowledgeArticlesTable);
+  const existingTitles = new Set(existingRows.map((row) => row.title));
 
   for (const article of seedArticles) {
-    const id = crypto.randomUUID();
-    await db.insert(knowledgeArticlesTable).values({
-      id,
-      title: article.title,
-      category: article.category,
-      content: article.content,
-      status: "approved",
-      effectiveFrom: new Date(),
-      version: 1,
-    });
-    await db.insert(knowledgeChunksTable).values({
-      id: crypto.randomUUID(),
-      articleId: id,
-      content: article.content,
-      embedding: null,
+    if (existingTitles.has(article.title)) continue;
+    await insertKnowledgeArticle(article);
+    existingTitles.add(article.title);
+  }
+
+  const masterMarker = "001 · Master guidance / 1. THE KAMALO SUPPORT PHILOSOPHY";
+  if (existingTitles.has(masterMarker)) return;
+
+  const sourcePath = path.resolve(process.cwd(), "attached_assets", masterKnowledgeFilename);
+  try {
+    const source = await readFile(sourcePath, "utf8");
+    for (const article of parseMasterKnowledge(source)) {
+      if (existingTitles.has(article.title)) continue;
+      await insertKnowledgeArticle(article);
+      existingTitles.add(article.title);
+    }
+    console.info(`Imported ${parseMasterKnowledge(source).length} KAMALO master knowledge articles.`);
+  } catch (error) {
+    console.warn(`KAMALO master knowledge file was not imported from ${sourcePath}.`, error);
+  }
+}
+
+export async function ensureSeedKnowledge(): Promise<void> {
+  if (!knowledgeSetup) {
+    knowledgeSetup = setupKnowledge().catch((error) => {
+      knowledgeSetup = null;
+      throw error;
     });
   }
+  await knowledgeSetup;
 }
 
 export type RetrievedArticle = {

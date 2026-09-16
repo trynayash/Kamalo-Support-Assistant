@@ -149,7 +149,7 @@ router.delete("/conversations/:conversationId", async (req, res): Promise<void> 
     res.status(404).json({ error: "Conversation not found." });
     return;
   }
-  req.log.info({ conversationId: params.data.conversationId, clearedAt: clearedAt.toISOString() }, "Conversation cleared from user history; transcript retained internally");
+  req.log.info({ conversationId: params.data.conversationId, clearedAt: clearedAt.toISOString() }, "Conversation removed from user history");
   res.sendStatus(204);
 });
 
