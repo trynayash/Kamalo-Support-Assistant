@@ -2,3 +2,4 @@
 - [KAMALO AI Stage 2](kamalo-ai-stage2.md) — route future engines through trusted context, evidence, tool policy, and provider adapters.
 - [KAMALO AI escalation](kamalo-ai-escalation.md) — tickets are controlled handoffs; AI drafts require specialist verification before resolution.
 - [GitHub connector bulk uploads](github-connector-bulk-upload.md) — initialize a branch before blob writes and throttle connector uploads below ten requests per second.
+- [Support Core test fixtures](support-core-test-fixtures.md) — lexical retrieval tests need collision-resistant tokens because approved knowledge is shared.

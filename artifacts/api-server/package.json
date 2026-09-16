@@ -7,7 +7,8 @@
     "dev": "export NODE_ENV=development && pnpm run build && pnpm run start",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "../kamalo-ai/node_modules/.bin/tsx --test test/support-core.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
