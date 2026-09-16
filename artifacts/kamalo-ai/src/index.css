@@ -124,6 +124,7 @@
 .safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 .safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
 .chat-workspace { width: 100%; min-width: 0; min-height: calc(100dvh - max(4rem, calc(52px + env(safe-area-inset-top)))); }
+.chat-scroll-end { scroll-margin-bottom: 11rem; }
 .chat-composer {
   position: fixed;
   z-index: 20;
