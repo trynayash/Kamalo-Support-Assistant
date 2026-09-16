@@ -1,0 +1,153 @@
+Yes — **that `???????????????????????????` is exactly the part I would change.**
+
+Do **not hardcode `artifacts/kamalo-ai/src/pages/home.tsx` unless that file actually exists and is the current support UI entrypoint.** Your goal here is to tell Replit/Cursor to inspect the existing project and preserve the actual frontend, not guess a path.
+
+I would change the bottom of your prompt to this:
+
+```text
+## Relevant files
+
+Backend / core:
+- `artifacts/api-server/src/routes/conversations.ts`
+- `artifacts/api-server/src/lib/llm.ts`
+- `artifacts/api-server/src/lib/knowledge.ts`
+- `artifacts/api-server/src/lib/safety.ts`
+- `artifacts/api-server/src/app.ts`
+- `artifacts/api-server/src/routes/knowledge.ts`
+- `artifacts/api-server/src/routes/feedback.ts`
+
+Database:
+- `lib/db/src/schema/conversations.ts`
+- `lib/db/src/schema/messages.ts`
+- `lib/db/src/schema/knowledge.ts`
+
+Contracts:
+- `lib/api-spec/openapi.yaml`
+
+Frontend:
+- First inspect the existing KAMALO AI/customer-support frontend structure and identify the actual page/component(s) responsible for the current chat workspace.
+- Do NOT assume a frontend path.
+- Do NOT rename, move, or replace the existing chat page.
+- Do NOT rebuild the current chat UI.
+- Preserve the existing frontend API contracts and behavior.
+- Only modify frontend code where required to remain compatible with the new backend Support Core abstractions.
+- Reuse the existing components, styling, responsive behavior, loading states, history, feedback, clear-chat behavior, and error handling.
+
+Before changing frontend files, explicitly identify:
+1. current chat page/route
+2. chat composer component
+3. message rendering component
+4. conversation/history component
+5. API client/service used by chat
+6. authentication/session source
+```
+
+### And I would make one more important change
+
+Your current prompt says:
+
+> “The initial registry contains knowledge retrieval plus clearly synthetic, read-only demo tools for customer, transaction, Coins, commission, and FINCADO-style support examples.”
+
+That's good, but make the demo boundary **extremely explicit**, because otherwise an agent may accidentally make those fake tools look like real KAMALO data.
+
+Use:
+
+```text
+Demo tools MUST be namespaced and visibly identified internally as synthetic.
+
+Example:
+
+demo.customer.get
+demo.transaction.get
+demo.coins.getBalance
+demo.commission.get
+demo.fincado.getProgress
+
+Never name them:
+
+customer.get
+transaction.get
+coins.getBalance
+
+because those names imply live KAMALO authority.
+
+The demo providers must return metadata such as:
+
+{
+  sourceType: "demo",
+  synthetic: true
+}
+
+The orchestrator and response validator must know that synthetic results are not production account truth.
+
+The user-facing assistant must never imply that demo data represents the user's actual KAMALO account.
+```
+
+That makes your eventual migration much cleaner:
+
+```text
+TODAY
+
+demo.coins.getBalance
+        ↓
+DemoCoinProvider
+
+
+LATER
+
+kamalo.coins.getBalance
+        ↓
+KamaloCoinProvider
+        ↓
+Real KAMALO API
+```
+
+### I would also change the objective slightly
+
+Your current prompt is good, but I'd put this right at the top:
+
+```text
+# PRIMARY OBJECTIVE
+
+Do not rebuild KAMALO AI.
+
+The existing customer-support chatbot is already working.
+
+Your job is to HARDEN AND EXTEND THE EXISTING SYSTEM so that it becomes an extensible Support Core.
+
+Preserve existing behavior first.
+Add architecture second.
+Refactor only where necessary.
+
+Any existing feature that currently works must continue working after this change.
+```
+
+That one paragraph will prevent a coding agent from interpreting the task as:
+
+> “Build a new AI support app.”
+
+---
+
+### And the actual frontend rule should be:
+
+```text
+FRONTEND RULE:
+
+The current chat experience is already approved and working.
+
+Do not redesign it.
+Do not replace it.
+Do not change its visual language.
+Do not introduce a new chat framework.
+Do not change the public chat API contract.
+
+Only make frontend changes when technically required to support the hardened backend architecture.
+
+If no frontend change is required, make no frontend change.
+```
+
+That is much safer.
+
+So, **yes: remove `artifacts/kamalo-ai/src/pages/home.tsx` unless you've confirmed that is genuinely the current chat page.** Your prompt should force the agent to discover the real frontend entrypoint instead of assuming one.
+
+The overall **#7 prompt is directionally correct**. The important thing now is making it an **audit/refactor/hardening task**, not a rebuild task.
