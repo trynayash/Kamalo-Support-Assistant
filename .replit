@@ -26,3 +26,6 @@ channel = "stable-25_05"
 
 [userenv.production]
 RESEND_FROM_EMAIL = "noreply@limityourapi.tech"
+
+[userenv.development]
+RESEND_FROM_EMAIL = "noreply@limityourapi.tech"
