@@ -26,3 +26,15 @@ On small screens, navigation is a compact top bar rather than a drawer: brand le
 **Why:** The support chat is intended for mobile first use, where a full height navigation rail consumes too much space and interrupts the conversation.
 
 **How to apply:** Keep the composer, live response scroll position, and safe area spacing optimized for touch devices whenever the mobile shell changes.
+
+Chat clearing is a user-visible soft clear, not a database hard delete: active history and retrieval access are removed, while the transcript remains linked to a clear timestamp for internal continuity.
+
+**Why:** Users need an irreversible clean slate in the interface without losing the system’s record of what guidance was provided.
+
+**How to apply:** Keep cleared conversations excluded from user-facing list/detail endpoints, and never let inactivity closure delete or mutate stored messages.
+
+Inactivity uses a two-step client state: prompt at 30 seconds, then close the active chat at 90 seconds and offer a new conversation.
+
+**Why:** The product wants a gentle check-in before closing an abandoned support session, with 90 seconds providing a clear middle point for the requested 1–2 minute window.
+
+**How to apply:** Reset the timer on user activity, message sending, conversation selection, or starting a new conversation; preserve the closed chat in history.

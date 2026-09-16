@@ -10,7 +10,7 @@ import {
   useListConversations,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 
 const firstUsePrompts = [
@@ -185,6 +185,17 @@ function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
   );
 }
 
+function ChatClosedState({ onNewConversation }: { onNewConversation: () => void }) {
+  return (
+    <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center px-4 py-12 text-center animate-rise">
+      <SectionLabel>Conversation closed</SectionLabel>
+      <h1 className="mt-4 max-w-md text-[clamp(1.7rem,4vw,2.5rem)] font-extrabold leading-[1.08] tracking-[-.045em] text-foreground">This chat was closed due to inactivity.</h1>
+      <p className="mt-4 max-w-md text-[13px] leading-7 text-muted-foreground">Your conversation is saved in History. Start a new conversation when you are ready.</p>
+      <button onClick={onNewConversation} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-[12px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid="button-closed-new-conversation"><HiOutlinePlus size={16} /> Start new conversation</button>
+    </div>
+  );
+}
+
 export function HomePage() {
   const queryClient = useQueryClient();
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
@@ -197,6 +208,8 @@ export function HomePage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
   const [newConversationNotice, setNewConversationNotice] = useState(false);
+  const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
+  const [inactivityResetToken, setInactivityResetToken] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
 
@@ -226,6 +239,22 @@ export function HomePage() {
     return () => window.cancelAnimationFrame(frame);
   }, [messages.length, streamingText, isSending, selectedId]);
 
+  useEffect(() => {
+    if (!selectedId || messages.length === 0 || isSending || inactivityState === 'closed') return;
+    const promptTimer = window.setTimeout(() => setInactivityState('prompted'), 30_000);
+    const closeTimer = window.setTimeout(() => setInactivityState('closed'), 90_000);
+    return () => {
+      window.clearTimeout(promptTimer);
+      window.clearTimeout(closeTimer);
+    };
+  }, [selectedId, messages.length, isSending, inactivityResetToken]);
+
+  const markUserActivity = () => {
+    if (inactivityState === 'closed') return;
+    setInactivityState('active');
+    setInactivityResetToken((value) => value + 1);
+  };
+
   const startNewConversation = async () => {
     if (isCreatingConversation || isSending) return;
     setIsCreatingConversation(true);
@@ -236,6 +265,8 @@ export function HomePage() {
     setLocalMessages([]);
     setInput('');
     setStreamingText('');
+    setInactivityState('active');
+    setInactivityResetToken((value) => value + 1);
     try {
       const created = await createConversation.mutateAsync({ data: { title: 'New conversation' } });
       setSelectedId(created.id);
@@ -297,20 +328,27 @@ export function HomePage() {
   };
 
   const deleteConversationItem = async (conversation: ConversationSummary) => {
-    if (!window.confirm(`Delete “${conversation.title || 'Untitled conversation'}”?`)) return;
+    if (!window.confirm(`Remove “${conversation.title || 'Untitled conversation'}” from your chat history?\n\nThe visible chat and its messages will be removed and cannot be undone. KAMALO will retain an internal record for system and support continuity.`)) return;
     await deleteConversation.mutateAsync({ conversationId: conversation.id });
     await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-    if (selectedId === conversation.id) startNewConversation();
+    if (selectedId === conversation.id) void startNewConversation();
   };
 
   const clearCurrent = async () => {
     if (!selectedId || !activeConversation) return startNewConversation();
-    await deleteConversationItem(activeConversation);
+    if (!window.confirm('Clear this chat?\n\nEverything in this visible chat will be deleted and cannot be undone. KAMALO will retain an internal record for system and support continuity. Continue?')) return;
+    try {
+      await deleteConversation.mutateAsync({ conversationId: activeConversation.id });
+      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      await startNewConversation();
+    } catch {
+      setErrorMessage('This chat could not be cleared right now. Please try again.');
+    }
   };
 
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
-      <div className="mx-auto flex min-h-[calc(100dvh-57px)] max-w-[1320px] flex-col px-4 pb-4 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-7 lg:px-12">
+      <div className="mx-auto flex min-h-[calc(100dvh-57px)] max-w-[1320px] flex-col px-4 pb-4 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
           <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
@@ -324,7 +362,7 @@ export function HomePage() {
 
         <div className="grid min-h-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 flex-col pt-5 md:pt-12">
-            {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : messages.length === 0 && !conversationQuery.isLoading ? <ChatEmptyState onPrompt={(text) => void sendMessage(text)} /> : (
+            {isCreatingConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-center justify-center text-[13px] text-muted-foreground animate-rise">Opening a new conversation...</div> : inactivityState === 'closed' ? <ChatClosedState onNewConversation={() => void startNewConversation()} /> : messages.length === 0 && !conversationQuery.isLoading ? <ChatEmptyState onPrompt={(text) => void sendMessage(text)} /> : (
               <div ref={messagesScrollRef} className="thin-scrollbar min-h-0 flex-1 space-y-6 overflow-y-auto pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void navigator.clipboard?.writeText(content); setNotice('Answer copied to clipboard.'); window.setTimeout(() => setNotice(''), 2200); }} onRetry={retryLast} />)}
@@ -333,13 +371,14 @@ export function HomePage() {
             )}
             {errorMessage && <div className="mb-3 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" data-testid="status-send-error"><span>{errorMessage}</span><button onClick={() => void sendMessage()} className="font-semibold underline" data-testid="button-retry-send">Try again</button></div>}
             {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
-            <div className="safe-bottom sticky bottom-0 z-10 -mx-1 bg-background/95 pt-2 backdrop-blur-sm">
+            {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
+            {inactivityState !== 'closed' && <div className="safe-bottom sticky bottom-0 z-10 -mx-1 bg-background/95 pt-2 backdrop-blur-sm">
               <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
                 <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
                 <div className="flex justify-end px-2 pb-1"><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button></div>
               </div>
               <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
-            </div>
+            </div>}
           </section>
 
           <aside className="hidden border-l border-border/70 pl-7 xl:block">
