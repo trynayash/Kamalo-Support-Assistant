@@ -274,6 +274,35 @@ test("parses local OpenRouter SSE frames without exposing malformed provider dat
   assert.deepEqual(chunks, ["first "]);
 });
 
+test("parses CRLF-delimited local OpenRouter SSE frames without dropping content", async () => {
+  const provider = new OpenRouterProvider();
+  const contentFrame = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\r\n\r\n`;
+  const response = syntheticSseResponse([
+    ": keep-alive\r\n\r\n",
+    contentFrame("first "),
+    contentFrame("second"),
+    "data: [DONE]\r\n\r\n",
+    contentFrame("ignored after done"),
+  ]);
+
+  const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));
+  assert.deepEqual(chunks, ["first ", "second"]);
+});
+
+test("combines consecutive SSE data fields according to the SSE contract", async () => {
+  const provider = new OpenRouterProvider();
+  const payload = JSON.stringify({ choices: [{ delta: { content: "split content" } }] });
+  const splitAt = payload.indexOf('{"content"');
+  const response = syntheticSseResponse([
+    `data: ${payload.slice(0, splitAt)}\n`,
+    `data: ${payload.slice(splitAt)}\n\n`,
+    "data: [DONE]\n\n",
+  ]);
+
+  const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));
+  assert.deepEqual(chunks, ["split content"]);
+});
+
 test("flushes a complete final SSE frame without a trailing separator", async () => {
   const provider = new OpenRouterProvider();
   const response = syntheticSseResponse([

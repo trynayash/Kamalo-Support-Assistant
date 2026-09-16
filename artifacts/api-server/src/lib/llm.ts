@@ -44,10 +44,18 @@ async function checkResponse(response: Response): Promise<void> {
 }
 
 function parseSseEvent(event: string): { done: boolean; content?: string } {
-  const line = event.split(/\r?\n/).find((item) => item.startsWith("data:"));
-  if (!line) return { done: false };
+  const dataLines = event
+    .split(/\r?\n/)
+    .filter((line) => line.startsWith("data:"))
+    .map((line) => {
+      const value = line.slice(5);
+      return value.startsWith(" ") ? value.slice(1) : value;
+    });
+  if (dataLines.length === 0) return { done: false };
 
-  const data = line.slice(5).trim();
+  // SSE combines consecutive data fields with a newline before dispatching
+  // the event. Preserve that contract so split JSON payloads remain intact.
+  const data = dataLines.join("\n");
   if (data === "[DONE]") return { done: true };
 
   try {
@@ -107,7 +115,7 @@ export class OpenRouterProvider implements LLMProvider {
     while (true) {
       const { value, done } = await reader.read();
       buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
-      const events = buffer.split("\n\n");
+      const events = buffer.split(/\r?\n\r?\n/);
       buffer = events.pop() ?? "";
       for (const event of events) {
         const parsed = parseSseEvent(event);
