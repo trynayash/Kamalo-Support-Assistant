@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from 'react';
 import { Link, useLocation } from 'wouter';
-import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck } from 'react-icons/hi2';
+import { HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineChevronDoubleLeft, HiOutlineChevronDoubleRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck } from 'react-icons/hi2';
 
 type KamaloShellProps = {
   children: ReactNode;
@@ -75,6 +75,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
           <Link href="/" aria-label="Open KAMALO home" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="flex items-center gap-1.5">
             {onNewConversation && <button onClick={() => onNewConversation()} className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card text-foreground transition-colors hover:border-primary/40 hover:text-primary" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button>}
+             <Link href="/history" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={19} /></Link>
             <Link href="/support" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
             <Link href="/admin/tickets" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open temporary admin access" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
             <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>

@@ -9,6 +9,7 @@ import { KnowledgePage } from '@/pages/knowledge';
 import { SupportPage } from '@/pages/support';
 import { SupportTicketDetailPage } from '@/pages/support-ticket-detail';
 import { AdminTicketsPage } from '@/pages/admin-tickets';
+import { HistoryPage } from '@/pages/history';
 import {
   Route,
   Switch,
@@ -25,6 +26,7 @@ function Router() {
     <RoutedErrorBoundary>
       <Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/history" component={HistoryPage} />
         <Route path="/admin/knowledge" component={KnowledgePage} />
         <Route path="/support" component={SupportPage} />
         <Route path="/support/:ticketId" component={SupportTicketDetailPage} />

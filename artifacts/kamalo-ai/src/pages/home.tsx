@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
+import { Link } from 'wouter';
 
 const firstUsePrompts = [
   { label: 'Rewards', text: 'How do KAMALO Coins work?' },
@@ -68,7 +69,8 @@ function ConversationSkeleton() {
   return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
 }
 
-function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void }) {
+function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete, limit = 2 }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void; limit?: number }) {
+  const visibleConversations = conversations.slice(0, limit);
   return (
     <div id="conversation-history" className="mt-7" data-testid="panel-conversation-history">
       <div className="mb-3 flex items-center justify-between px-1">
@@ -79,7 +81,7 @@ function ConversationHistory({ conversations, selectedId, loading, error, onSele
         <div className="rounded-lg border border-dashed border-border p-4 text-center text-[11px] leading-relaxed text-muted-foreground" data-testid="empty-conversations">Your conversation history will appear here.</div>
       ) : (
         <div className="space-y-1 pr-1">
-          {conversations.map((conversation) => (
+          {visibleConversations.map((conversation) => (
             <div key={conversation.id} className={`group flex items-center rounded-lg border px-2.5 py-2.5 transition-colors ${selectedId === conversation.id ? 'border-[hsl(var(--primary)/.28)] bg-[hsl(var(--primary)/.09)]' : 'border-transparent hover:border-border hover:bg-card'}`} data-testid={`conversation-item-${conversation.id}`}>
               <button onClick={() => onSelect(conversation.id)} className="min-w-0 flex-1 text-left" data-testid={`button-select-conversation-${conversation.id}`}>
                 <div className="truncate text-[12px] font-semibold">{conversation.title || 'Untitled conversation'}</div>
@@ -89,6 +91,11 @@ function ConversationHistory({ conversations, selectedId, loading, error, onSele
             </div>
           ))}
         </div>
+      )}
+      {!loading && !error && conversations.length > limit && (
+        <Link href="/history" className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-primary/5" data-testid="link-more-history">
+          More history
+        </Link>
       )}
     </div>
   );
@@ -202,19 +209,6 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   return { content: finalContent || fullResponse, messageId };
 }
 
-function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
-  return (
-    <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col justify-center px-1 py-12">
-      <SectionLabel>Support workspace</SectionLabel>
-      <h1 className="mt-4 max-w-xl text-[clamp(2rem,4.4vw,3.5rem)] font-extrabold leading-[1.03] tracking-[-.055em] text-foreground">What can we help you<br className="hidden sm:block" /> verify today?</h1>
-      <p className="mt-5 max-w-lg text-[13px] leading-7 text-muted-foreground">Ask about your KAMALO account, rewards, transactions, or a product feature. Answers are grounded in approved support content.</p>
-      <div className="mt-8 grid w-full max-w-2xl grid-cols-1 gap-2 sm:grid-cols-2">
-        {firstUsePrompts.map((prompt) => <button key={prompt.label} onClick={() => onPrompt(prompt.text)} className="group rounded-lg border border-border/80 bg-card/70 px-4 py-3 text-left transition-colors hover:border-primary/40 hover:bg-card" data-testid={`button-prompt-${prompt.label.toLowerCase().replaceAll(' ', '-')}`}><span className="font-mono text-[9px] uppercase tracking-[.15em] text-primary">{prompt.label}</span><span className="mt-1 block text-[12px] font-semibold text-foreground/80 group-hover:text-foreground">{prompt.text}</span></button>)}
-      </div>
-    </div>
-  );
-}
-
 function ChatClosedState({ onNewConversation }: { onNewConversation: () => void }) {
   return (
     <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center px-4 py-12 text-center animate-rise">
@@ -269,6 +263,14 @@ export function HomePage() {
   useEffect(() => {
     if (conversationQuery.data?.id === selectedId && !isSending) setLocalMessages(conversationQuery.data.messages);
   }, [conversationQuery.data, selectedId, isSending]);
+
+  useEffect(() => {
+    const dismissKeyboard = () => {
+      if (document.activeElement === inputRef.current) inputRef.current?.blur();
+    };
+    window.addEventListener('scroll', dismissKeyboard, { passive: true });
+    return () => window.removeEventListener('scroll', dismissKeyboard);
+  }, []);
 
   useEffect(() => {
     const container = messagesScrollRef.current;
@@ -492,19 +494,16 @@ export function HomePage() {
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
         </header>
-        <div className="mt-3 flex items-center justify-end border-y border-border/60 py-2.5 xl:hidden">
-          <button onClick={() => setMobileHistoryOpen((open) => !open)} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" aria-expanded={mobileHistoryOpen} data-testid="button-toggle-mobile-history">{mobileHistoryOpen ? 'Close history' : 'History'} <span className="font-mono text-[10px] text-muted-foreground">{conversations.length}</span></button>
-        </div>
-        {mobileHistoryOpen && <div className="rounded-b-lg border-x border-b border-border bg-card px-3 pb-3 xl:hidden"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
-
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
             {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : conversationQuery.isError ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId || '') })} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : messages.length === 0 && !conversationQuery.isLoading ? (
-               <div ref={messagesScrollRef} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
-                <ChatEmptyState onPrompt={(text) => void sendMessage(text)} />
+                <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
+                 <div className="mx-auto max-w-xl px-1 py-7 sm:py-12">
+                   <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
+                 </div>
               </div>
             ) : (
-               <div ref={messagesScrollRef} className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
+                <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /></div>}
                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={retryLast} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
@@ -538,8 +537,8 @@ export function HomePage() {
             </div>}
           </section>
 
-          <aside className="hidden border-l border-border/70 pl-7 xl:block">
-            <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
+           <aside className="hidden border-l border-border/70 pl-7 xl:block">
+             <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
           </aside>
         </div>
       </div>
