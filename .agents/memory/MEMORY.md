@@ -1,0 +1,1 @@
+- [KAMALO AI Stage 1](kamalo-ai-stage1.md) — preserve grounded answers, approved-knowledge retrieval, and the controlled provider/tool boundary.

@@ -1,6 +1,6 @@
-# [Project name]
+# KAMALO AI
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+KAMALO AI is a knowledge-grounded support assistant for explaining KAMALO products and journeys without pretending to access live customer data.
 
 ## Run & Operate
 
@@ -22,15 +22,29 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/kamalo-ai/src/pages/home.tsx` — customer chat and streamed response UI
+- `artifacts/kamalo-ai/src/pages/knowledge.tsx` — knowledge admin screen
+- `artifacts/api-server/src/routes/` — conversation, feedback, and knowledge API routes
+- `artifacts/api-server/src/lib/knowledge.ts` — approved seed content and retrieval
+- `artifacts/api-server/src/lib/llm.ts` — `LLMProvider` and OpenRouter implementation
+- `lib/db/src/schema/` — PostgreSQL/Drizzle source of truth
+- `lib/api-spec/openapi.yaml` — API contract source of truth
+- `docs/architecture.md` — Stage 1 boundaries and future seams
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- Stage 1 uses a server-only `LLMProvider`; OpenRouter details never enter the chat UI.
+- Approved knowledge is the only normal retrieval source; unknown questions receive a verified fallback.
+- Account context and support tools exist as disabled interfaces so live KAMALO engines can be added later.
+- Knowledge chunks have a pgvector-ready embedding column, while current retrieval stays deterministic until an embeddings provider is selected.
+- The demo user is intentionally fixed because no authentication existed in the starting repository; admin access is a follow-up.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Ask natural KAMALO questions and receive concise streamed explanations.
+- Restore, clear, and delete conversation history.
+- Copy answers, retry generation, and submit helpful/not-helpful feedback.
+- Search, create, edit, approve, and archive approved knowledge articles.
 
 ## User preferences
 

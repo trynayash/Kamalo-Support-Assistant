@@ -26,8 +26,27 @@ app.use(
   }),
 );
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ extended: true }));
+
+const requestWindows = new Map<string, { startedAt: number; count: number }>();
+app.use((req, res, next) => {
+  if (req.method === "POST" && req.path.includes("/conversations/") && req.path.endsWith("/messages")) {
+    const now = Date.now();
+    const key = req.ip ?? "unknown";
+    const window = requestWindows.get(key);
+    if (!window || now - window.startedAt > 60_000) {
+      requestWindows.set(key, { startedAt: now, count: 1 });
+    } else {
+      window.count += 1;
+      if (window.count > 30) {
+        res.status(429).json({ error: "Too many messages. Please try again shortly." });
+        return;
+      }
+    }
+  }
+  next();
+});
 
 app.use("/api", router);
 

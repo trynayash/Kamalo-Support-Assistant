@@ -10,17 +10,19 @@ import {
   useGetConversation,
   useHealthCheck,
   useListConversations,
-  useStreamAssistantMessage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Copy, Eraser, Menu, MoreHorizontal, RefreshCw, Send, Sparkles, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 
 const firstUsePrompts = [
-  { label: 'KAMALO Coins', text: 'How do KAMALO Coins work?' },
-  { label: 'Auto KAMALO', text: 'Explain Auto KAMALO in simple terms.' },
-  { label: 'FINCADO', text: 'What is FINCADO and how do I use it?' },
-  { label: 'Transactions', text: 'Where can I see my recent transactions?' },
+  { label: 'KAMALO Coins', text: 'What are KAMALO Coins?' },
+  { label: 'Earning', text: 'How do I earn Coins?' },
+  { label: 'Silver', text: 'How do I reach Silver?' },
+  { label: 'Gold', text: 'How does Gold work?' },
+  { label: 'FINCADO', text: 'What is FINCADO?' },
+  { label: 'Auto KAMALO', text: 'What is Auto KAMALO?' },
+  { label: 'Referral', text: 'How does referral work?' },
 ];
 
 const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
@@ -85,8 +87,50 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
   );
 }
 
-function StreamingBubble() {
-  return <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming"><AssistantBadge /><div className="rounded-2xl rounded-tl-md border border-border/80 bg-card px-4 py-4 shadow-[0_6px_24px_hsl(var(--foreground)/.035)]"><div className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe" /><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe [animation-delay:180ms]" /><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe [animation-delay:360ms]" /><span className="ml-2 text-[11px] text-muted-foreground">Checking the KAMALO knowledge base</span></div></div></div>;
+function StreamingBubble({ content }: { content: string }) {
+  return <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming"><AssistantBadge /><div className="max-w-[min(680px,87%)] rounded-2xl rounded-tl-md border border-border/80 bg-card px-4 py-4 text-[13px] leading-[1.75] shadow-[0_6px_24px_hsl(var(--foreground)/.035)]">{content ? <div className="whitespace-pre-wrap">{content}<span className="ml-1 inline-block h-3 w-1 animate-breathe rounded-full bg-primary align-[-1px]" /></div> : <div className="flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe" /><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe [animation-delay:180ms]" /><span className="h-1.5 w-1.5 rounded-full bg-primary animate-breathe [animation-delay:360ms]" /><span className="ml-2 text-[11px] text-muted-foreground">Checking the KAMALO knowledge base</span></div>}</div></div>;
+}
+
+async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void): Promise<{ content: string; messageId: string | null }> {
+  const response = await fetch(`/api/conversations/${conversationId}/messages`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) throw new Error('Assistant request failed');
+  if (!response.body) {
+    const fallback = await response.text();
+    return { content: fallback, messageId: null };
+  }
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let fullResponse = '';
+  let messageId: string | null = null;
+  const consume = (event: string) => {
+    const line = event.split('\n').find((item) => item.startsWith('data:'));
+    if (!line) return;
+    try {
+      const payload = JSON.parse(line.slice(5).trim()) as { content?: string; done?: boolean; messageId?: string };
+      if (payload.content) {
+        fullResponse += payload.content;
+        onChunk(fullResponse);
+      }
+      if (payload.messageId) messageId = payload.messageId;
+    } catch {
+      // Ignore incomplete event frames; the next read will complete them.
+    }
+  };
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+    const events = buffer.split('\n\n');
+    buffer = events.pop() ?? '';
+    events.forEach(consume);
+    if (done) break;
+  }
+  if (buffer.trim()) consume(buffer);
+  return { content: fullResponse, messageId };
 }
 
 function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
@@ -97,7 +141,7 @@ function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
         <div className="relative grid h-20 w-20 place-items-center rounded-[26px] border border-[hsl(var(--accent)/.4)] bg-[hsl(var(--accent)/.23)] text-primary"><Sparkles size={28} strokeWidth={1.5} /></div>
       </div>
       <SectionLabel>Here when you need clarity</SectionLabel>
-      <h1 className="mt-5 max-w-xl font-serif text-[clamp(2.35rem,5vw,4rem)] leading-[.96] tracking-[-.04em] text-foreground">Good questions deserve<br /><em className="text-primary not-italic">grounded answers.</em></h1>
+      <h1 className="mt-5 max-w-xl font-serif text-[clamp(2.35rem,5vw,4rem)] leading-[.96] tracking-[-.04em] text-foreground">Hi! I’m KAMALO AI.<br /><em className="text-primary not-italic">How can I help?</em></h1>
       <p className="mt-5 max-w-md text-[13px] leading-7 text-muted-foreground">Ask about your KAMALO account, rewards, transactions, or any feature you want to understand better.</p>
       <div className="mt-9 grid w-full max-w-2xl grid-cols-1 gap-2.5 sm:grid-cols-2">
         {firstUsePrompts.map((prompt) => <button key={prompt.label} onClick={() => onPrompt(prompt.text)} className="group rounded-xl border border-border/80 bg-card/60 px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:bg-card hover:shadow-[0_8px_20px_hsl(var(--foreground)/.06)]" data-testid={`button-prompt-${prompt.label.toLowerCase().replaceAll(' ', '-')}`}><span className="font-mono text-[9px] uppercase tracking-[.15em] text-primary">{prompt.label}</span><span className="mt-1 block text-[12px] font-semibold text-foreground/80 group-hover:text-foreground">{prompt.text}</span></button>)}
@@ -113,6 +157,7 @@ export function HomePage() {
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
+  const [streamingText, setStreamingText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -122,7 +167,6 @@ export function HomePage() {
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
-  const streamAssistantMessage = useStreamAssistantMessage();
   const createFeedback = useCreateMessageFeedback();
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
   const activeConversation = conversations.find((conversation) => conversation.id === selectedId);
@@ -140,6 +184,7 @@ export function HomePage() {
     setSelectedId(null);
     setLocalMessages([]);
     setInput('');
+    setStreamingText('');
     setErrorMessage('');
     inputRef.current?.focus();
   };
@@ -160,8 +205,9 @@ export function HomePage() {
       const userMessage: ChatMessage = { id: `local-user-${Date.now()}`, conversationId, role: 'user', content, createdAt: new Date().toISOString(), feedback: null };
       setLocalMessages((current) => [...current, userMessage]);
       setIsSending(true);
-      const response = await streamAssistantMessage.mutateAsync({ conversationId, data: { content } });
-      const assistantMessage: ChatMessage = { id: `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null };
+      setStreamingText('');
+      const response = await streamAssistantResponse(conversationId, content, setStreamingText);
+      const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null };
       setLocalMessages((current) => [...current, assistantMessage]);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
@@ -170,6 +216,7 @@ export function HomePage() {
       setInput(content);
     } finally {
       setIsSending(false);
+      setStreamingText('');
     }
   };
 
@@ -207,7 +254,7 @@ export function HomePage() {
         <header className="hidden items-center justify-between md:flex">
           <div><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-3 font-serif text-[25px] tracking-[-.025em]">{activeConversation?.title || 'A clearer way to ask'}</h2></div>
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5"><span className={`h-1.5 w-1.5 rounded-full ${healthQuery.isError ? 'bg-destructive' : 'bg-[hsl(var(--primary))]'} ${healthQuery.isLoading ? 'animate-breathe' : ''}`} /><span className="font-mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">{healthQuery.isError ? 'Service check failed' : 'System ready'}</span></div>
+            <div className="flex items-center gap-2 rounded-full border border-border bg-card/70 px-3 py-1.5"><span className={`h-1.5 w-1.5 rounded-full ${healthQuery.isError ? 'bg-destructive' : 'bg-[hsl(var(--primary))]'} ${healthQuery.isLoading ? 'animate-breathe' : ''}`} /><span className="font-mono text-[9px] uppercase tracking-[.13em] text-muted-foreground">{healthQuery.isError ? 'Service check failed' : 'Online'}</span></div>
             <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="flex items-center gap-2 rounded-lg border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40" data-testid="button-clear-conversation"><Eraser size={14} /> Clear</button>
             <button onClick={() => setMobileOpen(true)} className="rounded-lg border border-border bg-card p-2 text-muted-foreground md:hidden" aria-label="Open menu" data-testid="button-open-menu"><Menu size={17} /></button>
           </div>
@@ -219,7 +266,7 @@ export function HomePage() {
               <div className="flex-1 space-y-6 overflow-y-auto pb-8 pr-1 md:space-y-7" data-testid="conversation-messages">
                 {conversationQuery.isLoading && <div className="space-y-5"><div className="skeleton h-20 w-4/5 rounded-2xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-2xl" /></div>}
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void navigator.clipboard?.writeText(content); setNotice('Answer copied to clipboard.'); window.setTimeout(() => setNotice(''), 2200); }} onRetry={retryLast} />)}
-                {isSending && <StreamingBubble />}
+                {isSending && <StreamingBubble content={streamingText} />}
               </div>
             )}
             {errorMessage && <div className="mb-3 flex items-center justify-between rounded-xl border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" data-testid="status-send-error"><span>{errorMessage}</span><button onClick={() => void sendMessage()} className="font-semibold underline" data-testid="button-retry-send">Try again</button></div>}
