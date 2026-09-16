@@ -43,6 +43,27 @@ async function checkResponse(response: Response): Promise<void> {
   throw new Error(`OpenRouter request failed with status ${response.status}`);
 }
 
+function parseSseEvent(event: string): { done: boolean; content?: string } {
+  const line = event.split(/\r?\n/).find((item) => item.startsWith("data:"));
+  if (!line) return { done: false };
+
+  const data = line.slice(5).trim();
+  if (data === "[DONE]") return { done: true };
+
+  try {
+    const parsed = JSON.parse(data) as {
+      choices?: Array<{ delta?: { content?: unknown } }>;
+    };
+    const content = parsed.choices?.[0]?.delta?.content;
+    return {
+      done: false,
+      content: typeof content === "string" ? content : undefined,
+    };
+  } catch {
+    return { done: false };
+  }
+}
+
 export class OpenRouterProvider implements LLMProvider {
   async generate(request: LLMRequest): Promise<string> {
     const response = await fetch(OPENROUTER_URL, {
@@ -89,22 +110,15 @@ export class OpenRouterProvider implements LLMProvider {
       const events = buffer.split("\n\n");
       buffer = events.pop() ?? "";
       for (const event of events) {
-        const line = event.split("\n").find((item) => item.startsWith("data:"));
-        if (!line) continue;
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") return;
-        try {
-          const parsed = JSON.parse(data) as {
-            choices?: Array<{ delta?: { content?: string } }>;
-          };
-          const content = parsed.choices?.[0]?.delta?.content;
-          if (content) yield content;
-        } catch {
-          // Ignore provider keep-alive frames and malformed partial events.
-        }
+        const parsed = parseSseEvent(event);
+        if (parsed.done) return;
+        if (parsed.content) yield parsed.content;
       }
       if (done) break;
     }
+
+    const parsed = parseSseEvent(buffer);
+    if (!parsed.done && parsed.content) yield parsed.content;
   }
 }
 

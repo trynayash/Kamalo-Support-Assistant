@@ -5,7 +5,7 @@ import type { Request } from "express";
 import { and, eq, inArray } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, type SupportRequestContext } from "../src/lib/context";
-import { llmProvider } from "../src/lib/llm";
+import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { prepareSupportRequest } from "../src/lib/orchestrator";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
 import {
@@ -77,6 +77,39 @@ async function streamResult(response: Response): Promise<{ content: string; done
     done: finalEvent.done as boolean,
     messageId: finalEvent.messageId as string,
   };
+}
+
+function syntheticSseResponse(chunks: string[]): Response {
+  const encoder = new TextEncoder();
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) controller.enqueue(encoder.encode(chunk));
+        controller.close();
+      },
+    }),
+    { status: 200, headers: { "content-type": "text/event-stream" } },
+  );
+}
+
+async function collectProviderStream(provider: OpenRouterProvider): Promise<string[]> {
+  const chunks: string[] = [];
+  for await (const chunk of provider.stream({
+    messages: [{ role: "user", content: "synthetic stream test" }],
+  })) {
+    chunks.push(chunk);
+  }
+  return chunks;
+}
+
+async function withSyntheticFetch<T>(response: Response, callback: () => Promise<T>): Promise<T> {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => response;
+  try {
+    return await callback();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 
 async function createConversation(title = testPrefix): Promise<{ id: string }> {
@@ -223,6 +256,65 @@ test("selects unknown-question fallback and prompt-extraction decisions", async 
 
   const greeting = await prepareSupportRequest(testContext(), "hello", false);
   assert.equal(greeting.decision, "greeting");
+});
+
+test("parses local OpenRouter SSE frames without exposing malformed provider data", async () => {
+  const provider = new OpenRouterProvider();
+  const contentFrame = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+  const response = syntheticSseResponse([
+    ": keep-alive\n\n",
+    "data: {malformed-json}\n\n",
+    `data: ${JSON.stringify({ choices: [{ delta: {} }] })}\n\n`,
+    contentFrame("first "),
+    "data: [DONE]\n\n",
+    contentFrame("ignored after done"),
+  ]);
+
+  const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));
+  assert.deepEqual(chunks, ["first "]);
+});
+
+test("flushes a complete final SSE frame without a trailing separator", async () => {
+  const provider = new OpenRouterProvider();
+  const response = syntheticSseResponse([
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "terminal content" } }] })}`,
+  ]);
+
+  const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));
+  assert.deepEqual(chunks, ["terminal content"]);
+});
+
+test("returns a safe error when a local provider response has no body", async () => {
+  const provider = new OpenRouterProvider();
+  const response = new Response(null, { status: 200 });
+
+  await assert.rejects(
+    () => withSyntheticFetch(response, () => collectProviderStream(provider)),
+    /OpenRouter returned no stream/,
+  );
+});
+
+test("sanitizes and caps content produced by a streamed provider", async () => {
+  const conversation = await createConversation(`${testPrefix} streamed safety`);
+  const originalStream = llmProvider.stream;
+  llmProvider.stream = async function* () {
+    yield `Verified answer. api-key=sk_test_${"s".repeat(32)} `;
+    yield "x".repeat(13_000);
+  };
+  try {
+    const response = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: evidenceToken }),
+    });
+    assert.equal(response.status, 200);
+    const result = await streamResult(response);
+    assert.equal(result.content.length, 12_000);
+    assert.equal(result.content.endsWith("…"), true);
+    assert.equal(result.content.includes("sk_test_"), false);
+    assert.match(result.content, /^Verified answer\. \[redacted\]/);
+  } finally {
+    llmProvider.stream = originalStream;
+  }
 });
 
 test("returns safe fallbacks for prompt extraction, unknown questions, and provider failures", async () => {
