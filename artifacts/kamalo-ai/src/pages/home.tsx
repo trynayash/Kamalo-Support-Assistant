@@ -543,7 +543,22 @@ export function HomePage() {
                       <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{pendingImage.file.name}</div><div className="mt-0.5 font-mono text-[9px] text-muted-foreground">Ready to send · JPG/PNG</div></div>
                       <button type="button" onClick={removeImage} className="shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Remove ${pendingImage.file.name}`} data-testid="button-remove-attachment"><HiOutlineXMark size={15} /></button>
                     </div>}
-                    <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
+                    <textarea
+                      ref={inputRef}
+                      value={input}
+                      onChange={(event) => setInput(event.target.value)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                          event.preventDefault();
+                          void sendMessage();
+                        }
+                      }}
+                      placeholder="Ask about KAMALO..."
+                      rows={2}
+                      maxLength={4000}
+                      className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70"
+                      data-testid="input-chat-message"
+                    />
                     <div className="flex items-center justify-between gap-2 px-2 pb-1">
                       <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
