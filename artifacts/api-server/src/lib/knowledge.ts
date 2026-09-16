@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
@@ -204,6 +204,91 @@ export type RetrievedArticle = {
   version: number;
 };
 
+const retrievalStopWords = new Set([
+  "a",
+  "about",
+  "after",
+  "am",
+  "an",
+  "and",
+  "are",
+  "can",
+  "could",
+  "do",
+  "does",
+  "for",
+  "from",
+  "how",
+  "i",
+  "if",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "of",
+  "on",
+  "or",
+  "the",
+  "this",
+  "to",
+  "was",
+  "what",
+  "when",
+  "where",
+  "why",
+  "with",
+  "would",
+]);
+
+const retrievalAliases: Record<string, string[]> = {
+  account: ["account", "profile", "register", "registration", "login", "locked"],
+  address: ["address", "delivery", "dispatch", "shipping"],
+  auto: ["auto", "mandate", "automatic", "autopay"],
+  booster: ["booster", "offer", "promotion", "promo"],
+  coin: ["coin", "coins", "reward", "rewards", "points"],
+  commission: ["commission", "referral", "referrals", "income", "earning"],
+  fail: ["fail", "failed", "failure", "declined", "rejected", "unsuccessful"],
+  gold: ["gold", "community", "milestone"],
+  merchant: ["merchant", "seller", "shop", "settlement"],
+  notification: ["notification", "alert", "message", "deep", "link"],
+  payment: ["payment", "transaction", "charged", "deducted", "transfer"],
+  pending: ["pending", "processing", "waiting", "delay", "delayed"],
+  refund: ["refund", "reversal", "reversed", "cancelled", "cancel"],
+  silver: ["silver", "milestone", "progress", "qualification"],
+};
+
+function stemToken(token: string): string {
+  if (token.length > 5 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
+  if (token.length > 5 && token.endsWith("ing")) return token.slice(0, -3);
+  if (token.length > 4 && token.endsWith("ed")) return token.slice(0, -2);
+  if (token.length > 4 && token.endsWith("s")) return token.slice(0, -1);
+  return token;
+}
+
+function tokenize(value: string): string[] {
+  const normalized = value
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’]/g, "")
+    .replace(/&/g, " and ");
+
+  return normalized
+    .split(/[^a-z0-9]+/)
+    .map((token) => stemToken(token))
+    .filter((token) => token.length > 1 && !retrievalStopWords.has(token));
+}
+
+function expandedTerms(query: string): string[] {
+  const terms = new Set<string>();
+  for (const token of tokenize(query)) {
+    terms.add(token);
+    for (const alias of retrievalAliases[token] || []) terms.add(stemToken(alias));
+  }
+  return [...terms];
+}
+
 export async function retrieveKnowledge(query: string): Promise<RetrievedArticle[]> {
   const articles = await db
     .select({
@@ -214,18 +299,36 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
       version: knowledgeArticlesTable.version,
     })
     .from(knowledgeArticlesTable)
-    .where(and(eq(knowledgeArticlesTable.status, "approved")))
+    .where(and(
+      eq(knowledgeArticlesTable.status, "approved"),
+      or(isNull(knowledgeArticlesTable.effectiveFrom), lte(knowledgeArticlesTable.effectiveFrom, new Date())),
+      or(isNull(knowledgeArticlesTable.effectiveUntil), gt(knowledgeArticlesTable.effectiveUntil, new Date())),
+    ))
     .orderBy(asc(knowledgeArticlesTable.category));
 
-  const terms = query.toLowerCase().split(/[^a-z0-9]+/).filter((term) => term.length > 2);
+  const terms = expandedTerms(query);
+  const normalizedQuery = tokenize(query).join(" ");
+
   return articles
     .map((article) => {
-      const haystack = `${article.title} ${article.category} ${article.content}`.toLowerCase();
-      const score = terms.reduce((total, term) => total + (haystack.includes(term) ? 1 : 0), 0);
+      const title = tokenize(article.title);
+      const category = tokenize(article.category);
+      const content = tokenize(article.content);
+      const titleTerms = new Set(title);
+      const categoryTerms = new Set(category);
+      const contentTerms = new Set(content);
+      const score = terms.reduce((total, term) => {
+        if (titleTerms.has(term)) return total + 8;
+        if (categoryTerms.has(term)) return total + 4;
+        if (contentTerms.has(term)) return total + 1;
+        return total;
+      }, 0)
+        + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
+        + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
       return { article, score };
     })
     .filter(({ score }) => score > 0)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 5)
+    .sort((a, b) => b.score - a.score || a.article.title.localeCompare(b.article.title))
+    .slice(0, 6)
     .map(({ article }) => article);
 }

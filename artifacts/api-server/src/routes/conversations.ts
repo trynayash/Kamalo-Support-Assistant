@@ -16,7 +16,7 @@ import { llmProvider, OPENROUTER_MODEL } from "../lib/llm";
 import { capAssistantOutput, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext } from "../lib/context";
-import { prepareSupportRequest } from "../lib/orchestrator";
+import { prepareSupportRequest, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
 
 const router: IRouter = Router();
@@ -41,6 +41,25 @@ function attachmentResponse(conversationId: string, attachment: typeof messageAt
     url: `/api/conversations/${conversationId}/attachments/${attachment.id}`,
     uploadedAt: dateString(attachment.createdAt),
   };
+}
+
+async function getConversationHistory(conversationId: string, currentMessageId: string): Promise<ConversationHistoryMessage[]> {
+  const rows = await db
+    .select({
+      id: messagesTable.id,
+      role: messagesTable.role,
+      content: messagesTable.content,
+    })
+    .from(messagesTable)
+    .where(eq(messagesTable.conversationId, conversationId))
+    .orderBy(desc(messagesTable.createdAt))
+    .limit(12);
+
+  return rows
+    .filter((message) => message.id !== currentMessageId)
+    .reverse()
+    .filter((message): message is { id: string; role: "user" | "assistant"; content: string } => message.role === "user" || message.role === "assistant")
+    .map(({ role, content }) => ({ role, content: content.slice(0, 4000) }));
 }
 
 router.get("/conversations", async (_req, res): Promise<void> => {
@@ -240,7 +259,8 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const supportContext = createSupportRequestContext(req, conversationId);
   const startedAt = Date.now();
   recordSupportEvent(req.log, { event: "support_request_started", context: supportContext });
-  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content));
+  const history = await getConversationHistory(conversationId, userMessageId);
+  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content), history);
   recordSupportEvent(req.log, {
     event: "knowledge_retrieved",
     context: supportContext,

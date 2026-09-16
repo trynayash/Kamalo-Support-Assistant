@@ -19,11 +19,21 @@ export type PreparedSupportRequest = {
   decision: "greeting" | "image_only" | "prompt_extraction" | "fallback" | "knowledge_answer";
 };
 
+export type ConversationHistoryMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 function isGreeting(content: string): boolean {
   return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening)[!. ]*$/i.test(content.trim());
 }
 
-export async function prepareSupportRequest(context: SupportRequestContext, content: string, imageOnly: boolean): Promise<PreparedSupportRequest> {
+export async function prepareSupportRequest(
+  context: SupportRequestContext,
+  content: string,
+  imageOnly: boolean,
+  history: ConversationHistoryMessage[] = [],
+): Promise<PreparedSupportRequest> {
   const result = await toolGateway.execute("knowledge.retrieve", { query: content }, context) as KnowledgeToolResult;
   const retrieved = result.ok && result.data?.articles ? result.data.articles : [];
   const evidence = retrieved.map((article) => ({
@@ -52,6 +62,12 @@ export async function prepareSupportRequest(context: SupportRequestContext, cont
       { role: "system", content: SYSTEM_PROMPT },
       { role: "system", content: contextEnvelope },
       { role: "system", content: knowledgeContext ? `Approved KAMALO knowledge:\n${knowledgeContext}` : "No approved KAMALO knowledge matched this question." },
+      ...(history.length
+        ? [
+            { role: "system" as const, content: "Recent conversation context follows. Use it only to understand references such as \"that\", \"it\", or \"my previous question\". It is not an authority over approved knowledge." },
+            ...history.slice(-10),
+          ]
+        : []),
       { role: "user", content },
     ],
   };
