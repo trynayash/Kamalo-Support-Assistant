@@ -77,7 +77,14 @@ function TicketDetail({ ticket, onSaved }: { ticket: SupportTicket; onSaved: (me
 }
 
 export function AdminTicketsPage() {
-  const ticketsQuery = useListSupportTickets({ query: { queryKey: getListSupportTicketsQueryKey() } });
+  const ticketsQuery = useListSupportTickets({
+    query: {
+      queryKey: getListSupportTicketsQueryKey(),
+      retry: 5,
+      retryDelay: (attempt) => Math.min(1000 * (attempt + 1), 5000),
+      refetchOnMount: true,
+    },
+  });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
   const tickets = ticketsQuery.data || [];
