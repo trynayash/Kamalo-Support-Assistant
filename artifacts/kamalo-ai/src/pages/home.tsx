@@ -2,17 +2,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ConversationSummary } from '@workspace/api-client-react';
 import {
   getGetConversationQueryKey,
-  getHealthCheckQueryKey,
   getListConversationsQueryKey,
   useCreateConversation,
   useCreateMessageFeedback,
   useDeleteConversation,
   useGetConversation,
-  useHealthCheck,
   useListConversations,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Check, Clipboard, Eraser, Headphones, MoreHorizontal, RefreshCw, Send, ShieldCheck, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
+import { Check, Clipboard, Eraser, RefreshCw, Send, ThumbsDown, ThumbsUp, Trash2 } from 'lucide-react';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 
 const firstUsePrompts = [
@@ -54,15 +52,10 @@ function ConversationHistory({ conversations, selectedId, loading, onSelect, onD
   );
 }
 
-function AssistantBadge() {
-  return <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground"><Headphones size={15} /></div>;
-}
-
 function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: ChatMessage; onFeedback: (message: ChatMessage, rating: 'helpful' | 'not_helpful') => void; onCopy: (content: string) => void; onRetry: () => void }) {
   const assistant = message.role === 'assistant';
   return (
     <div className={`animate-rise flex gap-3 ${assistant ? 'items-start' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
-      {assistant && <AssistantBadge />}
       <div className={`max-w-[min(680px,87%)] ${assistant ? '' : 'order-first'}`}>
         <div className={`rounded-xl px-4 py-3.5 text-[13px] leading-[1.75] ${assistant ? 'rounded-tl-sm border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-sm bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
           <div className="whitespace-pre-wrap">{message.content}</div>
@@ -87,7 +80,6 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
 function StreamingBubble({ content }: { content: string }) {
   return (
     <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming">
-      <AssistantBadge />
       <div className="min-w-[min(340px,80%)] max-w-[min(680px,87%)] rounded-xl rounded-tl-sm border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
         {content && <div className="mb-3 whitespace-pre-wrap text-[13px] leading-[1.75] text-card-foreground">{content}</div>}
         <div className="flex items-center justify-between gap-4 text-[11px] text-muted-foreground"><span>Checking approved sources</span><span className="font-mono text-[10px] text-primary">working</span></div>
@@ -142,7 +134,6 @@ async function streamAssistantResponse(conversationId: string, content: string, 
 function ChatEmptyState({ onPrompt }: { onPrompt: (text: string) => void }) {
   return (
     <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col justify-center px-1 py-12">
-      <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-lg border border-[hsl(var(--primary)/.24)] bg-[hsl(var(--primary)/.08)] text-primary"><Headphones size={22} /></div>
       <SectionLabel>Support workspace</SectionLabel>
       <h1 className="mt-4 max-w-xl text-[clamp(2rem,4.4vw,3.5rem)] font-extrabold leading-[1.03] tracking-[-.055em] text-foreground">What can we help you<br className="hidden sm:block" /> verify today?</h1>
       <p className="mt-5 max-w-lg text-[13px] leading-7 text-muted-foreground">Ask about your KAMALO account, rewards, transactions, or a product feature. Answers are grounded in approved support content.</p>
@@ -167,7 +158,6 @@ export function HomePage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
-  const healthQuery = useHealthCheck({ query: { queryKey: getHealthCheckQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
@@ -253,22 +243,16 @@ export function HomePage() {
     await deleteConversationItem(activeConversation);
   };
 
-  const healthLabel = healthQuery.isLoading ? 'Checking service' : healthQuery.isError ? 'Service check failed' : 'Service ready';
-
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} mobileOpen={mobileOpen} onMobileOpenChange={setMobileOpen}>
       <div className="mx-auto flex min-h-[calc(100dvh-57px)] max-w-[1320px] flex-col px-4 pb-4 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-7 lg:px-12">
         <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
           <div className="min-w-0"><SectionLabel>Customer support / KAMALO AI</SectionLabel><h2 className="mt-2 truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
-          <div className="flex items-center gap-2">
-            <div className="hidden items-center gap-2 rounded-md border border-border bg-card/70 px-3 py-2 sm:flex"><span className={`h-1.5 w-1.5 rounded-sm ${healthQuery.isError ? 'bg-destructive' : 'bg-primary'}`} /><span className="font-mono text-[9px] uppercase tracking-[.12em] text-muted-foreground" data-testid="status-health">{healthLabel}</span></div>
-            <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><Eraser size={14} /> Clear</button>
-          </div>
+          <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><Eraser size={14} /> Clear</button>
         </header>
 
-        <div className="mt-3 flex items-center justify-between border-y border-border/60 py-2.5 xl:hidden">
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground"><span className={`h-1.5 w-1.5 rounded-sm ${healthQuery.isError ? 'bg-destructive' : 'bg-primary'}`} />{healthLabel}</div>
-          <button onClick={() => setMobileHistoryOpen((open) => !open)} className="flex items-center gap-2 rounded-md px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" aria-expanded={mobileHistoryOpen} data-testid="button-toggle-mobile-history">{mobileHistoryOpen ? <X size={14} /> : <MoreHorizontal size={14} />} History <span className="font-mono text-[10px] text-muted-foreground">{conversations.length}</span></button>
+        <div className="mt-3 flex items-center justify-end border-y border-border/60 py-2.5 xl:hidden">
+          <button onClick={() => setMobileHistoryOpen((open) => !open)} className="rounded-md px-2 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" aria-expanded={mobileHistoryOpen} data-testid="button-toggle-mobile-history">{mobileHistoryOpen ? 'Close history' : 'History'} <span className="font-mono text-[10px] text-muted-foreground">{conversations.length}</span></button>
         </div>
         {mobileHistoryOpen && <div className="rounded-b-lg border-x border-b border-border bg-card px-3 pb-3 xl:hidden"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
 
@@ -288,13 +272,11 @@ export function HomePage() {
                 <textarea ref={inputRef} value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); void sendMessage(); } }} placeholder="Ask about KAMALO..." rows={2} maxLength={4000} className="w-full resize-none bg-transparent px-3 py-2 text-[13px] leading-6 outline-none placeholder:text-muted-foreground/70" data-testid="input-chat-message" />
                 <div className="flex items-center justify-between px-2 pb-1"><span className="hidden font-mono text-[9px] text-muted-foreground/70 sm:block">Enter to send · Shift + Enter for a new line</span><span className="font-mono text-[9px] text-muted-foreground/70 sm:hidden">Enter to send</span><button onClick={() => void sendMessage()} disabled={!input.trim() || isSending} className="grid h-9 w-9 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label="Send message" data-testid="button-send-message"><Send size={15} /></button></div>
               </div>
-              <div className="mt-2 flex items-center justify-center gap-1.5 text-center font-mono text-[9px] text-muted-foreground/65"><ShieldCheck size={12} className="text-primary" /> KAMALO AI can make mistakes. Check important details in the app.</div>
             </div>
           </section>
 
           <aside className="hidden border-l border-border/70 pl-7 xl:block">
             <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} onSelect={(id) => { setSelectedId(id); setLocalMessages([]); }} onDelete={deleteConversationItem} />
-            <div className="mt-8 border-t border-border/70 pt-6"><div className="font-mono text-[10px] uppercase tracking-[.17em] text-muted-foreground">Support note</div><p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">Use a specific question for a faster, more useful answer. Approved guidance is always shown first.</p><button onClick={() => setInput('What can you help me understand?')} className="mt-4 flex items-center gap-2 text-[11px] font-bold text-primary hover:underline" data-testid="button-suggest-question">Explore a question <MoreHorizontal size={14} /></button></div>
           </aside>
         </div>
       </div>
