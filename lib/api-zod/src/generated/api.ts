@@ -324,23 +324,6 @@ export const GetSupportTicketResponse = zod.object({
 
 
 /**
- * @summary Analyze a support ticket with AI or route it to a human
- */
-export const AnalyzeSupportTicketParams = zod.object({
-  "ticketId": zod.coerce.string()
-})
-
-export const AnalyzeSupportTicketBody = zod.object({
-  "mode": zod.enum(['human', 'ai'])
-})
-
-export const AnalyzeSupportTicketResponse = zod.object({
-  "mode": zod.enum(['human', 'ai']),
-  "draftResolution": zod.string()
-})
-
-
-/**
  * @summary Update a support ticket from the test admin workspace
  */
 export const UpdateSupportTicketParams = zod.object({
@@ -380,6 +363,23 @@ export const UpdateSupportTicketResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
   "resolvedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Analyze a support ticket with AI or route it to a human
+ */
+export const AnalyzeSupportTicketParams = zod.object({
+  "ticketId": zod.coerce.string()
+})
+
+export const AnalyzeSupportTicketBody = zod.object({
+  "mode": zod.enum(['human', 'ai'])
+})
+
+export const AnalyzeSupportTicketResponse = zod.object({
+  "mode": zod.enum(['human', 'ai']),
+  "draftResolution": zod.string()
 })
 
 

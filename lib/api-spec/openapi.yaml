@@ -253,6 +253,29 @@ paths:
                 $ref: "#/components/schemas/SupportTicket"
         "404":
           description: Ticket not found
+    patch:
+      operationId: updateSupportTicket
+      tags: [tickets]
+      summary: Update a support ticket from the test admin workspace
+      parameters:
+        - $ref: "#/components/parameters/TicketId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupportTicketUpdate"
+      responses:
+        "200":
+          description: Updated support ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupportTicket"
+        "400":
+          description: Invalid ticket update
+        "404":
+          description: Ticket not found
   /tickets/{ticketId}/analyze:
     post:
       operationId: analyzeSupportTicket
@@ -275,29 +298,6 @@ paths:
                 $ref: "#/components/schemas/SupportTicketAnalysis"
         "400":
           description: Invalid analysis request
-        "404":
-          description: Ticket not found
-    patch:
-      operationId: updateSupportTicket
-      tags: [tickets]
-      summary: Update a support ticket from the test admin workspace
-      parameters:
-        - $ref: "#/components/parameters/TicketId"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/SupportTicketUpdate"
-      responses:
-        "200":
-          description: Updated support ticket
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/SupportTicket"
-        "400":
-          description: Invalid ticket update
         "404":
           description: Ticket not found
   /knowledge/articles:
