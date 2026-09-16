@@ -23,6 +23,7 @@ export function KamaloMark({ small = false, onLight = false }: { small?: boolean
 
 export function KamaloShell({ children, conversationCount = 0, onNewConversation }: KamaloShellProps) {
   const [location] = useLocation();
+  const isConversations = location === '/' || location === '/history';
   const isKnowledge = location.startsWith('/admin/knowledge');
   const isSupport = location.startsWith('/support');
   const isTickets = location.startsWith('/admin/tickets');
@@ -43,13 +44,12 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
             data-testid="button-new-conversation"
           >
              <span className="flex items-center gap-2.5 text-[13px] font-semibold"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
-             <span className="font-mono text-[10px] text-sidebar-foreground/40">N</span>
           </button>
         </div>
 
         <nav className="mt-8 space-y-1" aria-label="Primary navigation">
-          <Link href="/" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${!isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
-            <HiOutlineChatBubbleLeftRight size={16} className={!isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
+           <Link href="/" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isConversations ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
+             <HiOutlineChatBubbleLeftRight size={16} className={isConversations ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
           <Link href="/admin/knowledge" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">

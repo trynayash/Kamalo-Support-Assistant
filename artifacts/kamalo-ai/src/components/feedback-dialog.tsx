@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@workspace/api-client-react';
 import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from 'react-icons/hi2';
 import { SectionLabel } from '@/components/kamalo-shell';
@@ -31,6 +31,41 @@ export function FeedbackDialog({ message, reaction, imageCount, saving, onClose,
   const [summary, setSummary] = useState('I need help with this answer');
   const [details, setDetails] = useState('');
   const [error, setError] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(saving);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
+
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savingRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button, input, textarea, select, [href]')).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('tabindex') !== '-1');
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, []);
 
   const submit = () => {
     if (!score) {
@@ -53,14 +88,14 @@ export function FeedbackDialog({ message, reaction, imageCount, saving, onClose,
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(var(--sidebar)/.52)] p-0 backdrop-blur-[2px] sm:items-center sm:p-6" role="presentation" data-testid="dialog-feedback">
-      <div className="max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-[0_22px_70px_hsl(var(--foreground)/.2)] sm:rounded-xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="feedback-dialog-title">
+       <div ref={dialogRef} className="max-h-[94dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-[0_22px_70px_hsl(var(--foreground)/.2)] sm:rounded-xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="feedback-dialog-title" aria-describedby="feedback-dialog-description">
         <div className="flex items-start justify-between gap-4">
           <div>
             <SectionLabel>{reaction === 'helpful' ? 'Answer feedback' : 'Answer review'}</SectionLabel>
             <h2 id="feedback-dialog-title" className="mt-3 text-2xl font-extrabold tracking-[-.045em]">{reaction === 'helpful' ? 'How useful was this answer?' : 'What should we improve?'}</h2>
-            <p className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">{message.content}</p>
+             <p id="feedback-dialog-description" className="mt-2 line-clamp-2 text-[12px] leading-5 text-muted-foreground">{message.content}</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close feedback form" data-testid="button-close-feedback"><HiOutlineXMark size={18} /></button>
+           <button ref={closeButtonRef} onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close feedback form" data-testid="button-close-feedback"><HiOutlineXMark size={18} /></button>
         </div>
 
         <div className="mt-6 flex items-center justify-center gap-2" role="radiogroup" aria-label="Answer score">

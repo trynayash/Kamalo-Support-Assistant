@@ -12,7 +12,7 @@ import {
   UploadConversationImageResponse,
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
-import { llmProvider, OPENROUTER_MODEL } from "../lib/llm";
+import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
 import { capAssistantOutput, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext } from "../lib/context";
@@ -25,6 +25,15 @@ const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
 function dateString(value: Date): string {
   return value.toISOString();
+}
+
+async function writeSse(res: import("express").Response, payload: Record<string, unknown>): Promise<boolean> {
+  if (res.destroyed || res.writableEnded) return false;
+  const writable = res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  if (!writable && !res.destroyed && !res.writableEnded) {
+    await new Promise<void>((resolve) => res.once("drain", resolve));
+  }
+  return !res.destroyed && !res.writableEnded;
 }
 
 async function conversationExists(id: string): Promise<boolean> {
@@ -271,9 +280,34 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Request-ID", supportContext.requestId);
   res.flushHeaders();
 
+  const abortController = new AbortController();
+  let clientClosed = false;
+  const onClientClosed = () => {
+    if (!res.writableEnded) {
+      clientClosed = true;
+      abortController.abort();
+    }
+  };
+  req.once("aborted", onClientClosed);
+  res.once("close", onClientClosed);
+
   let fullResponse = "";
+  let emittedResponse = "";
+  const emitResponse = async (candidate: string): Promise<boolean> => {
+    const safeCandidate = capAssistantOutput(sanitizeAssistantOutput(candidate));
+    const delta = safeCandidate.startsWith(emittedResponse)
+      ? safeCandidate.slice(emittedResponse.length)
+      : "";
+    if (delta) {
+      emittedResponse = safeCandidate;
+      return writeSse(res, { content: delta });
+    }
+    return !clientClosed;
+  };
+
   try {
     if (attachment && !content) {
       fullResponse = IMAGE_NOT_SUPPORTED_RESPONSE;
@@ -284,30 +318,63 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
     } else {
-      for await (const chunk of llmProvider.stream({ messages: prepared.llmMessages })) {
+      for await (const chunk of llmProvider.stream({
+        messages: prepared.llmMessages,
+        requestId: supportContext.requestId,
+        signal: abortController.signal,
+      })) {
         fullResponse += chunk;
+        if (!(await emitResponse(fullResponse))) break;
       }
     }
   } catch (error) {
+    if (clientClosed) {
+      req.log.info({ conversationId, requestId: supportContext.requestId }, "Client disconnected during response generation");
+      req.removeListener("aborted", onClientClosed);
+      res.removeListener("close", onClientClosed);
+      return;
+    }
     recordSupportEvent(req.log, {
       event: "provider_failure",
       context: supportContext,
       evidenceCount: prepared.evidence.length,
       outcome: "safe_fallback",
     });
-    req.log.error({ err: error, conversationId, retrievedArticleIds: prepared.retrieved.map((article) => article.id) }, "LLM request failed");
+    req.log.error({
+      err: error,
+      conversationId,
+      requestId: supportContext.requestId,
+      providerErrorKind: error instanceof OpenRouterError ? error.kind : "unknown",
+      providerStatus: error instanceof OpenRouterError ? error.status : null,
+      retrievedArticleIds: prepared.retrieved.map((article) => article.id),
+    }, "LLM request failed");
     fullResponse = SAFE_ASSISTANT_ERROR;
   }
 
   fullResponse = capAssistantOutput(sanitizeAssistantOutput(fullResponse || STAGE_ONE_FALLBACK));
+  if (!clientClosed) await emitResponse(fullResponse);
+  if (clientClosed) {
+    req.removeListener("aborted", onClientClosed);
+    res.removeListener("close", onClientClosed);
+    return;
+  }
   const assistantMessage = {
     id: crypto.randomUUID(),
     conversationId,
     role: "assistant",
     content: fullResponse,
   };
-  await db.insert(messagesTable).values(assistantMessage);
-  await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, conversationId));
+  try {
+    await db.insert(messagesTable).values(assistantMessage);
+    await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, conversationId));
+  } catch (error) {
+    req.log.error({ err: error, conversationId, requestId: supportContext.requestId }, "Assistant response could not be persisted");
+    await writeSse(res, { error: "The response could not be saved. Please try again." });
+    res.end();
+    req.removeListener("aborted", onClientClosed);
+    res.removeListener("close", onClientClosed);
+    return;
+  }
   recordSupportEvent(req.log, {
     event: "response_completed",
     context: supportContext,
@@ -325,9 +392,10 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     retrievedArticleIds: prepared.retrieved.map((article) => article.id),
     responseStatus: "complete",
   }, "KAMALO AI response generated");
-  res.write(`data: ${JSON.stringify({ content: fullResponse })}\n\n`);
-  res.write(`data: ${JSON.stringify({ done: true, messageId: assistantMessage.id, finalContent: fullResponse })}\n\n`);
+  await writeSse(res, { done: true, messageId: assistantMessage.id, finalContent: fullResponse });
   res.end();
+  req.removeListener("aborted", onClientClosed);
+  res.removeListener("close", onClientClosed);
 });
 
 export default router;

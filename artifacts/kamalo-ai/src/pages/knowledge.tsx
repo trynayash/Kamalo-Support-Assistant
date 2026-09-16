@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { KnowledgeArticle, ListKnowledgeArticlesParams } from '@workspace/api-client-react';
 import {
   getListKnowledgeArticlesQueryKey,
@@ -29,6 +29,40 @@ function ArticleSkeleton() {
 function ArticleEditor({ article, saving, onClose, onSave }: { article: KnowledgeArticle | null; saving: boolean; onClose: () => void; onSave: (data: EditorState) => void }) {
   const [form, setForm] = useState<EditorState>(article ? { title: article.title, category: article.category, content: article.content } : emptyEditor);
   const [formError, setFormError] = useState('');
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const onCloseRef = useRef(onClose);
+  const savingRef = useRef(saving);
+  onCloseRef.current = onClose;
+  savingRef.current = saving;
+  useEffect(() => {
+    const previousFocus = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !savingRef.current) {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>('button, input, textarea, select, [href]')).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('tabindex') !== '-1');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      previousFocus?.focus();
+    };
+  }, []);
   const update = (key: keyof EditorState, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const submit = () => {
     if (!form.title.trim() || !form.category.trim() || !form.content.trim()) {
@@ -40,8 +74,8 @@ function ArticleEditor({ article, saving, onClose, onSave }: { article: Knowledg
   };
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[hsl(var(--sidebar)/.52)] p-0 backdrop-blur-[2px] sm:items-center sm:p-6" role="presentation" data-testid="dialog-article-editor">
-      <div className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-[0_22px_70px_hsl(var(--foreground)/.2)] sm:rounded-xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="article-editor-title">
-        <div className="flex items-start justify-between gap-4"><div><SectionLabel>{article ? 'Edit article' : 'New article'}</SectionLabel><h2 id="article-editor-title" className="mt-3 text-2xl font-extrabold tracking-[-.045em]">{article ? 'Refine the source' : 'Add to the source'}</h2><p className="mt-2 text-[12px] text-muted-foreground">Approved articles become available to KAMALO AI.</p></div><button onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close editor" data-testid="button-close-editor"><HiOutlineXMark size={18} /></button></div>
+       <div ref={dialogRef} className="max-h-[94dvh] w-full max-w-2xl overflow-y-auto rounded-t-2xl border border-border bg-card p-5 shadow-[0_22px_70px_hsl(var(--foreground)/.2)] sm:rounded-xl sm:p-7" role="dialog" aria-modal="true" aria-labelledby="article-editor-title" aria-describedby="article-editor-description">
+         <div className="flex items-start justify-between gap-4"><div><SectionLabel>{article ? 'Edit article' : 'New article'}</SectionLabel><h2 id="article-editor-title" className="mt-3 text-2xl font-extrabold tracking-[-.045em]">{article ? 'Refine the source' : 'Add to the source'}</h2><p id="article-editor-description" className="mt-2 text-[12px] text-muted-foreground">Approved articles become available to KAMALO AI.</p></div><button ref={closeButtonRef} onClick={onClose} className="rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Close editor" data-testid="button-close-editor"><HiOutlineXMark size={18} /></button></div>
         <div className="mt-7 space-y-5">
           <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-muted-foreground">Title</span><input value={form.title} onChange={(event) => update('title', event.target.value)} maxLength={180} placeholder="How Auto KAMALO works" className="h-11 w-full rounded-lg border border-input bg-background px-3 text-[13px] outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-article-title" /></label>
           <label className="block"><span className="mb-2 block font-mono text-[10px] uppercase tracking-[.15em] text-muted-foreground">Category</span><input value={form.category} onChange={(event) => update('category', event.target.value)} maxLength={60} placeholder="Auto KAMALO" className="h-11 w-full rounded-lg border border-input bg-background px-3 text-[13px] outline-none transition-shadow focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-article-category" /></label>
@@ -124,7 +158,7 @@ export function KnowledgePage() {
         {notice && <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-[11px] text-primary animate-rise" data-testid="status-knowledge-notice">{notice}</div>}
         <div className="mt-7 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-sm)]">
           <div className="hidden grid-cols-[minmax(0,1.4fr)_150px_120px_150px] gap-4 border-b border-border bg-muted/40 px-5 py-3 font-mono text-[9px] uppercase tracking-[.16em] text-muted-foreground xl:grid"><span>Article</span><span>Category</span><span>Status</span><span className="text-right">Actions</span></div>
-          {articlesQuery.isLoading ? <div className="p-4"><ArticleSkeleton /></div> : articlesQuery.isError ? <div className="p-10 text-center"><p className="text-[13px] font-semibold">Knowledge base unavailable</p><p className="mt-2 text-[12px] text-muted-foreground">We could not load the source articles.</p><button onClick={() => void articlesQuery.refetch()} className="mt-4 rounded-lg border border-border px-4 py-2 text-[11px] font-bold hover:bg-muted" data-testid="button-retry-articles">Try again</button></div> : articles.length === 0 ? <div className="p-12 text-center"><KnowledgeIcon /><h3 className="mt-4 text-xl font-extrabold tracking-[-.03em]">Nothing here yet.</h3><p className="mx-auto mt-2 max-w-sm text-[12px] leading-6 text-muted-foreground">{hasFilters ? 'No articles match these filters.' : 'Create the first article to give KAMALO AI a reliable source to work from.'}</p><button onClick={hasFilters ? clearFilters : () => setEditorArticle(null)} className="mt-5 rounded-lg bg-primary px-4 py-2.5 text-[11px] font-bold text-primary-foreground" data-testid={hasFilters ? 'button-clear-empty-filters' : 'button-create-first-article'}>{hasFilters ? 'Clear filters' : 'Create an article'}</button></div> : <div className="divide-y divide-border/80">{articles.map((article) => <ArticleRow key={article.id} article={article} onEdit={setEditorArticle} onApprove={(item) => void approve(item)} onArchive={(item) => void archive(item)} approving={approveArticle.isPending} archiving={archiveArticle.isPending} />)}</div>}
+           {articlesQuery.isLoading ? <div className="p-4" role="status" aria-live="polite"><span className="sr-only">Loading knowledge articles</span><ArticleSkeleton /></div> : articlesQuery.isError ? <div className="p-10 text-center" role="alert" aria-live="assertive"><p className="text-[13px] font-semibold">Knowledge base unavailable</p><p className="mt-2 text-[12px] text-muted-foreground">We could not load the source articles.</p><button onClick={() => void articlesQuery.refetch()} className="mt-4 rounded-lg border border-border px-4 py-2 text-[11px] font-bold hover:bg-muted" data-testid="button-retry-articles">Try again</button></div> : articles.length === 0 ? <div className="p-12 text-center" role="region" aria-label="Empty knowledge base"><KnowledgeIcon /><h3 className="mt-4 text-xl font-extrabold tracking-[-.03em]">Nothing here yet.</h3><p className="mx-auto mt-2 max-w-sm text-[12px] leading-6 text-muted-foreground">{hasFilters ? 'No articles match these filters.' : 'Create the first article to give KAMALO AI a reliable source to work from.'}</p><button onClick={hasFilters ? clearFilters : () => setEditorArticle(null)} className="mt-5 rounded-lg bg-primary px-4 py-2.5 text-[11px] font-bold text-primary-foreground" data-testid={hasFilters ? 'button-clear-empty-filters' : 'button-create-first-article'}>{hasFilters ? 'Clear filters' : 'Create an article'}</button></div> : <div className="divide-y divide-border/80">{articles.map((article) => <ArticleRow key={article.id} article={article} onEdit={setEditorArticle} onApprove={(item) => void approve(item)} onArchive={(item) => void archive(item)} approving={approveArticle.isPending} archiving={archiveArticle.isPending} />)}</div>}
         </div>
         <div className="mt-4 flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-1.5 w-1.5 rounded-sm bg-primary" /> <span data-testid="text-article-count">{articles.length} {articles.length === 1 ? 'article' : 'articles'} in view</span><span className="mx-1 opacity-40">·</span> Changes are reflected in new answers</div>
       </div>

@@ -51,6 +51,12 @@ The support training prompt is a policy source, not raw customer-facing retrieva
 
 **How to apply:** Keep the model policy compact and explicit, add factual coverage as versioned approved articles, and evaluate retrieval with representative customer wording.
 
+Provider streaming must be treated as an incomplete transport until a validated completion signal is received; malformed frames, empty output, cancellation, and persistence failures are distinct outcomes.
+
+**Why:** Treating a truncated or buffered stream as a successful answer makes a support response look complete when the provider or client actually failed.
+
+**How to apply:** Forward validated chunks, require an explicit completion event, abort upstream work on disconnect, and persist only a sanitized response whose write succeeded.
+
 The support chat should always follow the newest user message and active assistant loading state automatically, so users never need to manually scroll to see submission progress or the current response.
 
 **Why:** The intended experience is mobile-first and low-friction, especially when future engines make responses longer or slower.

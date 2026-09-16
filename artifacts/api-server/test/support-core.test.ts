@@ -319,7 +319,7 @@ test("keeps draft and expired knowledge out of evidence", async () => {
   assert.equal(prepared.evidence.some((article) => article.title.includes("draft") || article.title.includes("expired")), false);
 });
 
-test("parses local OpenRouter SSE frames without exposing malformed provider data", async () => {
+test("rejects malformed local OpenRouter SSE frames", async () => {
   const provider = new OpenRouterProvider();
   const contentFrame = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
   const response = syntheticSseResponse([
@@ -331,8 +331,10 @@ test("parses local OpenRouter SSE frames without exposing malformed provider dat
     contentFrame("ignored after done"),
   ]);
 
-  const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));
-  assert.deepEqual(chunks, ["first "]);
+  await assert.rejects(
+    () => withSyntheticFetch(response, () => collectProviderStream(provider)),
+    /malformed streaming data/,
+  );
 });
 
 test("parses CRLF-delimited local OpenRouter SSE frames without dropping content", async () => {
@@ -367,7 +369,8 @@ test("combines consecutive SSE data fields according to the SSE contract", async
 test("flushes a complete final SSE frame without a trailing separator", async () => {
   const provider = new OpenRouterProvider();
   const response = syntheticSseResponse([
-    `data: ${JSON.stringify({ choices: [{ delta: { content: "terminal content" } }] })}`,
+    `data: ${JSON.stringify({ choices: [{ delta: { content: "terminal content" } }] })}\n\n`,
+    "data: [DONE]\n\n",
   ]);
 
   const chunks = await withSyntheticFetch(response, () => collectProviderStream(provider));

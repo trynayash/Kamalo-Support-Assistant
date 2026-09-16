@@ -44,14 +44,14 @@ export function HistoryPage() {
         </div>
 
         {conversationsQuery.isLoading ? (
-          <div className="mt-7 space-y-2" data-testid="history-loading">
+          <div className="mt-7 space-y-2" role="status" aria-live="polite" data-testid="history-loading">
             <div className="skeleton h-20 rounded-xl" />
             <div className="skeleton h-20 rounded-xl" />
           </div>
         ) : conversationsQuery.isError ? (
-          <div className="mt-7 rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center text-[12px] text-destructive" data-testid="history-error">History is temporarily unavailable. Please try again shortly.</div>
+          <div className="mt-7 rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center text-[12px] text-destructive" role="alert" aria-live="assertive" data-testid="history-error">History is temporarily unavailable. Please try again shortly.</div>
         ) : conversations.length === 0 ? (
-          <div className="mt-7 rounded-xl border border-dashed border-border bg-card/50 p-10 text-center" data-testid="history-empty">
+          <div className="mt-7 rounded-xl border border-dashed border-border bg-card/50 p-10 text-center" role="region" aria-label="Empty conversation history" data-testid="history-empty">
             <HiOutlineChatBubbleLeftRight className="mx-auto text-primary" size={24} />
             <p className="mt-3 text-[13px] font-semibold">No conversations yet.</p>
             <Link href="/" className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[11px] font-bold text-primary-foreground" data-testid="link-history-start-chat">Start a conversation</Link>
