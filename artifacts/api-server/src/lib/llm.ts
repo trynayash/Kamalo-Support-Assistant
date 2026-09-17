@@ -21,7 +21,6 @@ export const OPENROUTER_MODEL = "openrouter/free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_TIMEOUT_MS = 45_000;
 const MAX_RETRIES = 2;
-const MAX_ERROR_BODY_BYTES = 4_000;
 
 export class OpenRouterError extends Error {
   constructor(
@@ -65,15 +64,13 @@ function retryDelayMs(response: Response, attempt: number): number {
 }
 
 async function responseError(response: Response): Promise<OpenRouterError> {
-  let detail = "";
   try {
-    detail = (await response.text()).slice(0, MAX_ERROR_BODY_BYTES).replace(/\s+/g, " ").trim();
+    await response.arrayBuffer();
   } catch {
-    detail = "";
+    await response.body?.cancel().catch(() => undefined);
   }
-  const suffix = detail ? `: ${detail}` : "";
   return new OpenRouterError(
-    `OpenRouter request failed with status ${response.status}${suffix}`,
+    `OpenRouter request failed with status ${response.status}`,
     response.status,
     isTransientStatus(response.status),
     "http",

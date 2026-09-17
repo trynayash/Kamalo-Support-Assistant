@@ -2,6 +2,7 @@ import { and, asc, eq, gt, isNull, lte, or } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
+import { containsInstructionInjection } from "./safety";
 
 type SeedArticle = {
   title: string;
@@ -369,6 +370,7 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
   const normalizedQuery = tokenize(query).join(" ");
 
   return articles
+    .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
     .map((article) => {
       const title = tokenize(article.title);
       const category = tokenize(article.category);

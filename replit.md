@@ -37,7 +37,7 @@ KAMALO AI is a knowledge-grounded support assistant for explaining KAMALO produc
 - Approved knowledge is the only normal retrieval source; unknown questions receive a verified fallback.
 - Account context and support tools exist as disabled interfaces so live KAMALO engines can be added later.
 - Knowledge chunks have a pgvector-ready embedding column, while current retrieval stays deterministic until an embeddings provider is selected.
-- The demo user is intentionally fixed because no authentication existed in the starting repository; admin access is a follow-up.
+- OIDC sessions and server-side ownership/role checks protect customer and operational surfaces; engine work must still treat every browser value and customer-authored field as untrusted.
 
 ## Product
 

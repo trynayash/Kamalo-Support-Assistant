@@ -13,8 +13,8 @@ import {
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
 import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
-import { capAssistantOutput, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
-import { readConversationImage, saveConversationImage } from "../lib/image-attachments";
+import { capAssistantOutput, hasPossibleSensitiveTail, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
+import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext } from "../lib/context";
 import { prepareSupportRequest, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
@@ -182,7 +182,16 @@ router.post("/conversations/:conversationId/attachments", async (req, res): Prom
   }
 
   const attachmentId = crypto.randomUUID();
-  const stored = await saveConversationImage(req, attachmentId);
+  let stored: Awaited<ReturnType<typeof saveConversationImage>>;
+  try {
+    stored = await saveConversationImage(req, attachmentId);
+  } catch (error) {
+    if (error instanceof ImageUploadError) {
+      res.status(error.statusCode).json({ error: error.message });
+      return;
+    }
+    throw error;
+  }
   const attachment = {
     id: attachmentId,
     conversationId: params.data.conversationId,
@@ -192,7 +201,12 @@ router.post("/conversations/:conversationId/attachments", async (req, res): Prom
     size: stored.size,
     storageKey: `${attachmentId}.${stored.storageKey.split(".").pop()}`,
   };
-  await db.insert(messageAttachmentsTable).values(attachment);
+  try {
+    await db.insert(messageAttachmentsTable).values(attachment);
+  } catch (error) {
+    await deleteConversationImage(attachment.id, stored.mediaType);
+    throw error;
+  }
   res.status(201).json(UploadConversationImageResponse.parse({
     ...attachmentResponse(params.data.conversationId, { ...attachment, createdAt: new Date() }),
   }));
@@ -214,7 +228,8 @@ router.get("/conversations/:conversationId/attachments/:attachmentId", async (re
     return;
   }
   try {
-    const data = await readConversationImage(attachment.storageKey);
+    const mediaType = attachment.mediaType === "image/png" ? "image/png" : "image/jpeg";
+    const data = await readConversationImage(attachment.id, mediaType);
     res.setHeader("Content-Type", attachment.mediaType);
     res.setHeader("Content-Length", data.length);
     res.setHeader("Content-Disposition", "inline");
@@ -298,13 +313,16 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
 
   let fullResponse = "";
   let emittedResponse = "";
-  const emitResponse = async (candidate: string): Promise<boolean> => {
+  const emitResponse = async (candidate: string, flush = false): Promise<boolean> => {
     const safeCandidate = capAssistantOutput(sanitizeAssistantOutput(candidate));
-    const delta = safeCandidate.startsWith(emittedResponse)
-      ? safeCandidate.slice(emittedResponse.length)
+    const safePrefix = !flush && hasPossibleSensitiveTail(candidate)
+      ? safeCandidate.slice(0, Math.max(emittedResponse.length, safeCandidate.length - 512))
+      : safeCandidate;
+    const delta = safePrefix.startsWith(emittedResponse)
+      ? safePrefix.slice(emittedResponse.length)
       : "";
     if (delta) {
-      emittedResponse = safeCandidate;
+      emittedResponse = safePrefix;
       return writeSse(res, { content: delta });
     }
     return !clientClosed;
@@ -354,7 +372,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   }
 
   fullResponse = capAssistantOutput(sanitizeAssistantOutput(fullResponse || STAGE_ONE_FALLBACK));
-  if (!clientClosed) await emitResponse(fullResponse);
+   if (!clientClosed) await emitResponse(fullResponse, true);
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
     res.removeListener("close", onClientClosed);

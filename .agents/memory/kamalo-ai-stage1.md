@@ -69,6 +69,12 @@ Stage 1 responses must be sanitized before reaching the browser; provider failur
 
 **How to apply:** Keep provider output buffered until sanitized, keep API errors generic, log diagnostics server-side without request bodies, and make browser crash fallbacks non-diagnostic.
 
+Provider-bound context must be minimized independently of access control: omit internal identifiers and permissions, redact secrets and OTP values from history and ticket text, and mark knowledge/customer content as reference data that cannot override policy.
+
+**Why:** A valid session proves who may use a feature, but it does not make customer-authored text trustworthy or make internal metadata necessary for a third-party model.
+
+**How to apply:** Sanitize at the server-to-provider boundary, quarantine instruction-shaped knowledge before retrieval, and add regression tests for poisoned articles, split secrets, and ticket injection.
+
 The support chat uses a fixed-height workspace: only the message list scrolls, while the composer and its safety note remain stationary; message bubbles must allow arbitrary long tokens to wrap without horizontal overflow.
 
 **Why:** A page-level scroll lets the composer drift and unbroken user text can push the whole interface sideways on narrow screens.

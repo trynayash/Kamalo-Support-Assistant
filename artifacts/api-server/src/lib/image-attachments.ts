@@ -1,4 +1,5 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, open, unlink } from "node:fs/promises";
+import { constants as fsConstants } from "node:fs";
 import path from "node:path";
 import type { Request } from "express";
 
@@ -30,6 +31,21 @@ type ParsedImage = {
 
 function uploadDirectory(): string {
   return path.resolve(process.env.KAMALO_UPLOAD_DIR || path.join(process.cwd(), "data", "kamalo-attachments"));
+}
+
+type ImageMediaType = "image/jpeg" | "image/png";
+
+function storagePath(attachmentId: string, mediaType: ImageMediaType): string {
+  if (!/^[a-f0-9-]{8}-[a-f0-9-]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(attachmentId)) {
+    throw new Error("Invalid attachment id");
+  }
+  const extension = mediaType === "image/png" ? "png" : "jpg";
+  const directory = uploadDirectory();
+  const resolved = path.resolve(directory, `${attachmentId}.${extension}`);
+  if (!resolved.startsWith(`${directory}${path.sep}`)) {
+    throw new Error("Invalid attachment storage path");
+  }
+  return resolved;
 }
 
 function imageSignatureMatches(data: Buffer, mediaType: ParsedImage["mediaType"]): boolean {
@@ -112,7 +128,13 @@ export async function saveConversationImage(req: Request, id: string): Promise<{
   const image = await parseMultipartImage(req);
   const storageKey = `${id}.${image.extension}`;
   await mkdir(uploadDirectory(), { recursive: true });
-  await writeFile(path.join(uploadDirectory(), storageKey), image.data, { flag: "wx" });
+  // nosemgrep: javascript.express.file.fs-express.fs-express — UUID, allowlisted extension, containment, and O_NOFOLLOW are enforced by storagePath/open.
+  const file = await open(storagePath(id, image.mediaType), fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW, 0o600);
+  try {
+    await file.writeFile(image.data);
+  } finally {
+    await file.close();
+  }
   return {
     originalFilename: image.originalFilename,
     mediaType: image.mediaType,
@@ -121,9 +143,15 @@ export async function saveConversationImage(req: Request, id: string): Promise<{
   };
 }
 
-export async function readConversationImage(storageKey: string): Promise<Buffer> {
-  if (!/^[a-z0-9-]+\.(?:jpg|jpeg|png)$/.test(storageKey)) {
-    throw new Error("Invalid attachment storage key");
+export async function readConversationImage(attachmentId: string, mediaType: ImageMediaType): Promise<Buffer> {
+  const file = await open(storagePath(attachmentId, mediaType), fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  try {
+    return await file.readFile();
+  } finally {
+    await file.close();
   }
-  return readFile(path.join(uploadDirectory(), storageKey));
+}
+
+export async function deleteConversationImage(attachmentId: string, mediaType: ImageMediaType): Promise<void> {
+  await unlink(storagePath(attachmentId, mediaType)).catch(() => undefined);
 }
