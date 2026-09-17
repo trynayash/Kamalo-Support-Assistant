@@ -5,3 +5,4 @@
 - [GitHub connector bulk uploads](github-connector-bulk-upload.md) — initialize a branch before blob writes and throttle connector uploads below ten requests per second.
 - [Support Core test fixtures](support-core-test-fixtures.md) — lexical retrieval tests need collision-resistant tokens because approved knowledge is shared.
 - [Support Core local database](support-core-local-db.md) — the full regression suite needs the auth audit schema present in the test database.
+- [Portable vendor handoff archives](portable-handoff.md) — build from tracked files and explicitly add only approved uploaded assets.

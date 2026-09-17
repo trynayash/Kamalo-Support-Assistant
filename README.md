@@ -24,16 +24,19 @@ pnpm --filter @workspace/api-server run dev
 pnpm --filter @workspace/kamalo-ai run dev
 ```
 
-The managed workflows provide `PORT`, `BASE_PATH`, and `DATABASE_URL`.
+Set `PORT`, `BASE_PATH`, and `DATABASE_URL` in the target environment.
 
 ## Environment
 
 Required for generated responses:
 
-- `OPENROUTER_API_KEY` — server-side OpenRouter API key stored as a Replit Secret
-- `DATABASE_URL` — managed PostgreSQL connection string
+- `OPENROUTER_API_KEY` — server-side OpenRouter API key
+- `DATABASE_URL` — PostgreSQL connection string
+- `RESEND_API_KEY` — server-side Resend API key for ticket and feedback email
+- `RESEND_FROM_EMAIL` — verified sender address
+- `KAMALO_FEEDBACK_EMAIL` — recipient for answer-review notifications
 
-The API never sends the key to the browser. Responses currently use OpenRouter's `openrouter/free` router, which has zero prompt and completion pricing and selects from the free models available at request time.
+The API never sends provider keys to the browser. Responses currently use OpenRouter's `openrouter/free` router, which selects from the free models available at request time.
 
 ## Architecture
 

@@ -1,5 +1,3 @@
-import { ReplitConnectors } from "@replit/connectors-sdk";
-
 type TicketEmail = {
   to: string;
   subject: string;
@@ -42,8 +40,35 @@ function escapeHtml(value: string): string {
   })[character] || character);
 }
 
+async function sendEmail(payload: {
+  to: string[];
+  subject: string;
+  html: string;
+}): Promise<void> {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("RESEND_API_KEY is not configured");
+  }
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: configuredSender(),
+      ...payload,
+    }),
+  });
+
+  if (!response.ok) {
+    const detail = await response.text().catch(() => "");
+    throw new Error(`Resend rejected the email (${response.status}): ${detail.slice(0, 240)}`);
+  }
+}
+
 export async function sendTicketEmail({ to, subject, ticketNumber, title, body, resolution }: TicketEmail): Promise<void> {
-  const connectors = new ReplitConnectors();
   const html = [
     `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17343a;max-width:640px">`,
     `<p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#557277">KAMALO Support</p>`,
@@ -55,24 +80,10 @@ export async function sendTicketEmail({ to, subject, ticketNumber, title, body, 
     `</div>`,
   ].join("");
 
-  const response = await connectors.proxy("resend", "/emails", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: configuredSender(),
-      to: [to],
-      subject,
-      html,
-    }),
-  });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Resend rejected the ticket email (${response.status}): ${detail.slice(0, 240)}`);
-  }
+  await sendEmail({ to: [to], subject, html });
 }
 
 export async function sendFeedbackEmail({ messageId, rating, score, feedback }: FeedbackEmail): Promise<void> {
-  const connectors = new ReplitConnectors();
   const label = rating === "helpful" ? "Helpful" : "Not helpful";
   const note = feedback?.trim() || "No written comment was provided.";
   const html = [
@@ -87,18 +98,9 @@ export async function sendFeedbackEmail({ messageId, rating, score, feedback }: 
     `</div>`,
   ].join("");
 
-  const response = await connectors.proxy("resend", "/emails", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: configuredSender(),
-      to: [configuredFeedbackRecipient()],
-      subject: `KAMALO ${label.toLowerCase()} answer review (${score}/5)`,
-      html,
-    }),
+  await sendEmail({
+    to: [configuredFeedbackRecipient()],
+    subject: `KAMALO ${label.toLowerCase()} answer review (${score}/5)`,
+    html,
   });
-  if (!response.ok) {
-    const detail = await response.text().catch(() => "");
-    throw new Error(`Resend rejected the feedback email (${response.status}): ${detail.slice(0, 240)}`);
-  }
 }
