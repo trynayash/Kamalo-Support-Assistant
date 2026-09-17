@@ -8,6 +8,7 @@ type SeedArticle = {
   title: string;
   category: string;
   content: string;
+  version?: number;
 };
 
 const seedArticles: SeedArticle[] = [
@@ -112,6 +113,7 @@ const trainingPromptArticles: SeedArticle[] = [
 ];
 
 const masterKnowledgeFilename = "Pasted--KAMALO-AI-MASTER-CUSTOMER-SUPPORT-KNOWLEDGE-BASE-Custo_1789550445810.txt";
+const guruKnowledgeFilename = "Pasted--KAMALO-GURU-AI-Mentor-Growth-Coach-Complete-Q-A-Knowle_1789627452292.txt";
 const stageOneGuardrail = "Stage 1 guardrail: this is approved product guidance, not evidence that a live account, transaction, engine, balance, delivery, refund, or notification was checked. Until a verified server-side tool returns that data, explain the available process and say that live information cannot be verified.";
 let knowledgeSetup: Promise<void> | null = null;
 
@@ -158,6 +160,76 @@ function parseMasterKnowledge(source: string): SeedArticle[] {
   }));
 }
 
+function parseGuruKnowledge(source: string): SeedArticle[] {
+  const articles: SeedArticle[] = [];
+  let sectionNumber = 0;
+  let sectionTitle = "KAMALO Guru";
+  let title = "";
+  let body: string[] = [];
+  let sectionIntro: string[] = [];
+
+  const flushQuestion = () => {
+    const content = body.join("\n").trim();
+    if (!title || !content) return;
+    articles.push({
+      title: `${sectionTitle} / ${title}`,
+      category: `Guru / ${sectionTitle.replace(/^\d+\.\s+/, "").trim()}`,
+      content: `${stageOneGuardrail}\n\nFounder-provided KAMALO Guru guidance. Educational guidance is approved; account-specific values, eligibility, offers, milestones, and actions still require a verified live engine.\n\n${content}`,
+      version: 2,
+    });
+  };
+
+  const flushSectionIntro = () => {
+    const content = sectionIntro.join("\n").trim();
+    if (!content) return;
+    articles.push({
+      title: `${sectionTitle} / Overview`,
+      category: `Guru / ${sectionTitle.replace(/^\d+\.\s+/, "").trim()}`,
+      content: `${stageOneGuardrail}\n\nFounder-provided KAMALO Guru guidance. Educational guidance is approved; account-specific values, eligibility, offers, milestones, and actions still require a verified live engine.\n\n${content}`,
+      version: 2,
+    });
+  };
+
+  for (const rawLine of source.split(/\r?\n/)) {
+    const line = rawLine.trim();
+    const sectionMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    const questionMatch = line.match(/^Q(\d+)\.\s+(.+)$/i);
+    const nextSectionNumber = sectionNumber + 1;
+    const isSectionHeading = sectionMatch
+      && Number(sectionMatch[1]) === nextSectionNumber
+      && sectionMatch[2] === sectionMatch[2].toUpperCase();
+
+    if (isSectionHeading) {
+      flushQuestion();
+      flushSectionIntro();
+      sectionNumber = Number(sectionMatch[1]);
+      sectionTitle = `${sectionMatch[1]}. ${sectionMatch[2]}`;
+      title = "";
+      body = [];
+      sectionIntro = [];
+      continue;
+    }
+
+    if (questionMatch) {
+      flushQuestion();
+      title = `Q${questionMatch[1]}. ${questionMatch[2]}`;
+      body = [];
+      continue;
+    }
+
+    if (title) body.push(rawLine);
+    else sectionIntro.push(rawLine);
+  }
+
+  flushQuestion();
+  flushSectionIntro();
+
+  return articles.map((article, index) => ({
+    ...article,
+    title: `Guru guidance / ${String(index + 1).padStart(3, "0")} · ${article.title}`,
+  }));
+}
+
 async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
   const id = crypto.randomUUID();
   await db.insert(knowledgeArticlesTable).values({
@@ -167,7 +239,7 @@ async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
     content: article.content,
     status: "approved",
     effectiveFrom: new Date(),
-    version: 1,
+    version: article.version ?? 1,
   });
   await db.insert(knowledgeChunksTable).values({
     id: crypto.randomUUID(),
@@ -175,6 +247,21 @@ async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
     content: article.content,
     embedding: null,
   });
+}
+
+async function readKnowledgeSource(filename: string): Promise<string> {
+  const sourcePaths = [
+    path.resolve(process.cwd(), "attached_assets", filename),
+    path.resolve(process.cwd(), "..", "..", "attached_assets", filename),
+  ];
+  for (const candidate of sourcePaths) {
+    try {
+      return await readFile(candidate, "utf8");
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+  }
+  throw new Error(`Knowledge source was not found in: ${sourcePaths.join(", ")}`);
 }
 
 async function setupKnowledge(): Promise<void> {
@@ -190,33 +277,34 @@ async function setupKnowledge(): Promise<void> {
   }
 
   const masterMarker = "001 · Master guidance / 1. THE KAMALO SUPPORT PHILOSOPHY";
-  if (existingTitles.has(masterMarker)) return;
-
-  const sourcePaths = [
-    path.resolve(process.cwd(), "attached_assets", masterKnowledgeFilename),
-    path.resolve(process.cwd(), "..", "..", "attached_assets", masterKnowledgeFilename),
-  ];
-  try {
-    let source = "";
-    let sourcePath = sourcePaths[0];
-    for (const candidate of sourcePaths) {
-      try {
-        source = await readFile(candidate, "utf8");
-        sourcePath = candidate;
-        break;
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-      }
-    }
-    if (!source) throw new Error(`Knowledge source was not found in: ${sourcePaths.join(", ")}`);
+  if (!existingTitles.has(masterMarker)) {
+    try {
+      const source = await readKnowledgeSource(masterKnowledgeFilename);
     for (const article of parseMasterKnowledge(source)) {
       if (existingTitles.has(article.title)) continue;
       await insertKnowledgeArticle(article);
       existingTitles.add(article.title);
     }
     console.info(`Imported ${parseMasterKnowledge(source).length} KAMALO master knowledge articles.`);
-  } catch (error) {
-    console.warn(`KAMALO master knowledge file was not imported from ${sourcePaths.join(" or ")}.`, error);
+    } catch (error) {
+      console.warn(`KAMALO master knowledge file was not imported.`, error);
+    }
+  }
+
+  const guruMarker = "Guru guidance / 001 · 1. THE KAMALO GURU PHILOSOPHY / Overview";
+  if (!existingTitles.has(guruMarker)) {
+    try {
+      const source = await readKnowledgeSource(guruKnowledgeFilename);
+      const articles = parseGuruKnowledge(source);
+      for (const article of articles) {
+        if (existingTitles.has(article.title)) continue;
+        await insertKnowledgeArticle(article);
+        existingTitles.add(article.title);
+      }
+      console.info(`Imported ${articles.length} KAMALO Guru knowledge articles.`);
+    } catch (error) {
+      console.warn(`KAMALO Guru knowledge file was not imported.`, error);
+    }
   }
 }
 
