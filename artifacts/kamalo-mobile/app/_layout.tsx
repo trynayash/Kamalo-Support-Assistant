@@ -13,16 +13,33 @@ import {
 } from '@expo-google-fonts/inter';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { setBaseUrl } from '@workspace/api-client-react';
+import { useColors } from '@/hooks/useColors';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+setBaseUrl(
+  process.env.EXPO_PUBLIC_DOMAIN
+    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
+    : null,
+);
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
+  const colors = useColors();
   return (
-    <Stack screenOptions={{ headerBackTitle: 'Back' }}>
+    <Stack
+      screenOptions={{
+        headerBackTitle: 'Back',
+        headerTintColor: colors.primary,
+        headerTitleStyle: { fontFamily: 'Inter_600SemiBold', color: colors.foreground },
+        contentStyle: { backgroundColor: colors.background },
+      }}
+    >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="ticket/[id]" options={{ title: 'Ticket', headerShown: true }} />
+      <Stack.Screen name="admin" options={{ title: 'Test admin', headerShown: true }} />
     </Stack>
   );
 }

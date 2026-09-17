@@ -21,6 +21,18 @@ function NativeTabLayout() {
         />
         <NativeTabs.Trigger.Label>Home</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="history">
+        <NativeTabs.Trigger.Icon sf={{ default: 'clock', selected: 'clock.fill' }} />
+        <NativeTabs.Trigger.Label>History</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="support">
+        <NativeTabs.Trigger.Icon sf={{ default: 'bubble.left', selected: 'bubble.left.fill' }} />
+        <NativeTabs.Trigger.Label>Support</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="knowledge">
+        <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} />
+        <NativeTabs.Trigger.Label>Guide</NativeTabs.Trigger.Label>
+      </NativeTabs.Trigger>
     </NativeTabs>
   );
 }
@@ -37,7 +49,7 @@ function ClassicTabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        headerShown: true,
+        headerShown: false,
         tabBarStyle: {
           position: 'absolute',
           backgroundColor: isIOS ? 'transparent' : colors.background,
@@ -73,6 +85,27 @@ function ClassicTabLayout() {
             ) : (
               <Feather name="home" size={22} color={color} />
             ),
+        }}
+      />
+      <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ color }) => <Feather name="clock" size={21} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="support"
+        options={{
+          title: 'Support',
+          tabBarIcon: ({ color }) => <Feather name="message-circle" size={21} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="knowledge"
+        options={{
+          title: 'Guide',
+          tabBarIcon: ({ color }) => <Feather name="book-open" size={21} color={color} />,
         }}
       />
     </Tabs>

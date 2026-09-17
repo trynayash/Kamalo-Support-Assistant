@@ -6,6 +6,11 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "kamalo-mobile",
+    "splash": {
+      "backgroundColor": "#f5f0e7",
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain"
+    },
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": false
