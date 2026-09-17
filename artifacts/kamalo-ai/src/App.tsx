@@ -10,8 +10,6 @@ import { SupportPage } from '@/pages/support';
 import { SupportTicketDetailPage } from '@/pages/support-ticket-detail';
 import { AdminTicketsPage } from '@/pages/admin-tickets';
 import { HistoryPage } from '@/pages/history';
-import { useAuth, type AuthRole, type AuthUser } from '@/lib/auth';
-import { AccessDeniedState, AuthLoadingState, SignInState } from '@/components/auth-state';
 import {
   Route,
   Switch,
@@ -22,10 +20,6 @@ import {
 const queryClient = new QueryClient();
 
 function Router() {
-  const auth = useAuth();
-  if (auth.isLoading) return <AuthLoadingState />;
-  if (auth.authFailure === "denied") return <AccessDeniedState user={auth.user} />;
-  if (!auth.isAuthenticated) return <SignInState onSignIn={auth.login} sessionExpired={auth.authFailure === "required"} />;
   return (
     // Keep a shared shell (sidebar, navbar) outside the boundary so it
     // survives a page crash.
@@ -33,18 +27,14 @@ function Router() {
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/history" component={HistoryPage} />
-        <Route path="/admin/knowledge">{() => <RoleGuard user={auth.user} roles={['support', 'admin']}><KnowledgePage /></RoleGuard>}</Route>
+        <Route path="/admin/knowledge" component={KnowledgePage} />
         <Route path="/support" component={SupportPage} />
         <Route path="/support/:ticketId" component={SupportTicketDetailPage} />
-        <Route path="/admin/tickets">{() => <RoleGuard user={auth.user} roles={['support', 'admin']}><AdminTicketsPage /></RoleGuard>}</Route>
+        <Route path="/admin/tickets" component={AdminTicketsPage} />
         <Route component={NotFound} />
       </Switch>
     </RoutedErrorBoundary>
   );
-}
-
-function RoleGuard({ user, roles, children }: { user: AuthUser | null; roles: AuthRole[]; children: ReactNode }) {
-  return user && roles.includes(user.role) ? <>{children}</> : <AccessDeniedState user={user} />;
 }
 
 function RoutedErrorBoundary({ children }: { children: ReactNode }) {
