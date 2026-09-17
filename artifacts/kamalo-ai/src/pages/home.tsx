@@ -271,6 +271,7 @@ export function HomePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const shouldAutoScrollRef = useRef(true);
 
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
@@ -305,16 +306,21 @@ export function HomePage() {
   }, [loadedConversation, selectedId, isSending]);
 
   useEffect(() => {
-    const dismissKeyboard = () => {
-      if (document.activeElement === inputRef.current) inputRef.current?.blur();
-    };
-    window.addEventListener('scroll', dismissKeyboard, { passive: true });
-    return () => window.removeEventListener('scroll', dismissKeyboard);
-  }, []);
+    shouldAutoScrollRef.current = true;
+  }, [selectedId]);
+
+  const handleWorkspaceScroll = () => {
+    const container = messagesScrollRef.current;
+    if (!container) return;
+    if (document.activeElement === inputRef.current) inputRef.current?.blur();
+    const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    shouldAutoScrollRef.current = distanceFromBottom < 140;
+  };
 
   useEffect(() => {
     const container = messagesScrollRef.current;
     if (!container || (messages.length === 0 && !isSending)) return;
+    if (!shouldAutoScrollRef.current) return;
     const frame = window.requestAnimationFrame(() => {
       const behavior = isSending ? 'auto' : 'smooth';
       if (messagesEndRef.current) {
@@ -385,6 +391,7 @@ export function HomePage() {
     const content = (contentOverride ?? input).trim();
     const image = imageOverride === undefined ? pendingImage : imageOverride;
     if ((!content && !image) || isSending) return;
+    shouldAutoScrollRef.current = true;
     setErrorMessage('');
     setAttachmentError('');
     setNotice('');
@@ -548,7 +555,7 @@ export function HomePage() {
 
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
-       <div className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-44 sm:px-6 sm:pb-40 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
          {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
            <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
            <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
@@ -556,7 +563,7 @@ export function HomePage() {
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void conversationQuery.refetch()} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 ? (
-                <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
+                <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                     <div className="xl:hidden">
                       <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} />
@@ -565,7 +572,7 @@ export function HomePage() {
                  </div>
               </div>
             ) : (
-                 <div ref={messagesScrollRef} onScroll={() => inputRef.current?.blur()} className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
+                 <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                  <div className="xl:hidden">
                    <button type="button" onClick={() => setMobileHistoryOpen((open) => !open)} className="mb-4 flex w-full items-center justify-between rounded-lg border border-border bg-card/70 px-3.5 py-2.5 text-left text-[11px] font-semibold text-muted-foreground hover:border-primary/35 hover:text-primary" aria-expanded={mobileHistoryOpen} aria-controls="mobile-conversation-history" data-testid="button-mobile-conversation-history"><span>Conversation history</span><span className="font-mono text-[9px] uppercase tracking-[.12em]">{mobileHistoryOpen ? 'Hide' : `${conversations.length} saved`}</span></button>
                    {mobileHistoryOpen && <div id="mobile-conversation-history" className="mb-5 rounded-lg border border-border/70 bg-background/60 px-3 pb-3"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} limit={4} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
@@ -578,9 +585,9 @@ export function HomePage() {
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
-             {inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-4 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
-               <div className="mx-auto max-w-[1320px]">
-                 <div className="relative rounded-xl border border-border bg-card p-2 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
+             {inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+               <div className="mx-auto max-w-[980px]">
+                 <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
                     {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
                       <img src={pendingImage.previewUrl} alt={`Preview of ${pendingImage.file.name}`} className="h-12 w-12 shrink-0 rounded-md object-cover" />
                        <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{pendingImage.file.name}</div><div className="mt-0.5 text-[9px] leading-4 text-muted-foreground">Stored with this conversation; the current text provider does not interpret image contents.</div></div>
@@ -597,12 +604,12 @@ export function HomePage() {
                         }
                       }}
                       placeholder="Ask about KAMALO..."
-                      rows={2}
+                      rows={1}
                       maxLength={4000}
-                       className="min-h-16 w-full resize-none bg-transparent px-3 py-2 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70"
+                       className="h-11 max-h-24 min-h-11 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70"
                       data-testid="input-chat-message"
                     />
-                    <div className="flex items-center justify-between gap-2 px-2 pb-1">
+                    <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
@@ -612,7 +619,7 @@ export function HomePage() {
                     </div>
                  </div>
                   {attachmentError && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" data-testid="status-attachment-error">{attachmentError}</div>}
-                 <p className="mt-2 px-2 text-center text-[10px] leading-4 text-muted-foreground/70">KAMALO can make mistakes. Check important information before acting.</p>
+                 <p className="mt-1 px-2 text-center text-[9px] leading-3.5 text-muted-foreground/65">KAMALO can make mistakes. Check important information before acting.</p>
                </div>
             </div>}
           </section>

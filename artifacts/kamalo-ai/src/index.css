@@ -123,8 +123,19 @@
 .skeleton { background: linear-gradient(100deg, hsl(var(--muted)) 30%, hsl(var(--card)) 50%, hsl(var(--muted)) 70%); background-size: 220% 100%; animation: shimmer 1.4s infinite; }
 .safe-bottom { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
 .safe-top { padding-top: max(0.75rem, env(safe-area-inset-top)); }
-.chat-workspace { width: 100%; min-width: 0; min-height: calc(100dvh - max(4rem, calc(52px + env(safe-area-inset-top)))); }
-.chat-scroll-end { scroll-margin-bottom: 11rem; }
+.chat-workspace {
+  width: 100%;
+  min-width: 0;
+  height: calc(100dvh - max(4rem, calc(52px + env(safe-area-inset-top))));
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+}
+.chat-scroll-end { scroll-margin-bottom: 9rem; }
 .chat-composer {
   position: fixed;
   z-index: 20;
@@ -148,7 +159,7 @@
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
 @media (min-width: 768px) {
-  .chat-workspace { min-height: 100dvh; }
+  .chat-workspace { height: 100dvh; }
   .chat-composer {
     left: var(--kamalo-sidebar-width);
     width: calc(100% - var(--kamalo-sidebar-width));
