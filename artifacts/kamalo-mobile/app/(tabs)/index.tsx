@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -27,6 +27,15 @@ let messageCounter = 0;
 function localMessage(role: ChatMessage['role'], content: string, conversationId: string, attachment?: ChatMessage['attachments']): ChatMessage {
   messageCounter += 1;
   return { id: `mobile-${Date.now()}-${messageCounter}`, conversationId, role, content, createdAt: new Date().toISOString(), attachments: attachment ?? [] };
+}
+
+function friendlyChatError(error: unknown): string {
+  const message = error instanceof Error ? error.message : '';
+  const normalized = message.toLowerCase();
+  if (normalized.includes('fetch failed') || normalized.includes('network request failed') || normalized.includes('network error')) {
+    return 'KAMALO could not reach the support server. Check your connection and try again.';
+  }
+  return message || 'The assistant could not respond. Please try again.';
 }
 
 export default function ChatScreen() {
@@ -134,7 +143,7 @@ export default function ChatScreen() {
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(activeId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch (error) {
-      setStreamError(error instanceof Error ? error.message : 'The assistant could not respond. Please try again.');
+      setStreamError(friendlyChatError(error));
     } finally {
       setIsStreaming(false);
     }
@@ -153,7 +162,7 @@ export default function ChatScreen() {
     <Screen>
       <View style={[styles.topBar, { paddingTop: insets.top + 10, borderBottomColor: colors.border }]}>
         <View style={styles.brandLockup}>
-          <View style={[styles.brandMark, { backgroundColor: colors.primary }]}><Text style={[styles.brandMarkText, { color: colors.primaryForeground }]}>K</Text></View>
+          <Image source={require('../../assets/images/icon.png')} style={styles.brandLogo} accessibilityLabel="KAMALO logo" />
           <View><Text style={[styles.brandName, { color: colors.foreground }]}>KAMALO</Text><Text style={[styles.brandMeta, { color: colors.mutedForeground }]}>Product guide</Text></View>
         </View>
         <View style={styles.topActions}>
@@ -239,8 +248,7 @@ function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colo
 const styles = StyleSheet.create({
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, paddingBottom: 12, borderBottomWidth: 1 },
   brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  brandMark: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  brandMarkText: { fontFamily: 'Inter_700Bold', fontSize: 18 },
+  brandLogo: { width: 36, height: 36, borderRadius: 10, overflow: 'hidden' },
   brandName: { fontFamily: 'Inter_700Bold', fontSize: 14, letterSpacing: 1.4 },
   brandMeta: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },

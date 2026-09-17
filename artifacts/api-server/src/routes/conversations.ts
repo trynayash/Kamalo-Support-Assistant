@@ -295,9 +295,11 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     decision: prepared.decision,
   });
 
-  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.setHeader("Access-Control-Expose-Headers", "X-Request-ID");
   res.setHeader("X-Request-ID", supportContext.requestId);
   res.flushHeaders();
 

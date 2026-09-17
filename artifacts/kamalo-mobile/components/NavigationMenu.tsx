@@ -144,10 +144,7 @@ const styles = StyleSheet.create({
     minWidth: 270,
     borderLeftWidth: 1,
     paddingHorizontal: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: -4, height: 0 },
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
+    boxShadow: '-4px 0 14px rgba(0, 0, 0, 0.18)',
     elevation: 12,
   },
   panelHeader: {
