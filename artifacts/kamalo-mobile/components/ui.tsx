@@ -131,11 +131,11 @@ export function ToastNotification({ title, message, topOffset = 12, onDismiss }:
   const translateY = React.useRef(new Animated.Value(-18)).current;
 
   React.useEffect(() => {
-    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 220 }).start();
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: false, damping: 18, stiffness: 220 }).start();
   }, [translateY]);
 
   return (
-    <Animated.View pointerEvents="box-none" style={[styles.toastHost, { top: topOffset, transform: [{ translateY }] }]}>
+    <Animated.View style={[styles.toastHost, { top: topOffset, transform: [{ translateY }], pointerEvents: 'box-none' }]}>
       <Pressable
         testID="toast-notification"
         accessibilityRole="alert"
