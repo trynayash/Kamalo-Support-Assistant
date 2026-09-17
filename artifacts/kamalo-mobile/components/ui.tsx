@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { NavigationMenu } from '@/components/NavigationMenu';
@@ -126,6 +126,35 @@ export function ErrorState({ onRetry, label = 'Something went wrong' }: { onRetr
   return <View style={styles.state}><View style={[styles.stateIcon, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={20} color={colors.destructive} /></View><Text style={[styles.stateTitle, { color: colors.foreground }]}>{label}</Text><Button label="Try again" icon="refresh-cw" onPress={onRetry} secondary /></View>;
 }
 
+export function ToastNotification({ title, message, topOffset = 12, onDismiss }: { title: string; message: string; topOffset?: number; onDismiss?: () => void }) {
+  const colors = useColors();
+  const translateY = React.useRef(new Animated.Value(-18)).current;
+
+  React.useEffect(() => {
+    Animated.spring(translateY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 220 }).start();
+  }, [translateY]);
+
+  return (
+    <Animated.View pointerEvents="box-none" style={[styles.toastHost, { top: topOffset, transform: [{ translateY }] }]}>
+      <Pressable
+        testID="toast-notification"
+        accessibilityRole="alert"
+        onPress={onDismiss}
+        style={({ pressed }) => [styles.toast, { backgroundColor: colors.foreground, borderColor: colors.primary + '70', opacity: pressed ? 0.88 : 1 }]}
+      >
+        <View style={[styles.toastIcon, { backgroundColor: colors.primary }]}>
+          <Feather name="check" size={15} color={colors.primaryForeground} />
+        </View>
+        <View style={styles.toastCopy}>
+          <Text style={[styles.toastTitle, { color: colors.primaryForeground }]}>{title}</Text>
+          <Text style={[styles.toastMessage, { color: colors.secondary }]} numberOfLines={2}>{message}</Text>
+        </View>
+        <Feather name="x" size={16} color={colors.secondary} />
+      </Pressable>
+    </Animated.View>
+  );
+}
+
 export function EmptyState({ icon, title, body, action }: { icon: keyof typeof Feather.glyphMap; title: string; body: string; action?: ReactNode }) {
   const colors = useColors();
   return <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}><Feather name={icon} size={22} color={colors.primary} /></View><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>{action}</View>;
@@ -164,6 +193,12 @@ const styles = StyleSheet.create({
   fieldLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.2, marginBottom: 7 },
   input: { minHeight: 48, borderWidth: 1, borderRadius: 9, paddingHorizontal: 13, paddingVertical: 11, fontFamily: 'Inter_400Regular', fontSize: 15 },
   errorText: { fontFamily: 'Inter_500Medium', fontSize: 12, marginTop: 5 },
+  toastHost: { position: 'absolute', left: 14, right: 14, zIndex: 20, elevation: 8 },
+  toast: { minHeight: 64, borderRadius: 14, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 11, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  toastIcon: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  toastCopy: { flex: 1 },
+  toastTitle: { fontFamily: 'Inter_700Bold', fontSize: 13 },
+  toastMessage: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 17, marginTop: 2 },
   state: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, padding: 24 },
   stateIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   stateTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, textAlign: 'center' },

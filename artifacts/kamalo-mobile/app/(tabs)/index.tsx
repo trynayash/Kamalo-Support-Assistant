@@ -20,7 +20,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { streamConversationMessage } from '@/lib/stream';
-import { EmptyState, IconButton, LoadingState, Screen } from '@/components/ui';
+import { EmptyState, IconButton, LoadingState, Screen, ToastNotification } from '@/components/ui';
 import { NavigationMenu } from '@/components/NavigationMenu';
 import { FeedbackOverlay } from '@/components/FeedbackOverlay';
 
@@ -56,7 +56,11 @@ export default function ChatScreen() {
   const [initialized, setInitialized] = useState(false);
   const [activeFeedback, setActiveFeedback] = useState<{ message: ChatMessage; rating: 'helpful' | 'not_helpful' } | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
-  const params = useLocalSearchParams<{ conversationId?: string }>();
+  const [ticketToast, setTicketToast] = useState<{ title: string; message: string } | null>(null);
+  const handledTicketToast = useRef<string | null>(null);
+  const params = useLocalSearchParams<{ conversationId?: string; ticketRaised?: string; ticketNumber?: string }>();
+  const ticketRaised = typeof params.ticketRaised === 'string' ? params.ticketRaised : params.ticketRaised?.[0];
+  const ticketNumber = typeof params.ticketNumber === 'string' ? params.ticketNumber : params.ticketNumber?.[0];
 
   useEffect(() => {
     if (params.conversationId) {
@@ -64,6 +68,21 @@ export default function ChatScreen() {
       setInitialized(true);
     }
   }, [params.conversationId]);
+
+  useEffect(() => {
+    if (ticketRaised !== '1') return;
+    const toastKey = ticketNumber || 'ticket-raised';
+    if (handledTicketToast.current === toastKey) return;
+    handledTicketToast.current = toastKey;
+    setTicketToast({
+      title: 'Ticket raised',
+      message: ticketNumber
+        ? `${ticketNumber} is in the support queue. KAMALO will help resolve it shortly.`
+        : 'Your request is in the support queue. KAMALO will help resolve it shortly.',
+    });
+    const timeout = setTimeout(() => setTicketToast(null), 5200);
+    return () => clearTimeout(timeout);
+  }, [ticketNumber, ticketRaised]);
 
   useEffect(() => {
     if (!initialized && conversations && conversations.length > 0) {
@@ -199,6 +218,10 @@ export default function ChatScreen() {
     });
   }
 
+  function dismissTicketToast() {
+    setTicketToast(null);
+  }
+
   const visibleMessages = [...messages].reverse();
 
   return (
@@ -272,6 +295,7 @@ export default function ChatScreen() {
         onSubmit={(score, note) => { void submitFeedback(score, note); }}
         onRaiseTicket={(score, note) => { void raiseTicketFromFeedback(score, note); }}
       />
+      {ticketToast ? <ToastNotification title={ticketToast.title} message={ticketToast.message} topOffset={insets.top + 10} onDismiss={dismissTicketToast} /> : null}
     </Screen>
   );
 }

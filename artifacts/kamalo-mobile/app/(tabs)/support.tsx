@@ -8,6 +8,7 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import {
   getListMySupportTicketsQueryKey,
+  getGetConversationQueryKey,
   ImageAttachment,
   uploadConversationImage,
   useCreateConversation,
@@ -73,6 +74,15 @@ export default function SupportScreen() {
     setErrors({});
   }
 
+  function leaveForm() {
+    const destinationConversationId = linkedConversationId;
+    resetForm();
+    setShowForm(false);
+    if (destinationConversationId) {
+      router.replace({ pathname: '/', params: { conversationId: destinationConversationId } });
+    }
+  }
+
   async function chooseImage() {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -107,7 +117,7 @@ export default function SupportScreen() {
     try {
       let conversationId = linkedConversationId || conversations.data?.[0]?.id;
       if (!conversationId) conversationId = (await createConversation.mutateAsync({ data: { title: summary.trim().slice(0, 64) } })).id;
-      await createTicket.mutateAsync({
+      const createdTicket = await createTicket.mutateAsync({
         data: {
           conversationId,
           messageId: linkedMessageId,
@@ -119,11 +129,13 @@ export default function SupportScreen() {
           attachmentIds: attachment ? [attachment.item.id] : undefined,
         },
       });
+      await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: getListMySupportTicketsQueryKey() });
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const ticketNumber = createdTicket.ticketNumber;
       resetForm();
       setShowForm(false);
-      Alert.alert('Ticket raised', 'Your request is now in the KAMALO support queue.');
+      router.replace({ pathname: '/', params: { conversationId, ticketRaised: '1', ticketNumber } });
     } catch {
       Alert.alert('Could not raise ticket', 'Please check your connection and try again.');
     }
@@ -132,7 +144,7 @@ export default function SupportScreen() {
   if (showForm) {
     return (
       <Screen>
-        <PageHeader eyebrow="Support" title="Raise a ticket" subtitle="A little context helps us route your request well." action="Cancel" onAction={() => { resetForm(); setShowForm(false); }} />
+        <PageHeader eyebrow="Support" title="Raise a ticket" subtitle="A little context helps us route your request well." action="Cancel" onAction={leaveForm} />
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.form} bottomOffset={22}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>WHAT CAN WE HELP WITH?</Text>
           <View style={styles.categoryWrap}>{categories.map((item) => <Pressable key={item} onPress={() => setCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.category, { backgroundColor: category === item ? colors.primary : colors.secondary }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.foreground }]}>{item}</Text></Pressable>)}</View>
