@@ -8,6 +8,7 @@ import {
 import { db, messageFeedbackTable, messagesTable } from "@workspace/db";
 import { conversationsTable } from "@workspace/db";
 import { DEMO_USER_ID } from "../lib/context";
+import { sendFeedbackEmail } from "../lib/ticket-email";
 
 const router: IRouter = Router();
 
@@ -18,7 +19,7 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid feedback." });
     return;
   }
-  const [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId }).from(messagesTable)
+  const [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId, content: messagesTable.content }).from(messagesTable)
     .innerJoin(conversationsTable, eq(conversationsTable.id, messagesTable.conversationId))
     .where(and(eq(messagesTable.id, params.data.messageId), eq(conversationsTable.userId, DEMO_USER_ID)))
     .limit(1);
@@ -34,6 +35,17 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
     score: body.data.score ?? null,
     feedback: body.data.feedback ?? null,
   }).returning();
+  try {
+    await sendFeedbackEmail({
+      messageId: feedback.messageId,
+      rating: feedback.rating as "helpful" | "not_helpful",
+      score: feedback.score ?? 1,
+      feedback: feedback.feedback,
+    });
+    req.log.info({ messageId: feedback.messageId, rating: feedback.rating, score: feedback.score }, "Feedback email sent");
+  } catch (error) {
+    req.log.warn({ err: error, messageId: feedback.messageId }, "Feedback email could not be sent");
+  }
   res.status(201).json(CreateMessageFeedbackResponse.parse({
     id: feedback.id,
     messageId: feedback.messageId,

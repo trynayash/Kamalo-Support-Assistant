@@ -22,6 +22,7 @@ import { useColors } from '@/hooks/useColors';
 import { streamConversationMessage } from '@/lib/stream';
 import { EmptyState, IconButton, LoadingState, Screen } from '@/components/ui';
 import { NavigationMenu } from '@/components/NavigationMenu';
+import { FeedbackOverlay } from '@/components/FeedbackOverlay';
 
 let messageCounter = 0;
 function localMessage(role: ChatMessage['role'], content: string, conversationId: string, attachment?: ChatMessage['attachments']): ChatMessage {
@@ -53,6 +54,8 @@ export default function ChatScreen() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [streamError, setStreamError] = useState<string | null>(null);
   const [initialized, setInitialized] = useState(false);
+  const [activeFeedback, setActiveFeedback] = useState<{ message: ChatMessage; rating: 'helpful' | 'not_helpful' } | null>(null);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const params = useLocalSearchParams<{ conversationId?: string }>();
 
   useEffect(() => {
@@ -149,10 +152,50 @@ export default function ChatScreen() {
     }
   }
 
-  function rate(message: ChatMessage, rating: 'helpful' | 'not_helpful') {
-    feedback.mutate({ messageId: message.id, data: { rating } }, {
-      onSuccess: () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success),
-      onError: () => Alert.alert('Could not save feedback', 'Please try again in a moment.'),
+  function openFeedback(message: ChatMessage, rating: 'helpful' | 'not_helpful') {
+    setFeedbackError(null);
+    setActiveFeedback({ message, rating });
+  }
+
+  async function submitFeedback(score: number, note: string) {
+    if (!activeFeedback) return;
+    setFeedbackError(null);
+    try {
+      await feedback.mutateAsync({
+        messageId: activeFeedback.message.id,
+        data: { rating: activeFeedback.rating, score, feedback: note || null },
+      });
+      setMessages((previous) => previous.map((message) => message.id === activeFeedback.message.id ? { ...message, feedback: activeFeedback.rating } : message));
+      setActiveFeedback(null);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert('Thanks for the feedback', 'Your review was submitted to KAMALO.');
+    } catch (error) {
+      setFeedbackError(friendlyChatError(error));
+    }
+  }
+
+  async function raiseTicketFromFeedback(score: number, note: string) {
+    if (!activeFeedback) return;
+    try {
+      await feedback.mutateAsync({
+        messageId: activeFeedback.message.id,
+        data: { rating: 'not_helpful', score, feedback: note || null },
+      });
+    } catch {
+      // The ticket still contains the answer context and can be submitted if review delivery is unavailable.
+    }
+    const message = activeFeedback.message;
+    setActiveFeedback(null);
+    router.push({
+      pathname: '/(tabs)/support',
+      params: {
+        conversationId: message.conversationId,
+        messageId: message.id,
+        feedbackRating: 'not_helpful',
+        feedbackScore: String(score),
+        feedbackNote: note,
+        feedbackSummary: 'KAMALO answer was not helpful',
+      },
     });
   }
 
@@ -193,7 +236,7 @@ export default function ChatScreen() {
             contentContainerStyle={styles.messageList}
             ListHeaderComponent={isStreaming ? <TypingIndicator /> : null}
             renderItem={({ item }) => (
-              <MessageBubble message={item} colors={colors} onRate={(rating) => rate(item, rating)} />
+              <MessageBubble message={item} colors={colors} onRate={(rating) => openFeedback(item, rating)} />
             )}
           />
         )}
@@ -220,6 +263,15 @@ export default function ChatScreen() {
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>
         </View>
       </KeyboardAvoidingView>
+      <FeedbackOverlay
+        visible={Boolean(activeFeedback)}
+        rating={activeFeedback?.rating ?? 'helpful'}
+        submitting={feedback.isPending}
+        error={feedbackError}
+        onClose={() => setActiveFeedback(null)}
+        onSubmit={(score, note) => { void submitFeedback(score, note); }}
+        onRaiseTicket={(score, note) => { void raiseTicketFromFeedback(score, note); }}
+      />
     </Screen>
   );
 }
@@ -239,7 +291,7 @@ function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colo
           <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>
           {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><Feather name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
         </View>
-        {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><Feather name="thumbs-up" size={14} color={colors.mutedForeground} /></Pressable><Pressable accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><Feather name="thumbs-down" size={14} color={colors.mutedForeground} /></Pressable></View> : null}
+        {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><Feather name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><Feather name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
       </View>
     </View>
   );
