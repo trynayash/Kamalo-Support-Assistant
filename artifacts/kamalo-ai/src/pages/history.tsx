@@ -34,7 +34,7 @@ export function HistoryPage() {
         <Link href="/" className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-history-back">
           <HiOutlineArrowLeft size={14} /> Back to conversations
         </Link>
-        <div className="mt-8 flex items-end justify-between gap-4 border-b border-border/70 pb-5">
+         <div className="mt-8 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div>
             <SectionLabel>Conversation archive</SectionLabel>
             <h1 className="mt-3 text-[clamp(1.8rem,4vw,3rem)] font-extrabold tracking-[-.05em]">History</h1>

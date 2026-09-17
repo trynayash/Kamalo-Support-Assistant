@@ -32,7 +32,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
 
   return (
     <div className="flex min-h-[100dvh] w-full max-w-full overflow-x-clip bg-background" style={shellStyle}>
-      <aside id="workspace-navigation" aria-label="Workspace navigation" className="relative fixed inset-y-0 left-0 z-40 hidden w-[276px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-6 text-sidebar-foreground md:static md:flex">
+      <aside id="workspace-navigation" aria-label="Workspace navigation" className="relative fixed inset-y-0 left-0 z-40 hidden w-[276px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-6 text-sidebar-foreground lg:static lg:flex">
         <div className="flex items-start">
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
         </div>
@@ -66,17 +66,17 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
         <div className="mt-auto" />
       </aside>
       <main className="w-0 min-w-0 max-w-full flex-1 overflow-x-clip">
-        <div className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-border/70 bg-background/95 px-4 pb-3 pt-3 backdrop-blur-sm md:hidden">
-          <Link href="/" aria-label="Open KAMALO home" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
-          <div className="flex items-center gap-1.5">
-            {onNewConversation && <button onClick={() => onNewConversation()} className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-card text-foreground transition-colors hover:border-primary/40 hover:text-primary" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button>}
-             <Link href="/history" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={19} /></Link>
-            <Link href="/support" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
-             <Link href="/admin/tickets" className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open admin tickets" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
-             <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-10 w-10 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
+        <div className="safe-top sticky top-0 z-30 flex items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-4 lg:hidden">
+          <Link href="/" aria-label="Open KAMALO home" className="mobile-kamalo-brand min-w-0 shrink" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
+          <div className="mobile-nav-actions flex shrink-0 items-center gap-1 sm:gap-1.5">
+            {onNewConversation && <button onClick={() => onNewConversation()} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button>}
+             <Link href="/history" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={19} /></Link>
+             <Link href="/support" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
+              <Link href="/admin/tickets" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open admin tickets" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
+              <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
           </div>
         </div>
-        <div className="hidden items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm md:flex lg:px-12">
+        <div className="hidden items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
           <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
            <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>

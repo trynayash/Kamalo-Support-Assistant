@@ -158,10 +158,13 @@
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }
-@media (min-width: 768px) {
+@media (min-width: 1024px) {
   .chat-workspace { height: 100dvh; }
   .chat-composer {
     left: var(--kamalo-sidebar-width);
     width: calc(100% - var(--kamalo-sidebar-width));
   }
+}
+@media (max-width: 360px) {
+  .mobile-kamalo-brand > div > div:last-child { display: none; }
 }

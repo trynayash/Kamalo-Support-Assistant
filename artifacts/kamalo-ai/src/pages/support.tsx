@@ -41,8 +41,8 @@ export function SupportPage() {
   const tickets = ticketsQuery.data || [];
   return (
     <KamaloShell>
-      <div className="mx-auto min-h-[calc(100dvh-57px)] max-w-[1120px] px-4 pb-12 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-8 lg:px-12">
-        <header className="flex flex-col gap-5 border-b border-border/70 pb-7 pt-5 md:flex-row md:items-end md:justify-between md:pt-0">
+       <div className="mx-auto min-h-[calc(100dvh-57px)] max-w-[1120px] px-4 pb-12 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-8 lg:px-12">
+         <header className="flex flex-col gap-5 border-b border-border/70 pb-7 pt-5 lg:flex-row lg:items-end lg:justify-between lg:pt-0">
           <div><SectionLabel>Customer care / Help &amp; Support</SectionLabel><h1 className="mt-3 text-[clamp(2rem,4vw,3.25rem)] font-extrabold leading-none tracking-[-.06em]">Your support desk.</h1><p className="mt-4 max-w-xl text-[13px] leading-6 text-muted-foreground">Track specialist reviews, resolutions, and the email updates connected to your KAMALO conversations.</p></div>
           <Link href="/" className="inline-flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[12px] font-bold text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)] hover:-translate-y-0.5" data-testid="link-support-new-conversation"><HiOutlineLifebuoy size={16} /> Back to chat</Link>
         </header>
