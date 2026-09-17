@@ -1,6 +1,7 @@
 import type { Request } from "express";
 
 export type SupportRole = "customer" | "support" | "admin" | "system";
+export const DEMO_USER_ID = "demo-user";
 
 export type SupportRequestContext = {
   requestId: string;
@@ -44,9 +45,6 @@ export function createSupportRequestContext(request: Request, conversationId: st
   const requestId = headerValue(request, "x-request-id") || crypto.randomUUID();
   const sessionId = headerValue(request, "x-session-id");
   const locale = headerValue(request, "accept-language")?.split(",")[0]?.trim() || "en";
-  const authenticated = typeof request.isAuthenticated === "function" && request.isAuthenticated();
-  const user = authenticated ? request.user : undefined;
-
   return {
     requestId,
     sessionId,
@@ -54,15 +52,11 @@ export function createSupportRequestContext(request: Request, conversationId: st
     tenantId: "kamalo",
     locale,
     identity: {
-      userId: user?.id || "anonymous",
-      role: user?.role || "customer",
-      authenticated,
+      userId: DEMO_USER_ID,
+      role: "customer",
+      authenticated: false,
     },
-    permissions: authenticated
-      ? user?.role === "customer"
-        ? ["knowledge.read"]
-        : ["knowledge.read", "tickets.read", "tickets.manage", "knowledge.write"]
-      : [],
+    permissions: ["knowledge.read"],
     createdAt: new Date().toISOString(),
   };
 }

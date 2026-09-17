@@ -1,10 +1,10 @@
 ---
-name: KAMALO AI account access
-description: Authentication and support-role boundaries for customer data and admin tools.
+name: KAMALO AI demo access
+description: The current KAMALO demo intentionally runs without authentication.
 ---
 
-KAMALO web access uses Replit OIDC with PKCE and PostgreSQL cookie sessions. Customer records are filtered by the authenticated user id; support and admin capabilities are enforced on the API, not only hidden in the UI.
+KAMALO web access is intentionally unauthenticated. The API uses the fixed `demo-user` identity and grants direct access to the customer, support, and knowledge-management demo screens.
 
-**Why:** The support product must not expose conversation, attachment, feedback, or ticket data through shared demo identities or direct-ID requests.
+**Why:** The requested product behavior is the earlier demo-access experience, with no sign-in screen, OIDC session handling, role guards, or auth API surface.
 
-**How to apply:** Keep `context.ts` as the identity seam, load the current role from the users table on requests, use generic sign-in/access-denied states in the web app, and use configured allowlists only to bootstrap new accounts; explicit database role changes are authoritative for existing accounts.
+**How to apply:** Preserve the fixed demo identity and direct routes when changing the app. Do not reintroduce OIDC/session middleware, auth UI, role-management endpoints, or user ownership checks unless the user explicitly requests a new authenticated product mode.

@@ -15,10 +15,8 @@ import {
 } from "@workspace/api-zod";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
 import { ensureSeedKnowledge } from "../lib/knowledge";
-import { requireRole } from "../middlewares/authMiddleware";
 
 const router: IRouter = Router();
-router.use("/knowledge", requireRole("support", "admin"));
 
 function responseArticle(article: typeof knowledgeArticlesTable.$inferSelect) {
   return {

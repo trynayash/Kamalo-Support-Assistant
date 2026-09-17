@@ -20,53 +20,7 @@ tags:
     description: Customer support tickets and resolutions
   - name: knowledge
     description: Approved KAMALO knowledge management
-  - name: Auth
-    description: Browser authentication endpoints
 paths:
-  /auth/user:
-    get:
-      operationId: getCurrentAuthUser
-      tags: [Auth]
-      summary: Get the current account
-      parameters:
-        - $ref: "#/components/parameters/SessionCookie"
-      responses:
-        "200":
-          description: Authenticated user or null
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AuthUserEnvelope"
-  /login:
-    get:
-      operationId: beginBrowserLogin
-      tags: [Auth]
-      summary: Start browser login
-      parameters:
-        - name: returnTo
-          in: query
-          required: false
-          schema:
-            type: string
-      responses:
-        "302":
-          description: Redirect to the OIDC provider
-  /callback:
-    get:
-      operationId: handleBrowserLoginCallback
-      tags: [Auth]
-      summary: Complete browser login
-      responses:
-        "302":
-          description: Redirect to the application
-  /logout:
-    get:
-      operationId: logoutBrowserSession
-      tags: [Auth]
-      summary: Log out of the current account
-      responses:
-        "302":
-          description: Redirect after logout
   /healthz:
     get:
       operationId: healthCheck
@@ -465,13 +419,6 @@ paths:
           description: Article not found
 components:
   parameters:
-    SessionCookie:
-      name: sid
-      in: cookie
-      required: false
-      description: Browser session cookie
-      schema:
-        type: string
     ConversationId:
       name: conversationId
       in: path
@@ -497,32 +444,6 @@ components:
       schema:
         type: string
   schemas:
-    AuthUser:
-      type: object
-      required: [id, email, firstName, lastName, profileImageUrl, role]
-      properties:
-        id:
-          type: string
-        email:
-          type: [string, "null"]
-          format: email
-        firstName:
-          type: [string, "null"]
-        lastName:
-          type: [string, "null"]
-        profileImageUrl:
-          type: [string, "null"]
-        role:
-          type: string
-          enum: [customer, support, admin, system]
-    AuthUserEnvelope:
-      type: object
-      required: [user]
-      properties:
-        user:
-          oneOf:
-            - $ref: "#/components/schemas/AuthUser"
-            - type: "null"
     HealthStatus:
       type: object
       properties:

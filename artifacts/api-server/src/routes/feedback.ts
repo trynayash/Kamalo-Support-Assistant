@@ -7,10 +7,9 @@ import {
 } from "@workspace/api-zod";
 import { db, messageFeedbackTable, messagesTable } from "@workspace/db";
 import { conversationsTable } from "@workspace/db";
-import { requireAuthenticated } from "../middlewares/authMiddleware";
+import { DEMO_USER_ID } from "../lib/context";
 
 const router: IRouter = Router();
-router.use(requireAuthenticated);
 
 router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => {
   const params = CreateMessageFeedbackParams.safeParse(req.params);
@@ -21,7 +20,7 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
   }
   const [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId }).from(messagesTable)
     .innerJoin(conversationsTable, eq(conversationsTable.id, messagesTable.conversationId))
-    .where(and(eq(messagesTable.id, params.data.messageId), eq(conversationsTable.userId, req.user!.id)))
+    .where(and(eq(messagesTable.id, params.data.messageId), eq(conversationsTable.userId, DEMO_USER_ID)))
     .limit(1);
   if (!message) {
     res.status(404).json({ error: "Message not found." });
