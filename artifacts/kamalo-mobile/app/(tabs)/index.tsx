@@ -166,6 +166,7 @@ export default function ChatScreen() {
             data={[]}
             renderItem={() => null}
             scrollEnabled={false}
+            style={styles.listViewport}
             ListEmptyComponent={
               <EmptyState icon="message-square" title="Ask KAMALO anything" body="Answers are grounded in approved product knowledge. Start with a specific question or describe what you are seeing." />
             }
@@ -175,6 +176,7 @@ export default function ChatScreen() {
           <FlatList
             data={visibleMessages}
             inverted
+            style={styles.listViewport}
             keyExtractor={(item) => item.id}
             keyboardDismissMode="interactive"
             keyboardShouldPersistTaps="handled"
@@ -242,6 +244,7 @@ const styles = StyleSheet.create({
   brandMeta: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chat: { flex: 1 },
+  listViewport: { flex: 1 },
   emptyList: { flex: 1, justifyContent: 'center' },
   messageList: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 18 },
   messageRow: { flexDirection: 'row', marginBottom: 17, maxWidth: '92%' },
@@ -259,8 +262,8 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3 },
   typingText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   composerShell: { paddingHorizontal: 14, paddingTop: 8 },
-  composer: { flexDirection: 'row', alignItems: 'flex-end', borderWidth: 1, borderRadius: 13, minHeight: 54, paddingHorizontal: 4, paddingVertical: 5 },
-  composerInput: { flex: 1, maxHeight: 100, paddingHorizontal: 8, paddingVertical: 8, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
+  composer: { flexDirection: 'row', alignItems: 'flex-end', borderWidth: 1, borderRadius: 13, minHeight: 58, paddingHorizontal: 5, paddingVertical: 6 },
+  composerInput: { flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 9, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
   send: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   composerNote: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 2 },
   attachmentPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: 8, paddingLeft: 10, marginBottom: 7, maxWidth: '92%' },
