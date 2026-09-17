@@ -1,0 +1,24 @@
+kind = "mobile"
+previewPath = "/kamalo-mobile/"
+title = "KAMALO Mobile"
+description = "A native Expo Go companion for KAMALO with grounded AI conversations, history, support, knowledge, and demo admin workflows."
+version = "1.0.0"
+id = "artifacts/kamalo-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/kamalo-mobile/" ]
+localPort = 23582
+
+[services.development]
+run = "pnpm --filter @workspace/kamalo-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/kamalo-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/kamalo-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "23582"
+BASE_PATH = "/kamalo-mobile/"
