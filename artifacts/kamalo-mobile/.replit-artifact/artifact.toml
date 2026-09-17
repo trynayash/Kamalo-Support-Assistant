@@ -22,3 +22,4 @@ run = [ "pnpm", "--filter", "@workspace/kamalo-mobile", "run", "serve" ]
 [services.env]
 PORT = "23582"
 BASE_PATH = "/kamalo-mobile/"
+PUBLIC_DOMAIN = "puchlo.replit.app"

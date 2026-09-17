@@ -57,12 +57,15 @@ function stripProtocol(domain) {
 }
 
 function getDeploymentDomain() {
-  if (process.env.EXPO_PUBLIC_DOMAIN) {
-    return stripProtocol(process.env.EXPO_PUBLIC_DOMAIN);
+  const configuredDomain =
+    process.env.EXPO_PUBLIC_DOMAIN || process.env.PUBLIC_DOMAIN;
+
+  if (configuredDomain) {
+    return stripProtocol(configuredDomain);
   }
 
   console.error(
-    'ERROR: No deployment domain found. Set EXPO_PUBLIC_DOMAIN',
+    'ERROR: No deployment domain found. Set EXPO_PUBLIC_DOMAIN or PUBLIC_DOMAIN',
   );
   process.exit(1);
 }
