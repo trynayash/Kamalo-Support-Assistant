@@ -2,6 +2,7 @@ import React, { ReactNode } from 'react';
 import { ActivityIndicator, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { NavigationMenu } from '@/components/NavigationMenu';
 
 export function Screen({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const colors = useColors();
@@ -29,11 +30,14 @@ export function PageHeader({
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>{title}</Text>
         {subtitle ? <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text> : null}
       </View>
-      {action && onAction ? (
-        <Pressable testID="header-action" onPress={onAction} hitSlop={10} style={({ pressed }) => [styles.headerAction, { opacity: pressed ? 0.58 : 1 }]}>
-          <Text style={[styles.headerActionText, { color: colors.primary }]}>{action}</Text>
-        </Pressable>
-      ) : null}
+      <View style={styles.headerActions}>
+        {action && onAction ? (
+          <Pressable testID="header-action" onPress={onAction} hitSlop={10} style={({ pressed }) => [styles.headerAction, { opacity: pressed ? 0.58 : 1 }]}>
+            <Text style={[styles.headerActionText, { color: colors.primary }]}>{action}</Text>
+          </Pressable>
+        ) : null}
+        <NavigationMenu />
+      </View>
     </View>
   );
 }
@@ -149,6 +153,7 @@ const styles = StyleSheet.create({
   subtitle: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, marginTop: 6 },
   headerAction: { paddingTop: 4, paddingLeft: 8 },
   headerActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
+  headerActions: { alignItems: 'flex-end', gap: 7, paddingTop: 1 },
   iconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
   button: { minHeight: 46, paddingHorizontal: 17, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   buttonText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },

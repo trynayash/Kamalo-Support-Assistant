@@ -21,6 +21,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { streamConversationMessage } from '@/lib/stream';
 import { EmptyState, IconButton, LoadingState, Screen } from '@/components/ui';
+import { NavigationMenu } from '@/components/NavigationMenu';
 
 let messageCounter = 0;
 function localMessage(role: ChatMessage['role'], content: string, conversationId: string, attachment?: ChatMessage['attachments']): ChatMessage {
@@ -156,7 +157,7 @@ export default function ChatScreen() {
           <View><Text style={[styles.brandName, { color: colors.foreground }]}>KAMALO</Text><Text style={[styles.brandMeta, { color: colors.mutedForeground }]}>Product guide</Text></View>
         </View>
         <View style={styles.topActions}>
-          <IconButton icon="clock" label="Open conversation history" onPress={() => router.push('/(tabs)/history')} />
+          <NavigationMenu />
           <IconButton icon="plus" label="Start a new chat" onPress={startNewChat} tone="filled" />
         </View>
       </View>
