@@ -554,8 +554,8 @@ export function HomePage() {
   };
 
   return (
-    <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation}>
-       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex max-w-[1320px] flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+    <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
+       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
          {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
            <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
            <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
