@@ -8,6 +8,8 @@ export type BodyType<T> = T;
 
 export type AuthTokenGetter = () => Promise<string | null> | string | null;
 
+export const AUTH_FAILURE_EVENT = "kamalo-auth-failure";
+
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
@@ -17,6 +19,18 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+
+/**
+ * Tell the browser application that a request received an authentication
+ * failure. The generated client is shared with non-browser consumers, so
+ * this is intentionally a no-op when there is no event target.
+ */
+export function notifyAuthFailure(status: number): void {
+  if (status !== 401 && status !== 403) return;
+  if (typeof window === "undefined" || typeof window.dispatchEvent !== "function") return;
+
+  window.dispatchEvent(new CustomEvent(AUTH_FAILURE_EVENT, { detail: { status } }));
+}
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -363,6 +377,7 @@ export async function customFetch<T = unknown>(
   const response = await fetch(input, { ...init, method, headers, credentials: init.credentials ?? "include" });
 
   if (!response.ok) {
+    notifyAuthFailure(response.status);
     const errorData = await parseErrorBody(response, method);
     throw new ApiError(response, errorData, requestInfo);
   }

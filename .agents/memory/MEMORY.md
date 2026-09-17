@@ -4,3 +4,4 @@
 - [KAMALO AI account access](kamalo-ai-auth.md) — the current demo intentionally has no auth gate; all app routes use the fixed demo identity.
 - [GitHub connector bulk uploads](github-connector-bulk-upload.md) — initialize a branch before blob writes and throttle connector uploads below ten requests per second.
 - [Support Core test fixtures](support-core-test-fixtures.md) — lexical retrieval tests need collision-resistant tokens because approved knowledge is shared.
+- [Support Core local database](support-core-local-db.md) — the full regression suite needs the auth audit schema present in the test database.

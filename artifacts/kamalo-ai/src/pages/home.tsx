@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ChatMessage, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
 import {
+  notifyAuthFailure,
   useCreateSupportTicket,
   getGetConversationQueryKey,
   getListConversationsQueryKey,
@@ -191,6 +192,7 @@ async function streamAssistantResponse(conversationId: string, content: string, 
     body: JSON.stringify({ content, attachmentId: attachmentId || undefined }),
   });
   if (!response.ok) {
+    notifyAuthFailure(response.status);
     let detail = '';
     try {
       const payload = await response.json() as { error?: unknown };
