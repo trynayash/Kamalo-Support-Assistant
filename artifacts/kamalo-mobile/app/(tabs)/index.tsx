@@ -7,6 +7,7 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { fetch } from 'expo/fetch';
 import { Feather } from '@expo/vector-icons';
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import {
   ChatMessage,
   getGetConversationQueryKey,
@@ -56,11 +57,28 @@ export default function ChatScreen() {
   const [initialized, setInitialized] = useState(false);
   const [activeFeedback, setActiveFeedback] = useState<{ message: ChatMessage; rating: 'helpful' | 'not_helpful' } | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const voiceInputMode = useRef<'text' | 'voice'>('text');
+  const voiceBaseDraft = useRef('');
   const [ticketToast, setTicketToast] = useState<{ title: string; message: string } | null>(null);
   const handledTicketToast = useRef<string | null>(null);
   const params = useLocalSearchParams<{ conversationId?: string; ticketRaised?: string; ticketNumber?: string }>();
   const ticketRaised = typeof params.ticketRaised === 'string' ? params.ticketRaised : params.ticketRaised?.[0];
   const ticketNumber = typeof params.ticketNumber === 'string' ? params.ticketNumber : params.ticketNumber?.[0];
+
+  useSpeechRecognitionEvent('start', () => setIsListening(true));
+  useSpeechRecognitionEvent('end', () => setIsListening(false));
+  useSpeechRecognitionEvent('result', (event) => {
+    const transcript = event.results[0]?.transcript?.trim();
+    if (!transcript) return;
+    const base = voiceBaseDraft.current.trim();
+    setDraft(`${base}${base ? ' ' : ''}${transcript}`.slice(0, 4000));
+  });
+  useSpeechRecognitionEvent('error', (event) => {
+    setIsListening(false);
+    if (event.error !== 'aborted') setVoiceError(event.error === 'not-allowed' ? 'Microphone access is blocked. Allow microphone access and try again.' : 'Voice input could not hear that. Please try again.');
+  });
 
   useEffect(() => {
     if (params.conversationId) {
@@ -108,6 +126,35 @@ export default function ChatScreen() {
     setAttachment(null);
     setDraft('');
     setStreamError(null);
+    setVoiceError(null);
+    voiceInputMode.current = 'text';
+    if (isListening) ExpoSpeechRecognitionModule.stop();
+  }
+
+  async function toggleVoiceInput() {
+    if (isStreaming) return;
+    setVoiceError(null);
+    if (isListening) {
+      ExpoSpeechRecognitionModule.stop();
+      return;
+    }
+    try {
+      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!permission.granted) {
+        setVoiceError('Microphone and speech recognition permission are required for voice input.');
+        return;
+      }
+      voiceBaseDraft.current = draft.trim();
+      voiceInputMode.current = 'voice';
+      ExpoSpeechRecognitionModule.start({
+        lang: 'en-IN',
+        interimResults: true,
+        continuous: false,
+        contextualStrings: ['KAMALO', 'Coins', 'Silver', 'Gold', 'FINCADO', 'Guru'],
+      });
+    } catch {
+      setVoiceError('Voice input is not available on this device.');
+    }
   }
 
   async function chooseImage() {
@@ -161,13 +208,14 @@ export default function ChatScreen() {
         } else {
           setMessages((previous) => previous.map((message, index) => index === previous.length - 1 ? { ...message, content: answer } : message));
         }
-      });
+      }, voiceInputMode.current);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(activeId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch (error) {
       setStreamError(friendlyChatError(error));
     } finally {
       setIsStreaming(false);
+      voiceInputMode.current = 'text';
     }
   }
 
@@ -265,6 +313,7 @@ export default function ChatScreen() {
         )}
         <View style={[styles.composerShell, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 10) }]}>
           {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
+          {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
           {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><Feather name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
           <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
@@ -281,6 +330,7 @@ export default function ChatScreen() {
               onSubmitEditing={send}
               editable={!isStreaming}
             />
+            <IconButton icon={isListening ? 'square' : 'mic'} label={isListening ? 'Stop voice input' : 'Start voice input'} onPress={() => { void toggleVoiceInput(); }} disabled={isStreaming} />
             <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
           </View>
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>
