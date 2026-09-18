@@ -15,10 +15,6 @@ localPort = 23582
 [services.development]
 run = "pnpm --filter @workspace/kamalo-mobile run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/kamalo-mobile", "run", "build" ]
-run = [ "pnpm", "--filter", "@workspace/kamalo-mobile", "run", "serve" ]
-
 [services.env]
 PORT = "23582"
 BASE_PATH = "/kamalo-mobile/"

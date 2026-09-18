@@ -56,3 +56,17 @@ mtime_ms = 1789628282407
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:4b2b5002-86b1-4a08-9167-e2a03d7ae7f0/a865ce34-a046-4ec1-9df9-5ec37b33d23f/8b35a0cc-7f3f-40dc-8f3a-ea72036e3b93"
 storage_version_token = "1789628638635368"
 content_type = "text/markdown"
+
+[[outputs]]
+id = "eibM670e23Srw7Wimvkoe"
+uri = "file://exports/KAMALO-AI-source-2026-09-18.tar.gz"
+type = "unspecified"
+title = "KAMALO AI complete source archive"
+description = "Complete KAMALO AI monorepo source with web, API, Expo mobile development app, shared libraries, approved assets, configuration, and PROJECT_STRUCTURE.md. Generated dependencies, build outputs, caches, runtime uploads, and device state are excluded."
+logical_id = "7eb61591-0d7a-49a4-98d9-094cfedea154"
+content_hash = "sha256:34e5f0e45d675740cb72bd7012e56bca2ca6efa3e3156dbf22ec0574cdc2f02f"
+size = 11119628
+mtime_ms = 1789722262611
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:4b2b5002-86b1-4a08-9167-e2a03d7ae7f0/7eb61591-0d7a-49a4-98d9-094cfedea154/26c556db-d62c-4671-9ee7-c5a058676a67"
+storage_version_token = "1789722274916679"
+content_type = "application/octet-stream"
