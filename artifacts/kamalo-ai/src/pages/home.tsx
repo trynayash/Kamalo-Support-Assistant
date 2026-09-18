@@ -252,6 +252,20 @@ function ChatClosedState({ onNewConversation }: { onNewConversation: () => void 
   );
 }
 
+function ReadOnlyHistoryBar({ onNewConversation }: { onNewConversation: () => void }) {
+  return (
+    <div className="safe-bottom border-t border-border/70 bg-muted/25 px-4 py-3 sm:px-6 md:px-9 lg:px-12" role="status" data-testid="status-read-only-history">
+      <div className="mx-auto flex max-w-[980px] items-center justify-between gap-4 rounded-xl border border-border bg-card px-4 py-3 shadow-[var(--shadow-sm)]">
+        <div className="min-w-0">
+          <div className="font-mono text-[9px] uppercase tracking-[.16em] text-muted-foreground">Read-only history</div>
+          <p className="mt-1 truncate text-[11px] text-muted-foreground">This conversation is closed. Start a new conversation to send a message.</p>
+        </div>
+        <button type="button" onClick={onNewConversation} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[10px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid="button-read-only-new-conversation"><HiOutlinePlus size={13} /> New conversation</button>
+      </div>
+    </div>
+  );
+}
+
 export function HomePage() {
   const queryClient = useQueryClient();
   const [location] = useLocation();
@@ -262,6 +276,7 @@ export function HomePage() {
   const [streamingText, setStreamingText] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [notice, setNotice] = useState('');
+  const [conversationMode, setConversationMode] = useState<'new' | 'active' | 'readonly'>('new');
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
   const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful' } | null>(null);
@@ -304,6 +319,7 @@ export function HomePage() {
     const conversationId = new URLSearchParams(window.location.search).get('conversation');
     if (conversationId) {
       setSelectedId(conversationId);
+       setConversationMode('readonly');
        setLocalMessages(null);
        setRetryContent(null);
        setMobileHistoryOpen(false);
@@ -342,14 +358,14 @@ export function HomePage() {
   }, [messages.length, streamingText, isSending, selectedId]);
 
   useEffect(() => {
-    if (!selectedId || messages.length === 0 || isSending || inactivityState === 'closed') return;
+    if (!selectedId || conversationMode !== 'active' || messages.length === 0 || isSending || inactivityState === 'closed') return;
     const promptTimer = window.setTimeout(() => setInactivityState('prompted'), 30_000);
     const closeTimer = window.setTimeout(() => setInactivityState('closed'), 90_000);
     return () => {
       window.clearTimeout(promptTimer);
       window.clearTimeout(closeTimer);
     };
-  }, [selectedId, messages.length, isSending, inactivityResetToken]);
+  }, [selectedId, conversationMode, messages.length, isSending, inactivityResetToken]);
 
   const markUserActivity = () => {
     if (inactivityState === 'closed') return;
@@ -384,6 +400,7 @@ export function HomePage() {
     if (isSending) return;
     setErrorMessage('');
     setSelectedId(null);
+    setConversationMode('new');
     setLocalMessages(null);
     setRetryContent(null);
     setMobileHistoryOpen(false);
@@ -396,10 +413,26 @@ export function HomePage() {
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
+  const openReadOnlyConversation = (conversationId: string) => {
+    if (conversationId === selectedId && conversationMode === 'active') {
+      setMobileHistoryOpen(false);
+      return;
+    }
+    setSelectedId(conversationId);
+    setConversationMode('readonly');
+    setLocalMessages(null);
+    setRetryContent(null);
+    setMobileHistoryOpen(false);
+    setInput('');
+    removeImage();
+    setInactivityState('active');
+    setStreamingText('');
+  };
+
   const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null, mode: 'text' | 'voice' = inputModeRef.current) => {
     const content = (contentOverride ?? input).trim();
     const image = imageOverride === undefined ? pendingImage : imageOverride;
-    if ((!content && !image) || isSending) return;
+    if ((!content && !image) || isSending || conversationMode === 'readonly') return;
     if (speech.isListening) speech.stop();
     shouldAutoScrollRef.current = true;
     setErrorMessage('');
@@ -416,6 +449,7 @@ export function HomePage() {
         const created = await createConversation.mutateAsync({ data: { title: (content || IMAGE_ATTACHMENT_MESSAGE).slice(0, 64) } });
         conversationId = created.id;
         setSelectedId(created.id);
+        setConversationMode('active');
       }
       let uploadedImage: ImageAttachment | null = null;
       if (image) {
@@ -528,6 +562,7 @@ export function HomePage() {
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
       if (selectedId === conversation.id) {
         setSelectedId(null);
+        setConversationMode('new');
         setLocalMessages(null);
         setRetryContent(null);
         setMobileHistoryOpen(false);
@@ -547,6 +582,7 @@ export function HomePage() {
       await deleteConversation.mutateAsync({ conversationId: activeConversation.id });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
       setSelectedId(null);
+      setConversationMode('new');
       setLocalMessages(null);
       setRetryContent(null);
       setMobileHistoryOpen(false);
@@ -569,7 +605,7 @@ export function HomePage() {
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
        <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
          {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
-           <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2></div>
+             <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
            <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
          </header>}
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
@@ -578,7 +614,7 @@ export function HomePage() {
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                     <div className="xl:hidden">
-                      <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} />
+                       <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} />
                     </div>
                    <ChatWelcomeState
                      onPrompt={(text) => void sendMessage(text)}
@@ -590,7 +626,7 @@ export function HomePage() {
                  <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
                  <div className="xl:hidden">
                    <button type="button" onClick={() => setMobileHistoryOpen((open) => !open)} className="mb-4 flex w-full items-center justify-between rounded-lg border border-border bg-card/70 px-3.5 py-2.5 text-left text-[11px] font-semibold text-muted-foreground hover:border-primary/35 hover:text-primary" aria-expanded={mobileHistoryOpen} aria-controls="mobile-conversation-history" data-testid="button-mobile-conversation-history"><span>Conversation history</span><span className="font-mono text-[9px] uppercase tracking-[.12em]">{mobileHistoryOpen ? 'Hide' : `${conversations.length} saved`}</span></button>
-                   {mobileHistoryOpen && <div id="mobile-conversation-history" className="mb-5 rounded-lg border border-border/70 bg-background/60 px-3 pb-3"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} limit={4} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} /></div>}
+                    {mobileHistoryOpen && <div id="mobile-conversation-history" className="mb-5 rounded-lg border border-border/70 bg-background/60 px-3 pb-3"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} limit={4} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} /></div>}
                  </div>
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
@@ -600,7 +636,7 @@ export function HomePage() {
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
-             {inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+            {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[980px]">
                  <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
                     {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
@@ -642,7 +678,7 @@ export function HomePage() {
           </section>
 
            {(conversationsQuery.isLoading || conversationsQuery.isError || conversations.length > 0) && <aside className="hidden border-l border-border/70 pl-7 xl:block">
-              <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); }} onDelete={deleteConversationItem} />
+              <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} />
            </aside>}
         </div>
       </div>

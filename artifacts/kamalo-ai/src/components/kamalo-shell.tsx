@@ -77,7 +77,8 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
               <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
           </div>
         </div>
-        <div className="hidden shrink-0 items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
+         <div className="hidden shrink-0 items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
+           <Link href="/history" className={`inline-flex items-center gap-1.5 text-[10px] font-semibold ${location === '/history' ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} data-testid="link-topbar-history"><HiOutlineClock size={13} /> History{conversationCount > 0 && <span className="font-mono text-[9px] text-muted-foreground/70">({conversationCount})</span>}</Link>
           <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
            <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>
