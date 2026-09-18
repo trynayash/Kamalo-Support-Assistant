@@ -48,11 +48,11 @@ KAMALO AI is a knowledge-grounded support assistant for explaining KAMALO produc
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the web and Expo apps feature-aligned. Any user-facing web change must have a corresponding Expo implementation, adapted for native navigation, touch interaction, and mobile layout.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- When changing a web flow, check the matching Expo screen and shared API/client behavior before considering the work complete.
 
 ## Pointers
 
