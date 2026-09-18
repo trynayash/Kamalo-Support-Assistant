@@ -1,0 +1,22 @@
+axListenersExceededWarning: Possible EventEmitter memory leak detected. 11 close listeners added. Use emitter.setMaxListeners() to increase limit
+n @ contentscript.js:14083
+contentscript.js:14083 MaxListenersExceededWarning: Possible EventEmitter memory leak detected. 11 end listeners added. Use emitter.setMaxListeners() to increase limit
+n @ contentscript.js:14083
+2contentscript.js:14083 ObjectMultiplex - orphaned data for stream "app-init-liveness"
+warn @ contentscript.js:14083
+2contentscript.js:14083 ObjectMultiplex - orphaned data for stream "background-liveness"
+warn @ contentscript.js:14083
+index-D6Q5I8IU.js:22 Error: No QueryClient set, use QueryClientProvider to set one
+    at zv (index-D6Q5I8IU.js:9:190657)
+    at qS (index-D6Q5I8IU.js:9:191650)
+    at Vr (index-D6Q5I8IU.js:9:192309)
+    at Gv (index-D6Q5I8IU.js:9:196829)
+    at aE (index-D6Q5I8IU.js:12:1513)
+    at Wo (index-D6Q5I8IU.js:8:34139)
+    at gc (index-D6Q5I8IU.js:8:62233)
+    at th (index-D6Q5I8IU.js:8:72735)
+    at Ch (index-D6Q5I8IU.js:8:106743)
+    at Rb (index-D6Q5I8IU.js:8:105808) '\n    at aE (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:12:1098)\n    at qa (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:208337)\n    at G4 (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:209156)\n    at Gg (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:68914)\n    at TE (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:22:53556)\n    at EE (<anonymous>)\n    at n0 (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:207658)\n    at Provider (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:71576)\n    at TooltipProvider (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:165173)\n    at _x (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:34832)\n    at jE (<anonymous>)\n    at Gg (https://puchlo.replit.app/assets/index-D6Q5I8IU.js:9:68914)'
+onCaughtError @ index-D6Q5I8IU.js:22
+index-D6Q5I8IU.js:9 KAMALO UI error. Details are intentionally hidden from the browser surface.
+componentDidCatch @ index-D6Q5I8IU.js:9
