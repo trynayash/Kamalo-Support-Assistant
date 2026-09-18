@@ -269,6 +269,7 @@ export function HomePage() {
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
   const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
+  const inputModeRef = useRef<'text' | 'voice'>('text');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
@@ -286,6 +287,12 @@ export function HomePage() {
   const loadedConversation = conversationQuery.data?.id === selectedId ? conversationQuery.data : null;
   const messages = localMessages ?? loadedConversation?.messages ?? [];
   const conversationLoading = Boolean(selectedId) && (conversationQuery.isLoading || conversationQuery.isFetching || !loadedConversation);
+  const speech = useSpeechInput({
+    value: input,
+    onChange: setInput,
+    disabled: isSending,
+    lang: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
+  });
 
   useEffect(() => {
     return () => {
