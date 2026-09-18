@@ -7,4 +7,5 @@
 - [Support Core local database](support-core-local-db.md) — the full regression suite needs the auth audit schema present in the test database.
 - [Portable vendor handoff archives](portable-handoff.md) — build from tracked files and explicitly add only approved uploaded assets.
 - [KAMALO AI follow-up grounding](kamalo-ai-follow-up-grounding.md) — rank the new follow-up intent first and exclude personalized placeholder articles from generic answers.
+- [KAMALO AI web voice fallback](kamalo-ai-web-voice.md) — hosted browser speech can fail independently of mic/internet; use compatible multilingual local Whisper fallback.
 - [Replit Expo preview networking](replit-expo-preview-networking.md) — Expo Go previews must advertise a reachable LAN/managed host, not localhost; optional DevTools native-library warnings do not stop Metro.

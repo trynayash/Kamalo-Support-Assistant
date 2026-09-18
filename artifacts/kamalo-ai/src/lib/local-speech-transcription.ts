@@ -16,7 +16,7 @@ function getTranscriber(): Promise<Transcriber> {
   if (!transcriberPromise) {
     env.allowLocalModels = false;
     env.useBrowserCache = true;
-    transcriberPromise = pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny.en', {
+    transcriberPromise = pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
       device: 'wasm',
     }) as unknown as Promise<Transcriber>;
   }

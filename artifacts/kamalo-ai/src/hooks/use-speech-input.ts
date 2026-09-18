@@ -128,7 +128,6 @@ export function useSpeechInput({
   const localFallbackRef = useRef(false);
   const recorderHandledRef = useRef(false);
   const baseTextRef = useRef('');
-  const retriedNetworkErrorRef = useRef(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
@@ -172,7 +171,8 @@ export function useSpeechInput({
       onChange(joinTranscript(baseText, transcript));
       setError('');
       setStatus('idle');
-    } catch {
+    } catch (caught) {
+      console.error('Local voice transcription failed', caught);
       setStatus('error');
       setError('Local voice transcription could not finish. Please try Voice again or type your question.');
     } finally {
@@ -209,7 +209,6 @@ export function useSpeechInput({
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
-      retriedNetworkErrorRef.current = false;
       let transcript = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         transcript += event.results[index]?.[0]?.transcript || '';
@@ -255,7 +254,6 @@ export function useSpeechInput({
       return;
     }
     setError('');
-    retriedNetworkErrorRef.current = false;
     const access = await ensureMicrophoneAccess();
     if (!access.ok) {
       setStatus('error');
