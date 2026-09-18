@@ -613,9 +613,6 @@ export function HomePage() {
              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void conversationQuery.refetch()} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
-                    <div className="xl:hidden">
-                       <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} />
-                    </div>
                    <ChatWelcomeState
                      onPrompt={(text) => void sendMessage(text)}
                      showQuickPrompts={conversationsQuery.isSuccess && !selectedId}
