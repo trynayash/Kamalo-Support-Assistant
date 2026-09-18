@@ -530,6 +530,11 @@ components:
         attachmentId:
           type: ["string", "null"]
           maxLength: 120
+        inputMode:
+          type: string
+          enum: [text, voice]
+          default: text
+          description: Indicates whether the customer typed the message or dictated it.
     ImageUploadInput:
       type: object
       required: [file]

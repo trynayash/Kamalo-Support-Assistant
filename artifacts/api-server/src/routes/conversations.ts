@@ -287,7 +287,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const startedAt = Date.now();
   recordSupportEvent(req.log, { event: "support_request_started", context: supportContext });
   const history = await getConversationHistory(conversationId, userMessageId);
-  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content), history);
+  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content), history, body.data.inputMode || "text");
   recordSupportEvent(req.log, {
     event: "knowledge_retrieved",
     context: supportContext,
