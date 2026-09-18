@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
 import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
-import { condenseAssistantOutput, hasPossibleSensitiveTail, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
+import { condenseAssistantOutput, containsProviderDrafting, hasPossibleSensitiveTail, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
@@ -317,7 +317,11 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   let fullResponse = "";
   let emittedResponse = "";
   const emitResponse = async (candidate: string, flush = false): Promise<boolean> => {
-    const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(preferGroundedFact(candidate, prepared.groundedFact)));
+    const draftFallback = prepared.groundedFact || SAFE_ASSISTANT_ERROR;
+    const preferredCandidate = containsProviderDrafting(candidate)
+      ? draftFallback
+      : preferGroundedFact(candidate, prepared.groundedFact);
+    const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(preferredCandidate));
     const safePrefix = !flush && hasPossibleSensitiveTail(candidate)
       ? safeCandidate.slice(0, Math.max(emittedResponse.length, safeCandidate.length - 512))
       : safeCandidate;
@@ -374,7 +378,12 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     fullResponse = SAFE_ASSISTANT_ERROR;
   }
 
-  fullResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact)));
+  const draftFallback = prepared.groundedFact || (/\b(my|me|i|mine|personal|current|balance|account|transaction reference|order|history)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
+  const preferredResponse = containsProviderDrafting(fullResponse)
+    ? draftFallback
+    : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);
+  const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
+  fullResponse = keepCompleteAssistantOutput(condensedResponse) || SAFE_ASSISTANT_ERROR;
    if (!clientClosed) await emitResponse(fullResponse, true);
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);

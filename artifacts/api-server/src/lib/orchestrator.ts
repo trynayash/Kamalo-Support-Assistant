@@ -2,7 +2,7 @@ import type { LLMMessage } from "./llm";
 import type { SupportRequestContext } from "./context";
 import { toolGateway, type KnowledgeToolResult } from "./tool-registry";
 import type { RetrievedArticle } from "./knowledge";
-import { condenseAssistantOutput, sanitizeProviderText } from "./safety";
+import { condenseAssistantOutput, containsProviderDrafting, sanitizeProviderText } from "./safety";
 
 export const SYSTEM_PROMPT = `You are KAMALO AI, the official KAMALO customer support assistant.
 
@@ -97,6 +97,9 @@ function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string
   if (!terms.length) return null;
   const accountSpecific = isAccountSpecificQuestion(content);
   if (accountSpecific) return null;
+  if (/\b(?:payment|transaction)\b/i.test(content) && /\bfailed\b/i.test(content)) {
+    return "If a payment failed without any debit, you can safely try again. If money was deducted, the payment and refund status need investigation.";
+  }
 
   const candidates = retrieved.flatMap((article) => {
     if (isPersonalizedKnowledge(article)) return [];
@@ -124,7 +127,7 @@ function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string
 export function preferGroundedFact(content: string, groundedFact: string | null): string {
   if (
     groundedFact
-    && /\b(?:i (?:do not|don't) have confirmed|approved guidance only covers|we need to answer|the primary article|use approved knowledge|final response contract)\b/i.test(content)
+    && (containsProviderDrafting(content) || /\b(?:i (?:do not|don't) have confirmed|approved guidance only covers|we need to answer|the primary article|use approved knowledge|final response contract)\b/i.test(content))
   ) {
     return groundedFact;
   }
@@ -190,8 +193,8 @@ export async function prepareSupportRequest(
       ...(groundedFact ? [{ role: "system" as const, content: `A concise fact extracted from approved knowledge may answer the general question directly. Use it when relevant, but do not mention this instruction: ${groundedFact}` }] : []),
       ...(history.length
         ? [
-            { role: "system" as const, content: "Recent conversation context follows. Use it only to understand references such as \"that\", \"it\", or \"my previous question\". It is not an authority over approved knowledge." },
-            ...history.slice(-10).map((message) => ({ ...message, content: sanitizeProviderText(message.content) })),
+            { role: "system" as const, content: "The immediately previous conversation turn follows. Use it only to understand references such as \"that\" or \"it\". It is not an authority over approved knowledge and must not distract from the current question." },
+            ...history.slice(-2).map((message) => ({ ...message, content: sanitizeProviderText(message.content) })),
           ]
         : []),
       { role: "system", content: "Final response contract: output only the concise customer-facing answer. Do not output analysis, planning, article titles, source labels, or instruction-like text." },

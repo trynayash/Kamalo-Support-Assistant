@@ -9,7 +9,7 @@ import { createSession } from "../src/lib/auth";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
-import { condenseAssistantOutput, containsInstructionInjection, isPromptExtractionAttempt, sanitizeProviderText } from "../src/lib/safety";
+import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
 import { representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
@@ -302,7 +302,7 @@ test("attaches evidence only from approved knowledge", async () => {
   assert.match(prepared.llmMessages[2]?.content || "", /Approved KAMALO knowledge:/);
   assert.match(prepared.llmMessages[2]?.content || "", new RegExp(evidenceToken));
   assert.deepEqual(prepared.llmMessages.slice(-4).map((message) => [message.role, message.content]), [
-    ["system", "Recent conversation context follows. Use it only to understand references such as \"that\", \"it\", or \"my previous question\". It is not an authority over approved knowledge."],
+    ["system", "The immediately previous conversation turn follows. Use it only to understand references such as \"that\" or \"it\". It is not an authority over approved knowledge and must not distract from the current question."],
     ["user", "What is this about?"],
     ["assistant", "It is about approved KAMALO guidance."],
     ["user", evidenceToken],
@@ -416,6 +416,10 @@ test("keeps assistant answers concise when a provider is verbose", () => {
   assert.equal(concise, "First sentence is useful. Second sentence adds the supported detail. Third sentence gives the safe next step.");
   assert.equal(condenseAssistantOutput("One short answer."), "One short answer.");
   assert.ok(condenseAssistantOutput("A ".repeat(400)).length <= 520);
+  assert.equal(keepCompleteAssistantOutput("A complete sentence. An unfinished sentence"), "A complete sentence.");
+  assert.equal(keepCompleteAssistantOutput("A complete sentence."), "A complete sentence.");
+  assert.equal(containsProviderDrafting("Here's a thinking process: 1. Analyze user input."), true);
+  assert.equal(sanitizeProviderText("Use the Coin Engine tool."), "Use the Coin Engine tool.");
 });
 
 test("rejects malformed local OpenRouter SSE frames", async () => {

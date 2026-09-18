@@ -73,11 +73,22 @@ export function containsInstructionInjection(content: string): boolean {
   return instructionInjectionPatterns.some((pattern) => pattern.test(comparable));
 }
 
+const providerDraftingPatterns = [
+  /^\s*(?:here(?:'s| is) (?:a )?thinking process|analysis|reasoning|chain of thought)\s*:/i,
+  /\b(?:analyze user input|analysis of the user|chain of thought|draft response|internal reasoning|thinking process)\b/i,
+  /^\s*(?:step\s*\d+\s*[:.)]|final answer\s*:)/im,
+];
+
+export function containsProviderDrafting(content: string): boolean {
+  return providerDraftingPatterns.some((pattern) => pattern.test(content));
+}
+
 export function sanitizeAssistantOutput(content: string): string {
   const cleaned = sanitizeProviderText(cleanAssistantOutput(content));
   if (
     /\b(?:OPENROUTER_API_KEY|SESSION_SECRET|private key|developer message|system prompt|database url|source code)\b/i.test(cleaned)
     || containsInstructionInjection(cleaned)
+    || containsProviderDrafting(cleaned)
   ) {
     return PROMPT_EXTRACTION_RESPONSE;
   }
@@ -99,10 +110,12 @@ export function cleanAssistantOutput(content: string): string {
     .replace(/<[^>\n]{1,200}>/g, "")
     .replace(/\b(?:javascript|data):\s*/gi, "")
     .replace(/[—–]/g, ", ")
+    .replace(/\b(?:coin|transaction) engine(?:\s+tool)?\b/gi, "KAMALO app")
     .replace(/(\*\*[^*\n]+\*\*)\s*[-:]\s*/g, "$1. ")
     .replace(/^[ \t]*[-•][ \t]+/gm, "")
     .replace(/\n*(If you(?:'d| would) like|Would you like|Let me know|Feel free to ask)[\s\S]*$/i, "")
     .replace(/[ \t]{2,}/g, " ")
+    .replace(/\s+([,.!?])/g, "$1")
     .trim();
 }
 
@@ -129,4 +142,16 @@ export function condenseAssistantOutput(content: string): string {
   const cutoff = concise.slice(0, MAX_CONCISE_CHARACTERS - 1).lastIndexOf(" ");
   const safeCutoff = cutoff >= 160 ? cutoff : MAX_CONCISE_CHARACTERS - 1;
   return `${concise.slice(0, safeCutoff).trim()}…`;
+}
+
+/**
+ * Drop an unfinished trailing sentence from a provider response. Streaming may
+ * expose partial chunks, but the persisted/final response must be complete.
+ */
+export function keepCompleteAssistantOutput(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed || /[.!?…]$/.test(trimmed)) return trimmed;
+
+  const lastBoundary = Math.max(trimmed.lastIndexOf("."), trimmed.lastIndexOf("!"), trimmed.lastIndexOf("?"));
+  return lastBoundary >= 0 ? trimmed.slice(0, lastBoundary + 1).trim() : "";
 }
