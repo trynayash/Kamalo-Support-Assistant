@@ -40,6 +40,57 @@ function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null 
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;
 }
 
+function isEmbeddedInCrossOriginFrame(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.self !== window.top;
+  } catch {
+    return true;
+  }
+}
+
+function messageForRecognitionError(error: string | undefined): string {
+  switch (error) {
+    case 'not-allowed':
+    case 'permission-denied':
+      return isEmbeddedInCrossOriginFrame()
+        ? 'Microphone access is blocked in this embedded preview. Open the app in its own browser tab, then try Voice again.'
+        : 'Microphone access is blocked. Allow microphone access in your browser settings and try again.';
+    case 'audio-capture':
+      return isEmbeddedInCrossOriginFrame()
+        ? 'No microphone is reachable from this embedded preview. Open the app in its own browser tab, then try Voice again.'
+        : 'No microphone was found. Check that a microphone is connected and try again.';
+    case 'network':
+      return 'Voice recognition needs an internet connection. Check your connection and try again.';
+    case 'service-not-allowed':
+      return 'Voice input is disabled by your browser or device settings.';
+    case 'language-not-supported':
+      return 'Voice input does not support this language yet.';
+    case 'no-speech':
+      return "Didn't catch that. Try speaking again, closer to the microphone.";
+    default:
+      return 'Voice input could not hear that. Please try again.';
+  }
+}
+
+async function ensureMicrophoneAccess(): Promise<{ ok: true } | { ok: false; error: string }> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    // Some browsers expose SpeechRecognition without exposing getUserMedia (e.g. older Safari).
+    // Let SpeechRecognition itself request the permission in that case.
+    return { ok: true };
+  }
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    stream.getTracks().forEach((track) => track.stop());
+    return { ok: true };
+  } catch (error) {
+    const name = error instanceof Error ? error.name : '';
+    if (name === 'NotAllowedError' || name === 'SecurityError') return { ok: false, error: 'not-allowed' };
+    if (name === 'NotFoundError' || name === 'OverconstrainedError') return { ok: false, error: 'audio-capture' };
+    return { ok: false, error: 'audio-capture' };
+  }
+}
+
 function joinTranscript(base: string, transcript: string): string {
   const normalizedBase = base.trim();
   const normalizedTranscript = transcript.trim();
@@ -61,6 +112,7 @@ export function useSpeechInput({
 }) {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const baseTextRef = useRef('');
+  const retriedNetworkErrorRef = useRef(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
@@ -77,11 +129,11 @@ export function useSpeechInput({
     recognitionRef.current?.stop();
   }, []);
 
-  const start = useCallback(() => {
+  const beginRecognition = useCallback(() => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (disabled || !SpeechRecognition) {
       setStatus('unsupported');
-      setError('Voice input is not supported in this browser.');
+      setError('Voice input is not supported in this browser. Try Chrome, Edge, or the KAMALO mobile app.');
       return;
     }
     recognitionRef.current?.abort();
@@ -91,6 +143,7 @@ export function useSpeechInput({
     recognition.continuous = false;
     recognition.interimResults = true;
     recognition.onresult = (event) => {
+      retriedNetworkErrorRef.current = false;
       let transcript = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         transcript += event.results[index]?.[0]?.transcript || '';
@@ -99,17 +152,21 @@ export function useSpeechInput({
     };
     recognition.onerror = (event) => {
       if (event.error === 'aborted') return;
+      // Transient network hiccups against the browser's recognition backend are common on the first attempt; retry once silently.
+      if (event.error === 'network' && !retriedNetworkErrorRef.current) {
+        retriedNetworkErrorRef.current = true;
+        recognitionRef.current = null;
+        window.setTimeout(() => beginRecognition(), 300);
+        return;
+      }
       setStatus('error');
-      setError(event.error === 'not-allowed'
-        ? 'Microphone access is blocked. Allow microphone access and try again.'
-        : 'Voice input could not hear that. Please try again.');
+      setError(messageForRecognitionError(event.error));
     };
     recognition.onend = () => {
       recognitionRef.current = null;
-      setStatus('idle');
+      setStatus((current) => (current === 'error' ? current : 'idle'));
     };
     recognitionRef.current = recognition;
-    setError('');
     setStatus('listening');
     try {
       recognition.start();
@@ -119,6 +176,24 @@ export function useSpeechInput({
       setError('Voice input could not start. Please try again.');
     }
   }, [disabled, lang, onChange, value]);
+
+  const start = useCallback(async () => {
+    const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (disabled || !SpeechRecognition) {
+      setStatus('unsupported');
+      setError('Voice input is not supported in this browser. Try Chrome, Edge, or the KAMALO mobile app.');
+      return;
+    }
+    setError('');
+    retriedNetworkErrorRef.current = false;
+    const access = await ensureMicrophoneAccess();
+    if (!access.ok) {
+      setStatus('error');
+      setError(messageForRecognitionError(access.error));
+      return;
+    }
+    beginRecognition();
+  }, [beginRecognition, disabled]);
 
   const toggle = useCallback(() => {
     if (status === 'listening') stop();
