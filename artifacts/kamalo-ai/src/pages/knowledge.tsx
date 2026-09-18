@@ -144,10 +144,10 @@ export function KnowledgePage() {
 
   return (
     <KamaloShell>
-       <div className="mx-auto min-h-[calc(100dvh-57px)] max-w-[1320px] px-4 pb-12 sm:px-6 md:min-h-[100dvh] md:px-9 md:py-8 lg:px-12">
-         <header className="flex flex-col gap-5 border-b border-border/70 pb-7 pt-5 lg:flex-row lg:items-end lg:justify-between lg:pt-0">
-          <div><SectionLabel>Operations / Knowledge base</SectionLabel><h1 className="mt-3 text-[clamp(2rem,4vw,3.25rem)] font-extrabold leading-none tracking-[-.06em]">The source of truth.</h1><p className="mt-4 max-w-xl text-[13px] leading-6 text-muted-foreground">Keep KAMALO AI clear, accurate, and close to the product. Only approved guidance is used in customer answers.</p></div>
-          <button onClick={() => setEditorArticle(null)} className="flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[12px] font-bold text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)] transition-transform hover:-translate-y-0.5" data-testid="button-new-article"><HiOutlineDocumentPlus size={16} /> New article</button>
+       <div className="page-frame min-h-[calc(100dvh-57px)] pb-12 md:min-h-[100dvh] md:pb-16">
+         <header className="page-header flex-col items-start gap-5 pt-7 lg:flex-row lg:items-end">
+          <div><SectionLabel>Operations / Knowledge base</SectionLabel><h1 className="page-title">The source of truth.</h1><p className="page-description">Keep KAMALO AI clear, accurate, and close to the product. Only approved guidance is used in customer answers.</p></div>
+          <button onClick={() => setEditorArticle(null)} className="button-primary flex items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 text-[12px] font-bold text-primary-foreground" data-testid="button-new-article"><HiOutlineDocumentPlus size={16} /> New article</button>
         </header>
 
          <div className="mt-7 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -156,7 +156,7 @@ export function KnowledgePage() {
         </div>
 
         {notice && <div className="mt-4 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-[11px] text-primary animate-rise" data-testid="status-knowledge-notice">{notice}</div>}
-        <div className="mt-7 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-sm)]">
+         <div className="surface mt-8 overflow-hidden">
           <div className="hidden grid-cols-[minmax(0,1.4fr)_150px_120px_150px] gap-4 border-b border-border bg-muted/40 px-5 py-3 font-mono text-[9px] uppercase tracking-[.16em] text-muted-foreground xl:grid"><span>Article</span><span>Category</span><span>Status</span><span className="text-right">Actions</span></div>
            {articlesQuery.isLoading ? <div className="p-4" role="status" aria-live="polite"><span className="sr-only">Loading knowledge articles</span><ArticleSkeleton /></div> : articlesQuery.isError ? <div className="p-10 text-center" role="alert" aria-live="assertive"><p className="text-[13px] font-semibold">Knowledge base unavailable</p><p className="mt-2 text-[12px] text-muted-foreground">We could not load the source articles.</p><button onClick={() => void articlesQuery.refetch()} className="mt-4 rounded-lg border border-border px-4 py-2 text-[11px] font-bold hover:bg-muted" data-testid="button-retry-articles">Try again</button></div> : articles.length === 0 ? <div className="p-12 text-center" role="region" aria-label="Empty knowledge base"><KnowledgeIcon /><h3 className="mt-4 text-xl font-extrabold tracking-[-.03em]">Nothing here yet.</h3><p className="mx-auto mt-2 max-w-sm text-[12px] leading-6 text-muted-foreground">{hasFilters ? 'No articles match these filters.' : 'Create the first article to give KAMALO AI a reliable source to work from.'}</p><button onClick={hasFilters ? clearFilters : () => setEditorArticle(null)} className="mt-5 rounded-lg bg-primary px-4 py-2.5 text-[11px] font-bold text-primary-foreground" data-testid={hasFilters ? 'button-clear-empty-filters' : 'button-create-first-article'}>{hasFilters ? 'Clear filters' : 'Create an article'}</button></div> : <div className="divide-y divide-border/80">{articles.map((article) => <ArticleRow key={article.id} article={article} onEdit={setEditorArticle} onApprove={(item) => void approve(item)} onArchive={(item) => void archive(item)} approving={approveArticle.isPending} archiving={archiveArticle.isPending} />)}</div>}
         </div>

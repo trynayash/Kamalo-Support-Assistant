@@ -38,28 +38,34 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
         </div>
 
-        <div className="mt-12">
-          <button
-            onClick={() => onNewConversation?.()}
-            className="group flex w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 py-3 text-left transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
-            data-testid="button-new-conversation"
-          >
-             <span className="flex items-center gap-2.5 text-[13px] font-semibold"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
-          </button>
+         <div className="mt-10">
+           {onNewConversation ? <button
+             onClick={() => onNewConversation()}
+             className="group flex h-11 w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 text-left text-[13px] font-semibold transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
+             data-testid="button-new-conversation"
+           >
+              <span className="flex items-center gap-2.5"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
+           </button> : <Link
+             href="/"
+             className="group flex h-11 w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 text-left text-[13px] font-semibold transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
+             data-testid="link-new-conversation"
+           >
+              <span className="flex items-center gap-2.5"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
+           </Link>}
         </div>
 
-        <nav className="mt-8 space-y-1" aria-label="Primary navigation">
-           <Link href="/" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isConversations ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
+         <nav className="mt-8 space-y-1.5" aria-label="Primary navigation">
+            <Link href="/" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isConversations ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
              <HiOutlineChatBubbleLeftRight size={16} className={isConversations ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
-           <Link href="/admin/knowledge" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
+            <Link href="/admin/knowledge" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
              <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Knowledge base</span>
            </Link>
-          <Link href="/support" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isSupport ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-support">
+           <Link href="/support" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isSupport ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-support">
             <HiOutlineLifebuoy size={16} className={isSupport ? 'text-[hsl(var(--accent))]' : ''} /> <span>Help &amp; Support</span>
           </Link>
-           <Link href="/admin/tickets" className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] transition-colors ${isTickets ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-admin-tickets">
+            <Link href="/admin/tickets" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isTickets ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-admin-tickets">
             <HiOutlineShieldCheck size={16} className={isTickets ? 'text-[hsl(var(--accent))]' : ''} /> <span>Admin access <span className="font-mono text-[8px] uppercase text-[hsl(var(--accent))]">test</span></span>
            </Link>
         </nav>
@@ -67,18 +73,18 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
         <div className="mt-auto" />
       </aside>
       <main className={`w-0 min-w-0 max-w-full flex-1 overflow-x-clip ${lockChrome ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''}`}>
-        <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-4 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
+         <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
           <Link href="/" aria-label="Open KAMALO home" className="mobile-kamalo-brand min-w-0 shrink" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="mobile-nav-actions flex shrink-0 items-center gap-1 sm:gap-1.5">
-            {onNewConversation && <button onClick={() => onNewConversation()} className="grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button>}
-             <Link href="/history" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={19} /></Link>
-             <Link href="/support" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
-              <Link href="/admin/tickets" className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open admin tickets" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
-              <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card transition-colors hover:border-primary/40 hover:text-primary sm:h-10 sm:w-10 ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
+             {onNewConversation ? <button onClick={() => onNewConversation()} className="icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground sm:h-10 sm:w-10" aria-label="Start a new conversation" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={19} /></button> : <Link href="/" className="icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card text-foreground sm:h-10 sm:w-10" aria-label="Start a new conversation" data-testid="link-mobile-new-conversation"><HiOutlinePlus size={19} /></Link>}
+              <Link href="/history" className={`icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card sm:h-10 sm:w-10 ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={19} /></Link>
+              <Link href="/support" className={`icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card sm:h-10 sm:w-10 ${isSupport ? 'text-primary' : 'text-foreground'}`} aria-label="Open Help & Support" data-testid="button-mobile-support"><HiOutlineLifebuoy size={19} /></Link>
+               <Link href="/admin/tickets" className={`icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card sm:h-10 sm:w-10 ${isTickets ? 'text-primary' : 'text-foreground'}`} aria-label="Open admin tickets" data-testid="button-mobile-admin-tickets"><HiOutlineShieldCheck size={19} /></Link>
+               <Link href={isKnowledge ? '/' : '/admin/knowledge'} className={`icon-button grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-border bg-card sm:h-10 sm:w-10 ${isKnowledge ? 'text-primary' : 'text-foreground'}`} aria-label={isKnowledge ? 'Open conversations' : 'Open knowledge base'} data-testid="button-mobile-knowledge">{isKnowledge ? <HiOutlineChatBubbleLeftRight size={19} /> : <HiOutlineBookOpen size={19} />}</Link>
           </div>
         </div>
          <div className="hidden shrink-0 items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
-           <Link href="/history" className={`inline-flex items-center gap-1.5 text-[10px] font-semibold ${location === '/history' ? 'text-primary' : 'text-muted-foreground hover:text-primary'}`} data-testid="link-topbar-history"><HiOutlineClock size={13} /> History{conversationCount > 0 && <span className="font-mono text-[9px] text-muted-foreground/70">({conversationCount})</span>}</Link>
+          <Link href="/history" className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition-colors ${location === '/history' ? 'border-primary/25 bg-primary/5 text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:bg-card hover:text-primary'}`} data-testid="link-topbar-history"><HiOutlineClock size={13} /> History{conversationCount > 0 && <span className="font-mono text-[9px] opacity-70">({conversationCount})</span>}</Link>
           <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
            <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>

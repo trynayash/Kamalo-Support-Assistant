@@ -30,15 +30,15 @@ export function HistoryPage() {
 
   return (
     <KamaloShell conversationCount={conversations.length}>
-      <main className="mx-auto min-h-[calc(100dvh-60px)] max-w-[1000px] px-4 py-7 sm:px-6 md:px-9 md:py-12 lg:px-12">
-        <Link href="/" className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-history-back">
+       <main className="page-frame min-h-[calc(100dvh-60px)] pb-12 pt-7 md:pb-16 md:pt-12">
+         <Link href="/" className="inline-flex items-center gap-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:text-primary" data-testid="link-history-back">
           <HiOutlineArrowLeft size={14} /> Back to conversations
         </Link>
-         <div className="mt-8 flex flex-col gap-3 border-b border-border/70 pb-5 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
+          <div className="page-header mt-7 flex-col items-start gap-4 sm:flex-row sm:items-end">
           <div>
             <SectionLabel>Conversation archive</SectionLabel>
-            <h1 className="mt-3 text-[clamp(1.8rem,4vw,3rem)] font-extrabold tracking-[-.05em]">History</h1>
-            <p className="mt-3 max-w-xl text-[13px] leading-6 text-muted-foreground">Open an earlier conversation or remove it from your visible history.</p>
+             <h1 className="page-title">History</h1>
+             <p className="page-description">Open an earlier conversation or remove it from your visible history.</p>
           </div>
           <span className="font-mono text-[10px] text-muted-foreground">{conversations.length} conversations</span>
         </div>
@@ -57,14 +57,14 @@ export function HistoryPage() {
             <Link href="/" className="mt-5 inline-flex rounded-lg bg-primary px-4 py-2.5 text-[11px] font-bold text-primary-foreground" data-testid="link-history-start-chat">Start a conversation</Link>
           </div>
         ) : (
-          <div className="mt-7 space-y-2" data-testid="history-list">
+           <div className="mt-8 space-y-2.5" data-testid="history-list">
             {conversations.map((conversation) => (
-              <div key={conversation.id} className="group flex items-center gap-3 rounded-xl border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)] transition-colors hover:border-primary/30" data-testid={`history-item-${conversation.id}`}>
+               <div key={conversation.id} className="surface group flex items-center gap-3 px-4 py-4 transition-colors hover:border-primary/35 sm:px-5" data-testid={`history-item-${conversation.id}`}>
                 <Link href={`/?conversation=${conversation.id}`} className="min-w-0 flex-1" data-testid={`link-history-conversation-${conversation.id}`}>
                   <div className="truncate text-[13px] font-bold">{conversation.title || 'Untitled conversation'}</div>
                   <div className="mt-1 font-mono text-[10px] text-muted-foreground">{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'} · {compactDate(conversation.updatedAt)}</div>
                 </Link>
-                <button onClick={() => void removeConversation(conversation)} className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-history-delete-${conversation.id}`}>
+                 <button onClick={() => void removeConversation(conversation)} className="icon-button rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-history-delete-${conversation.id}`}>
                   <HiOutlineTrash size={15} />
                 </button>
               </div>
