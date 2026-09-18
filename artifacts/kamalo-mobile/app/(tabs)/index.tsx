@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Image, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Keyboard, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -136,7 +136,21 @@ export default function ChatScreen() {
     try {
       const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
-        setVoiceError('Microphone and speech recognition permission are required for voice input.');
+        if (permission.canAskAgain === false && Platform.OS !== 'web') {
+          Alert.alert(
+            'Microphone access is blocked',
+            'Allow microphone and speech recognition access in Settings, then try again.',
+            [
+              { text: 'Cancel', style: 'cancel' },
+              { text: 'Open Settings', onPress: () => { try { Linking.openSettings(); } catch { /* Settings deep link unavailable on this device. */ } } },
+            ],
+          );
+        }
+        setVoiceError(
+          permission.canAskAgain === false
+            ? 'Microphone and speech recognition access is blocked. Open Settings to allow it, then try again.'
+            : 'Microphone and speech recognition permission are required for voice input.',
+        );
         return;
       }
       voiceBaseDraft.current = draft.trim();
