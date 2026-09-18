@@ -378,7 +378,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     fullResponse = SAFE_ASSISTANT_ERROR;
   }
 
-  const draftFallback = prepared.groundedFact || (/\b(my|me|i|mine|personal|current|balance|account|transaction reference|order|history)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
+  const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
   const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
     : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);

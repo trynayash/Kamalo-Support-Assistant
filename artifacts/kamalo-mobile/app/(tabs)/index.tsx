@@ -103,12 +103,7 @@ export default function ChatScreen() {
   }, [ticketNumber, ticketRaised]);
 
   useEffect(() => {
-    if (!initialized && conversations && conversations.length > 0) {
-      setConversationId(conversations[0].id);
-      setInitialized(true);
-    } else if (!initialized && conversations && conversations.length === 0) {
-      setInitialized(true);
-    }
+    if (!initialized && conversations) setInitialized(true);
   }, [conversations, initialized]);
 
   const conversationQuery = useGetConversation(conversationId ?? '', {
@@ -183,6 +178,7 @@ export default function ChatScreen() {
   async function send() {
     const text = draft.trim();
     if ((!text && !attachment) || isStreaming) return;
+    if (isListening) ExpoSpeechRecognitionModule.stop();
     Keyboard.dismiss();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStreamError(null);
@@ -292,7 +288,7 @@ export default function ChatScreen() {
             scrollEnabled={false}
             style={styles.listViewport}
             ListEmptyComponent={
-              <EmptyState icon="message-square" title="Ask KAMALO anything" body="Answers are grounded in approved product knowledge. Start with a specific question or describe what you are seeing." />
+              <EmptyState icon="message-square" title="How can I help you today?" body="Ask by voice or text. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
             }
             contentContainerStyle={styles.emptyList}
           />

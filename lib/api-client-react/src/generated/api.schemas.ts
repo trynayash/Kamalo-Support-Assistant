@@ -83,6 +83,17 @@ export interface ConversationInput {
   title?: string;
 }
 
+/**
+ * Indicates whether the customer typed the message or dictated it.
+ */
+export type MessageInputInputMode = typeof MessageInputInputMode[keyof typeof MessageInputInputMode];
+
+
+export const MessageInputInputMode = {
+  text: 'text',
+  voice: 'voice',
+} as const;
+
 export interface MessageInput {
   /** @maxLength 4000 */
   content?: string;
@@ -91,6 +102,8 @@ export interface MessageInput {
      * @nullable
      */
   attachmentId?: string | null;
+  /** Indicates whether the customer typed the message or dictated it. */
+  inputMode?: MessageInputInputMode;
 }
 
 export interface ImageUploadInput {

@@ -396,10 +396,11 @@ export function HomePage() {
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
-  const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null) => {
+  const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null, mode: 'text' | 'voice' = inputModeRef.current) => {
     const content = (contentOverride ?? input).trim();
     const image = imageOverride === undefined ? pendingImage : imageOverride;
     if ((!content && !image) || isSending) return;
+    if (speech.isListening) speech.stop();
     shouldAutoScrollRef.current = true;
     setErrorMessage('');
     setAttachmentError('');
@@ -430,7 +431,7 @@ export function HomePage() {
       const userMessage: ChatMessage = { id: `local-user-${Date.now()}`, conversationId, role: 'user', content: messageContent, createdAt: new Date().toISOString(), feedback: null, attachments: uploadedImage ? [uploadedImage] : [] };
       setLocalMessages((current) => [...(current ?? []), userMessage]);
       setStreamingText('');
-      const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id);
+      const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id, mode);
       const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
       setLocalMessages((current) => [...(current ?? []), assistantMessage]);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
@@ -447,6 +448,7 @@ export function HomePage() {
       if (hasImage && !uploadFailed) setNotice('The image is stored with this conversation, but the current text provider does not interpret image contents. You can send a text question about it when ready.');
     } finally {
       setIsSending(false);
+      inputModeRef.current = 'text';
       setStreamingText('');
     }
   };
@@ -580,7 +582,7 @@ export function HomePage() {
                     </div>
                    <ChatWelcomeState
                      onPrompt={(text) => void sendMessage(text)}
-                     showQuickPrompts={conversationsQuery.isSuccess && !selectedId && conversations.length === 0}
+                     showQuickPrompts={conversationsQuery.isSuccess && !selectedId}
                    />
                  </div>
               </div>
@@ -625,12 +627,14 @@ export function HomePage() {
                     <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
+                        <button type="button" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${speech.isListening ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'}`} aria-label={speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />} <span className="hidden sm:inline">{speech.isListening ? 'Stop' : 'Voice'}</span></button>
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
                          <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
                       <button onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button>
                     </div>
                  </div>
+                  {speech.error && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" aria-live="polite" data-testid="status-voice-error">{speech.error}</div>}
                   {attachmentError && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" data-testid="status-attachment-error">{attachmentError}</div>}
                  <p className="mt-1 px-2 text-center text-[9px] leading-3.5 text-muted-foreground/65">KAMALO can make mistakes. Check important information before acting.</p>
                </div>

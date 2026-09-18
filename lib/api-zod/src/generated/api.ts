@@ -109,11 +109,12 @@ export const streamAssistantMessageBodyContentMax = 4000;
 
 export const streamAssistantMessageBodyAttachmentIdMax = 120;
 
-
+export const streamAssistantMessageBodyInputModeDefault = `text`;
 
 export const StreamAssistantMessageBody = zod.object({
   "content": zod.string().max(streamAssistantMessageBodyContentMax).optional(),
-  "attachmentId": zod.string().max(streamAssistantMessageBodyAttachmentIdMax).nullish()
+  "attachmentId": zod.string().max(streamAssistantMessageBodyAttachmentIdMax).nullish(),
+  "inputMode": zod.enum(['text', 'voice']).default(streamAssistantMessageBodyInputModeDefault).describe('Indicates whether the customer typed the message or dictated it.')
 })
 
 export const StreamAssistantMessageResponse = zod.unknown()

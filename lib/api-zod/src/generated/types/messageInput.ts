@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { MessageInputInputMode } from './messageInputInputMode';
 
 export interface MessageInput {
   /** @maxLength 4000 */
@@ -14,4 +15,6 @@ export interface MessageInput {
      * @nullable
      */
   attachmentId?: string | null;
+  /** Indicates whether the customer typed the message or dictated it. */
+  inputMode?: MessageInputInputMode;
 }
