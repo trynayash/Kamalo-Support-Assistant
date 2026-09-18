@@ -32,7 +32,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
   const shellStyle = { '--kamalo-sidebar-width': '276px' } as CSSProperties;
 
   return (
-    <div className={`flex w-full max-w-full overflow-x-clip bg-background ${lockChrome ? 'h-[100dvh] min-h-0 overflow-hidden' : 'min-h-[100dvh]'}`} style={shellStyle}>
+    <div className={`flex w-full max-w-full overflow-x-clip bg-background ${lockChrome ? 'app-shell-locked' : 'min-h-[100dvh]'}`} style={shellStyle}>
       <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden w-[276px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-6 text-sidebar-foreground lg:static lg:flex ${lockChrome ? 'h-full overflow-hidden' : ''}`}>
         <div className="flex items-start">
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
@@ -72,7 +72,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
 
         <div className="mt-auto" />
       </aside>
-      <main className={`w-0 min-w-0 max-w-full flex-1 overflow-x-clip ${lockChrome ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''}`}>
+      <main className={`w-0 min-w-0 max-w-full flex-1 overflow-x-clip ${lockChrome ? 'app-main-locked flex flex-col' : ''}`}>
          <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
           <Link href="/" aria-label="Open KAMALO home" className="mobile-kamalo-brand min-w-0 shrink" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
           <div className="mobile-nav-actions flex shrink-0 items-center gap-1 sm:gap-1.5">
