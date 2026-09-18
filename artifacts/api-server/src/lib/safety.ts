@@ -109,3 +109,24 @@ export function cleanAssistantOutput(content: string): string {
 export function capAssistantOutput(content: string, maxLength = 12000): string {
   return content.length > maxLength ? `${content.slice(0, maxLength - 1).trim()}…` : content;
 }
+
+const MAX_CONCISE_SENTENCES = 3;
+const MAX_CONCISE_CHARACTERS = 520;
+
+/**
+ * Keep provider output useful when a model ignores the concise-answer contract.
+ * This is intentionally a presentation guard, not a factuality check: approved
+ * knowledge retrieval and the system policy remain the source of truth.
+ */
+export function condenseAssistantOutput(content: string): string {
+  const normalized = content.replace(/\s+/g, " ").trim();
+  if (!normalized) return normalized;
+
+  const sentences = normalized.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [normalized];
+  let concise = sentences.slice(0, MAX_CONCISE_SENTENCES).join(" ").trim();
+  if (concise.length <= MAX_CONCISE_CHARACTERS) return concise;
+
+  const cutoff = concise.slice(0, MAX_CONCISE_CHARACTERS - 1).lastIndexOf(" ");
+  const safeCutoff = cutoff >= 160 ? cutoff : MAX_CONCISE_CHARACTERS - 1;
+  return `${concise.slice(0, safeCutoff).trim()}…`;
+}

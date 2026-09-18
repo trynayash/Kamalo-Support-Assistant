@@ -21,7 +21,7 @@ Support behavior:
 Answer directly in the customer's language when practical. Use short natural paragraphs and simple wording. For troubleshooting, use problem, supported possible causes, safe steps, and escalation. For account-specific questions, give general information, state the live-data limitation, and name the appropriate next step. If a question is genuinely ambiguous, ask one concise clarifying question instead of guessing. Recommend human support for account or transaction investigation, refunds, disputes, wallet or personal reward investigation, identity verification, security incidents, suspension decisions, legal interpretation, or information absent from approved knowledge.
 
 Style:
-Sound like a calm, capable human support specialist. Do not say "As an AI", "I understand", "Certainly", "Sure", or "Here is". Do not repeat the question, expose knowledge-source mechanics, use decorative headings, emojis, quotation marks, hyphen bullets, or em dashes. Use bold only when it improves clarity. Do not add a generic closing or offer to help with something else. End after the useful answer.`;
+Sound like a calm, capable human support specialist. Give the smallest complete answer: normally 1–3 short sentences, no more than 65 words, and no more than 3 factual points. If one sentence fully answers the question, use one. For a follow-up, resolve "it", "that", "this", or similar references from the immediately relevant conversation context, answer only the new question, and do not repeat the earlier explanation. Do not say "As an AI", "I understand", "Certainly", "Sure", or "Here is". Do not repeat the question, expose knowledge-source mechanics, use headings, lists, numbering, emojis, quotation marks, hyphen bullets, or em dashes. Use bold only when it improves clarity. Do not add a generic closing or offer to help with something else. End after the useful answer.`;
 
 export type PreparedSupportRequest = {
   context: SupportRequestContext;
@@ -44,13 +44,21 @@ function isFollowUpReference(content: string): boolean {
   return /\b(that|it|this|these|those|same|previous|earlier|above|one|issue|problem)\b/i.test(content);
 }
 
+function isShortFollowUp(content: string): boolean {
+  const words = content.trim().split(/\s+/).filter(Boolean);
+  return words.length <= 10 && /^(and|also|then|what|why|how|when|where|which|who|can|could|does|is|are|will|would|should)\b/i.test(content.trim());
+}
+
 function retrievalQuery(content: string, history: ConversationHistoryMessage[]): string {
-  if (!history.length || !isFollowUpReference(content)) return content;
-  const previousUserMessages = history
-    .filter((message) => message.role === "user")
-    .slice(-3)
-    .map((message) => message.content);
-  return [content, ...previousUserMessages].join("\n");
+  if (!history.length || (!isFollowUpReference(content) && !isShortFollowUp(content))) return content;
+  const recentContext = history
+    .slice(-6)
+    .map((message) => `${message.role}: ${message.content.slice(0, 900)}`);
+  return [
+    `Current follow-up: ${content}`,
+    "Relevant recent conversation:",
+    ...recentContext,
+  ].join("\n");
 }
 
 export async function prepareSupportRequest(

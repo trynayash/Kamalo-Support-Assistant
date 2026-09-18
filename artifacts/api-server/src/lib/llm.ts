@@ -46,8 +46,8 @@ function requestBody(request: LLMRequest, stream: boolean) {
   return {
     model: OPENROUTER_MODEL,
     messages: request.messages,
-    temperature: request.temperature ?? 0.2,
-    max_tokens: 8192,
+    temperature: request.temperature ?? 0.1,
+    max_tokens: 240,
     stream,
   };
 }
