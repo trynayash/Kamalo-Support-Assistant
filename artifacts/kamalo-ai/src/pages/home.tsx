@@ -68,22 +68,22 @@ function ConversationSkeleton() {
   return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
 }
 
-function ChatWelcomeState({ onPrompt }: { onPrompt: (text: string) => void }) {
+function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: string) => void; showQuickPrompts: boolean }) {
   return (
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
       <div className="max-w-md">
         <h1 className="text-[clamp(1.9rem,7vw,3.1rem)] font-extrabold leading-[1.04] tracking-[-.06em] text-foreground">
-          Hey there.<br />How can I help today?
+          {showQuickPrompts ? <>Hey there.<br />How can I help today?</> : <>Welcome back.<br />Which conversation should we continue?</>}
         </h1>
-        <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">Choose a common question or type your own.</p>
-        <div className="mt-7 grid gap-2 sm:grid-cols-3">
+        <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">{showQuickPrompts ? 'Choose a common question or type your own.' : 'Select a conversation from your history, or start a new one from the sidebar.'}</p>
+        {showQuickPrompts && <div className="mt-7 grid gap-2 sm:grid-cols-3">
           {quickPrompts.map((prompt) => (
             <button key={prompt.label} onClick={() => onPrompt(prompt.text)} className="rounded-lg border border-border/80 bg-card/60 px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-card" data-testid={`button-prompt-${prompt.label.toLowerCase()}`}>
               <span className="block text-[11px] font-semibold text-foreground">{prompt.label}</span>
               <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{prompt.text}</span>
             </button>
           ))}
-        </div>
+        </div>}
       </div>
     </div>
   );
@@ -570,7 +570,10 @@ export function HomePage() {
                     <div className="xl:hidden">
                       <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={(id) => { setSelectedId(id); setLocalMessages(null); setRetryContent(null); setMobileHistoryOpen(false); }} onDelete={deleteConversationItem} />
                     </div>
-                   <ChatWelcomeState onPrompt={(text) => void sendMessage(text)} />
+                   <ChatWelcomeState
+                     onPrompt={(text) => void sendMessage(text)}
+                     showQuickPrompts={conversationsQuery.isSuccess && !selectedId && conversations.length === 0}
+                   />
                  </div>
               </div>
             ) : (
