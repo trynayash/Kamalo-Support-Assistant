@@ -52,5 +52,8 @@
     "typescript": "~6.0.3",
     "zod": "catalog:",
     "zod-validation-error": "^3.4.0"
+  },
+  "dependencies": {
+    "expo-speech-recognition": "57.1.0"
   }
 }
