@@ -6,3 +6,4 @@
 - [Support Core test fixtures](support-core-test-fixtures.md) — lexical retrieval tests need collision-resistant tokens because approved knowledge is shared.
 - [Support Core local database](support-core-local-db.md) — the full regression suite needs the auth audit schema present in the test database.
 - [Portable vendor handoff archives](portable-handoff.md) — build from tracked files and explicitly add only approved uploaded assets.
+- [KAMALO AI follow-up grounding](kamalo-ai-follow-up-grounding.md) — rank the new follow-up intent first and exclude personalized placeholder articles from generic answers.

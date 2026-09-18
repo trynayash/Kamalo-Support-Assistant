@@ -47,7 +47,7 @@ function requestBody(request: LLMRequest, stream: boolean) {
     model: OPENROUTER_MODEL,
     messages: request.messages,
     temperature: request.temperature ?? 0.1,
-    max_tokens: 240,
+    max_tokens: 512,
     stream,
   };
 }
@@ -185,7 +185,7 @@ export class OpenRouterProvider implements LLMProvider {
     return content.trim();
   }
 
-  async *stream(request: LLMRequest): AsyncIterable<string> {
+  private async *streamOnce(request: LLMRequest): AsyncIterable<string> {
     const response = await fetchWithRetry(request, true);
     if (!response.body) {
       throw new OpenRouterError("OpenRouter returned no stream", response.status, true, "protocol");
@@ -236,6 +236,22 @@ export class OpenRouterProvider implements LLMProvider {
     }
     if (!receivedContent) {
       throw new OpenRouterError("OpenRouter returned an empty stream", null, true, "protocol");
+    }
+  }
+
+  async *stream(request: LLMRequest): AsyncIterable<string> {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let yieldedContent = false;
+      try {
+        for await (const chunk of this.streamOnce(request)) {
+          yieldedContent = true;
+          yield chunk;
+        }
+        return;
+      } catch (error) {
+        if (yieldedContent || !(error instanceof OpenRouterError) || !error.retryable || attempt === MAX_RETRIES) throw error;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(250 * (2 ** attempt), 4_000)));
+      }
     }
   }
 }

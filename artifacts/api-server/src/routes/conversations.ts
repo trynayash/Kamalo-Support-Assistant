@@ -13,10 +13,10 @@ import {
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
 import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
-import { capAssistantOutput, condenseAssistantOutput, hasPossibleSensitiveTail, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
+import { condenseAssistantOutput, hasPossibleSensitiveTail, isPromptExtractionAttempt, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
-import { prepareSupportRequest, type ConversationHistoryMessage } from "../lib/orchestrator";
+import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
 
 const router: IRouter = Router();
@@ -317,7 +317,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   let fullResponse = "";
   let emittedResponse = "";
   const emitResponse = async (candidate: string, flush = false): Promise<boolean> => {
-    const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(candidate));
+    const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(preferGroundedFact(candidate, prepared.groundedFact)));
     const safePrefix = !flush && hasPossibleSensitiveTail(candidate)
       ? safeCandidate.slice(0, Math.max(emittedResponse.length, safeCandidate.length - 512))
       : safeCandidate;
@@ -374,7 +374,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     fullResponse = SAFE_ASSISTANT_ERROR;
   }
 
-  fullResponse = condenseAssistantOutput(sanitizeAssistantOutput(fullResponse || STAGE_ONE_FALLBACK));
+  fullResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact)));
    if (!clientClosed) await emitResponse(fullResponse, true);
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
