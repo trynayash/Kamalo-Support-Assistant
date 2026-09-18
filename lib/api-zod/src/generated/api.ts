@@ -192,6 +192,12 @@ export const CreateMessageFeedbackResponse = zod.object({
 /**
  * @summary List support tickets for the current demo user
  */
+export const listMySupportTicketsResponseLevelMax = 5;
+
+export const listMySupportTicketsResponseLanguageMax = 35;
+
+
+
 export const ListMySupportTicketsResponseItem = zod.object({
   "id": zod.string(),
   "ticketNumber": zod.string(),
@@ -204,6 +210,8 @@ export const ListMySupportTicketsResponseItem = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(listMySupportTicketsResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(listMySupportTicketsResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
@@ -243,6 +251,12 @@ export const CreateSupportTicketBody = zod.object({
   "attachmentIds": zod.array(zod.string()).max(createSupportTicketBodyAttachmentIdsMax).optional()
 })
 
+export const createSupportTicketResponseLevelMax = 5;
+
+export const createSupportTicketResponseLanguageMax = 35;
+
+
+
 export const CreateSupportTicketResponse = zod.object({
   "id": zod.string(),
   "ticketNumber": zod.string(),
@@ -255,6 +269,8 @@ export const CreateSupportTicketResponse = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(createSupportTicketResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(createSupportTicketResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
@@ -269,6 +285,12 @@ export const CreateSupportTicketResponse = zod.object({
 /**
  * @summary List support tickets for the test admin workspace
  */
+export const listSupportTicketsResponseLevelMax = 5;
+
+export const listSupportTicketsResponseLanguageMax = 35;
+
+
+
 export const ListSupportTicketsResponseItem = zod.object({
   "id": zod.string(),
   "ticketNumber": zod.string(),
@@ -281,6 +303,8 @@ export const ListSupportTicketsResponseItem = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(listSupportTicketsResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(listSupportTicketsResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
@@ -300,6 +324,12 @@ export const GetSupportTicketParams = zod.object({
   "ticketId": zod.coerce.string()
 })
 
+export const getSupportTicketResponseLevelMax = 5;
+
+export const getSupportTicketResponseLanguageMax = 35;
+
+
+
 export const GetSupportTicketResponse = zod.object({
   "id": zod.string(),
   "ticketNumber": zod.string(),
@@ -312,6 +342,8 @@ export const GetSupportTicketResponse = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(getSupportTicketResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(getSupportTicketResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
@@ -334,14 +366,23 @@ export const updateSupportTicketBodyAssignedToMax = 120;
 
 export const updateSupportTicketBodyResolutionMax = 4000;
 
+export const updateSupportTicketBodyLevelMax = 5;
+
 
 
 export const UpdateSupportTicketBody = zod.object({
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "assignedTo": zod.string().max(updateSupportTicketBodyAssignedToMax).nullish(),
   "resolution": zod.string().max(updateSupportTicketBodyResolutionMax).nullish(),
-  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish()
+  "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
+  "level": zod.number().int().min(1).max(updateSupportTicketBodyLevelMax).optional().describe('Optional specialist override of the server-calculated seriousness level.')
 })
+
+export const updateSupportTicketResponseLevelMax = 5;
+
+export const updateSupportTicketResponseLanguageMax = 35;
+
+
 
 export const UpdateSupportTicketResponse = zod.object({
   "id": zod.string(),
@@ -355,6 +396,8 @@ export const UpdateSupportTicketResponse = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(updateSupportTicketResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(updateSupportTicketResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),
@@ -390,6 +433,12 @@ export const RetrySupportTicketEmailParams = zod.object({
   "ticketId": zod.coerce.string()
 })
 
+export const retrySupportTicketEmailResponseLevelMax = 5;
+
+export const retrySupportTicketEmailResponseLanguageMax = 35;
+
+
+
 export const RetrySupportTicketEmailResponse = zod.object({
   "id": zod.string(),
   "ticketNumber": zod.string(),
@@ -402,6 +451,8 @@ export const RetrySupportTicketEmailResponse = zod.object({
   "feedbackRating": zod.union([zod.literal('helpful'),zod.literal('not_helpful'),zod.literal(null)]).nullish(),
   "status": zod.enum(['open', 'in_review', 'resolved', 'closed']),
   "priority": zod.enum(['low', 'normal', 'high', 'urgent']),
+  "level": zod.number().int().min(1).max(retrySupportTicketEmailResponseLevelMax).describe('Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.'),
+  "language": zod.string().max(retrySupportTicketEmailResponseLanguageMax).describe('Request language detected from the browser request locale.'),
   "assignedTo": zod.string().nullish(),
   "resolution": zod.string().nullish(),
   "resolutionSource": zod.union([zod.literal('human'),zod.literal('ai'),zod.literal(null)]).nullish(),

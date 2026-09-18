@@ -1,5 +1,5 @@
 import { createInsertSchema } from "drizzle-zod";
-import { pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { integer, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import { z } from "zod/v4";
 import { conversationsTable } from "./conversations";
 import { messagesTable } from "./messages";
@@ -19,6 +19,8 @@ export const supportTicketsTable = pgTable("support_tickets", {
   feedbackRating: text("feedback_rating"),
   status: text("status").notNull().default("open"),
   priority: text("priority").notNull().default("normal"),
+  level: integer("level").notNull().default(1),
+  language: text("language").notNull().default("en"),
   assignedTo: text("assigned_to"),
   resolution: text("resolution"),
   resolutionSource: text("resolution_source"),

@@ -595,7 +595,7 @@ components:
           format: date-time
     SupportTicket:
       type: object
-      required: [id, ticketNumber, conversationId, category, summary, details, status, priority, emailStatus, createdAt, updatedAt, attachmentIds]
+      required: [id, ticketNumber, conversationId, category, summary, details, status, priority, level, language, emailStatus, createdAt, updatedAt, attachmentIds]
       properties:
         id:
           type: string
@@ -623,6 +623,15 @@ components:
         priority:
           type: string
           enum: [low, normal, high, urgent]
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.
+        language:
+          type: string
+          maxLength: 35
+          description: Request language detected from the browser request locale.
         assignedTo:
           type: ["string", "null"]
         resolution:
@@ -693,6 +702,11 @@ components:
         resolutionSource:
           type: ["string", "null"]
           enum: [human, ai, null]
+        level:
+          type: integer
+          minimum: 1
+          maximum: 5
+          description: Optional specialist override of the server-calculated seriousness level.
     SupportTicketAnalysisInput:
       type: object
       required: [mode]

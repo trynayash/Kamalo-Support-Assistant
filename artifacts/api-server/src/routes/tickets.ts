@@ -1,5 +1,5 @@
 import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import {
   AnalyzeSupportTicketBody,
   AnalyzeSupportTicketResponse,
@@ -29,6 +29,55 @@ const router: IRouter = Router();
 
 type TicketRow = typeof supportTicketsTable.$inferSelect;
 
+const TICKET_LEVELS = {
+  1: { label: "Informational", priority: "low" },
+  2: { label: "Standard", priority: "normal" },
+  3: { label: "Elevated", priority: "high" },
+  4: { label: "Urgent", priority: "urgent" },
+  5: { label: "Critical", priority: "urgent" },
+} as const;
+
+function detectLanguage(request: Request): string {
+  const header = request.header("accept-language")?.split(",")[0]?.trim();
+  return (header || "en").slice(0, 35);
+}
+
+function calculateTicketLevel(input: {
+  category: string;
+  summary: string;
+  details: string;
+  feedbackRating?: string | null;
+  attachmentCount: number;
+}): 1 | 2 | 3 | 4 | 5 {
+  const text = `${input.category} ${input.summary} ${input.details}`.toLowerCase();
+  const criticalSignals = /\b(hack(?:ed|ing)?|account takeover|fraud|scam|stolen|unauthori[sz]ed|identity theft|security breach|money missing|funds missing|regulator|legal action|lawsuit)\b/;
+  const urgentSignals = /\b(blocked|lock(?:ed|out)?|cannot access|can't access|login|sign in|verification|otp|one[- ]time|payment failed|transaction failed|refund|chargeback|dispute|missing reward|wrong balance|lost money|suspicious)\b/;
+  const repeatedSignals = /\b(again|repeated|still|multiple|twice|third time|unresolved|not fixed)\b/;
+  const category = input.category.toLowerCase();
+
+  if (criticalSignals.test(text)) return 5;
+  if (urgentSignals.test(text) || category.includes("account access") || category.includes("transactions")) return 4;
+  if (repeatedSignals.test(text) || category.includes("rewards") || category.includes("fincado") || input.attachmentCount > 0) return 3;
+  if (input.feedbackRating === "not_helpful" || category.includes("answer quality")) return 2;
+  return 1;
+}
+
+function priorityForLevel(level: number): "low" | "normal" | "high" | "urgent" {
+  return TICKET_LEVELS[Math.min(5, Math.max(1, Math.round(level))) as 1 | 2 | 3 | 4 | 5].priority;
+}
+
+function effectiveTicketEscalation(ticket: TicketRow, attachmentCount: number) {
+  const calculatedLevel = calculateTicketLevel({
+    category: ticket.category,
+    summary: ticket.summary,
+    details: ticket.details,
+    feedbackRating: ticket.feedbackRating,
+    attachmentCount,
+  });
+  const level = ticket.level === 1 ? calculatedLevel : ticket.level;
+  return { level, priority: ticket.level === 1 ? priorityForLevel(calculatedLevel) : ticket.priority };
+}
+
 function dateString(value: Date | null): string | null {
   return value ? value.toISOString() : null;
 }
@@ -38,8 +87,13 @@ async function ticketResponse(ticket: TicketRow) {
     .select({ attachmentId: supportTicketAttachmentsTable.attachmentId })
     .from(supportTicketAttachmentsTable)
     .where(eq(supportTicketAttachmentsTable.ticketId, ticket.id));
+  const escalation = effectiveTicketEscalation(ticket, attachments.length);
+  if (ticket.level !== escalation.level || ticket.priority !== escalation.priority) {
+    await db.update(supportTicketsTable).set(escalation).where(eq(supportTicketsTable.id, ticket.id));
+  }
   return {
     ...ticket,
+    ...escalation,
     createdAt: ticket.createdAt.toISOString(),
     updatedAt: ticket.updatedAt.toISOString(),
     resolvedAt: dateString(ticket.resolvedAt),
@@ -59,12 +113,20 @@ async function ticketResponses(tickets: TicketRow[]) {
     current.push(attachment.attachmentId);
     attachmentMap.set(attachment.ticketId, current);
   }
-  return tickets.map((ticket) => ({
-    ...ticket,
-    createdAt: ticket.createdAt.toISOString(),
-    updatedAt: ticket.updatedAt.toISOString(),
-    resolvedAt: dateString(ticket.resolvedAt),
-    attachmentIds: attachmentMap.get(ticket.id) || [],
+  return Promise.all(tickets.map(async (ticket) => {
+    const attachmentIds = attachmentMap.get(ticket.id) || [];
+    const escalation = effectiveTicketEscalation(ticket, attachmentIds.length);
+    if (ticket.level !== escalation.level || ticket.priority !== escalation.priority) {
+      await db.update(supportTicketsTable).set(escalation).where(eq(supportTicketsTable.id, ticket.id));
+    }
+    return {
+      ...ticket,
+      ...escalation,
+      createdAt: ticket.createdAt.toISOString(),
+      updatedAt: ticket.updatedAt.toISOString(),
+      resolvedAt: dateString(ticket.resolvedAt),
+      attachmentIds,
+    };
   }));
 }
 
@@ -153,6 +215,13 @@ router.post("/tickets", async (req, res): Promise<void> => {
   }
 
   const now = new Date();
+  const level = calculateTicketLevel({
+    category: input.category,
+    summary: input.summary,
+    details: input.details,
+    feedbackRating: input.feedbackRating,
+    attachmentCount: requestedAttachmentIds.length,
+  });
   const ticket = {
     id: crypto.randomUUID(),
     ticketNumber: `KAM-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
@@ -165,7 +234,9 @@ router.post("/tickets", async (req, res): Promise<void> => {
     contactEmail: input.contactEmail || null,
     feedbackRating: input.feedbackRating || null,
     status: "open",
-    priority: "normal",
+    priority: TICKET_LEVELS[level].priority,
+    level,
+    language: detectLanguage(req),
     assignedTo: null,
     resolution: null,
     resolutionSource: null,
@@ -333,6 +404,8 @@ router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {
     assignedTo: parsed.data.assignedTo === undefined ? ticket.assignedTo : parsed.data.assignedTo,
     resolution: nextResolution || null,
     resolutionSource: parsed.data.resolutionSource === undefined ? ticket.resolutionSource : parsed.data.resolutionSource,
+    level: parsed.data.level === undefined ? ticket.level : parsed.data.level,
+    priority: parsed.data.level === undefined ? ticket.priority : priorityForLevel(parsed.data.level),
     resolvedAt: parsed.data.status === "resolved" ? (ticket.resolvedAt || now) : null,
     updatedAt: now,
   };

@@ -3,6 +3,7 @@ import type { SupportTicket } from '@workspace/api-client-react';
 import { getListMySupportTicketsQueryKey, useListMySupportTickets } from '@workspace/api-client-react';
 import { HiOutlineArrowUpRight, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlineLifebuoy } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
+import { TicketLevelBadge } from '@/lib/ticket-levels';
 
 const dateTime = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }).format(new Date(value));
 
@@ -24,10 +25,10 @@ function TicketRow({ ticket }: { ticket: SupportTicket }) {
       <div className="flex min-w-0 items-start gap-3">
         <div className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-lg ${ticket.status === 'resolved' ? 'bg-[hsl(150_35%_45%/.1)] text-[hsl(150_35%_30%)]' : 'bg-primary/10 text-primary'}`}>{icon}</div>
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] font-bold tracking-[.08em] text-primary">{ticket.ticketNumber}</span><TicketStatus status={ticket.status} /></div>
+          <div className="flex flex-wrap items-center gap-2"><span className="font-mono text-[10px] font-bold tracking-[.08em] text-primary">{ticket.ticketNumber}</span><TicketStatus status={ticket.status} /><TicketLevelBadge level={ticket.level} /></div>
           <h2 className="mt-2 truncate text-[13px] font-bold">{ticket.summary}</h2>
           <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-muted-foreground">{ticket.resolution || ticket.details}</p>
-          <div className="mt-2 font-mono text-[9px] text-muted-foreground/70">Opened {dateTime(ticket.createdAt)} · {ticket.category}{ticket.attachmentIds.length > 0 ? ` · ${ticket.attachmentIds.length} image${ticket.attachmentIds.length === 1 ? '' : 's'}` : ''}</div>
+          <div className="mt-2 font-mono text-[9px] text-muted-foreground/70">Opened {dateTime(ticket.createdAt)} · {ticket.category} · {ticket.language}{ticket.attachmentIds.length > 0 ? ` · ${ticket.attachmentIds.length} image${ticket.attachmentIds.length === 1 ? '' : 's'}` : ''}</div>
         </div>
       </div>
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground xl:justify-center"><HiOutlineEnvelope size={14} />{ticket.emailStatus === 'sent' ? 'Email sent' : ticket.emailStatus === 'failed' ? 'Email delivery failed' : ticket.emailStatus === 'skipped' ? 'No email added' : 'Email pending'}</div>

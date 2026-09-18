@@ -26,6 +26,17 @@ export interface SupportTicket {
   feedbackRating?: SupportTicketFeedbackRating;
   status: SupportTicketStatus;
   priority: SupportTicketPriority;
+  /**
+     * Server-calculated seriousness and escalation level. 1 is informational and 5 is critical.
+     * @minimum 1
+     * @maximum 5
+     */
+  level: number;
+  /**
+     * Request language detected from the browser request locale.
+     * @maxLength 35
+     */
+  language: string;
   /** @nullable */
   assignedTo?: string | null;
   /** @nullable */

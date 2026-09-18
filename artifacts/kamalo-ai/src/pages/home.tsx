@@ -16,6 +16,7 @@ import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipbo
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { Link, useLocation } from 'wouter';
+import { getTicketLevelMeta } from '@/lib/ticket-levels';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
@@ -484,7 +485,8 @@ export function HomePage() {
              : ticket.emailStatus === 'failed'
                ? ' The ticket is saved, but email delivery needs support sender setup. You can track it in Help & Support.'
                : ' The ticket is saved and will be tracked in Help & Support.';
-           setNotice(`Ticket ${ticket.ticketNumber} was raised.${deliveryNotice}`);
+           const level = getTicketLevelMeta(ticket.level);
+           setNotice(`Ticket ${ticket.ticketNumber} was raised at level ${level.level} (${level.label}).${deliveryNotice}`);
         } catch {
           setNotice('Feedback was saved, but the support ticket could not be raised. Please try again.');
         }

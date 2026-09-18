@@ -22,4 +22,10 @@ export interface SupportTicketUpdate {
   resolution?: string | null;
   /** @nullable */
   resolutionSource?: SupportTicketUpdateResolutionSource;
+  /**
+     * Optional specialist override of the server-calculated seriousness level.
+     * @minimum 1
+     * @maximum 5
+     */
+  level?: number;
 }

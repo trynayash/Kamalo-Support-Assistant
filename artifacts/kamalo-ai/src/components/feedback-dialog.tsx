@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@workspace/api-client-react';
 import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from 'react-icons/hi2';
 import { SectionLabel } from '@/components/kamalo-shell';
+import { ticketLevelMeta } from '@/lib/ticket-levels';
 
 export type FeedbackDialogSubmission = {
   score: number;
@@ -112,6 +113,11 @@ export function FeedbackDialog({ message, reaction, imageCount, saving, onClose,
 
         {escalate && <div className="mt-5 space-y-4 rounded-xl border border-primary/20 bg-primary/[.045] p-4 animate-rise">
           <div className="font-mono text-[9px] uppercase tracking-[.15em] text-primary">Support ticket details</div>
+           <div className="rounded-lg border border-border bg-background/70 p-3">
+             <div className="font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">How escalation works</div>
+             <p className="mt-1.5 text-[10px] leading-5 text-muted-foreground">KAMALO assigns the level on the server from the case details. Specialists can adjust it after review.</p>
+             <div className="mt-3 grid gap-1.5 sm:grid-cols-5">{(Object.entries(ticketLevelMeta) as [string, (typeof ticketLevelMeta)[1]][]).map(([level, meta]) => <div key={level} className="rounded-md border border-border/70 px-2 py-1.5"><div className="font-mono text-[9px] font-bold">L{level}</div><div className="mt-0.5 text-[9px] font-semibold">{meta.label}</div></div>)}</div>
+           </div>
           <label className="block"><span className="mb-2 block text-[11px] font-semibold">Email for the resolution</span><input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} placeholder="you@example.com" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[12px] outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-email" /></label>
           <div className="grid gap-4 sm:grid-cols-[150px_minmax(0,1fr)]">
             <label className="block"><span className="mb-2 block text-[11px] font-semibold">Stuck category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[11px] outline-none focus:border-primary" data-testid="select-ticket-category"><option>Answer quality</option><option>Rewards</option><option>Auto KAMALO</option><option>FINCADO</option><option>Transactions</option><option>Account access</option><option>Other</option></select></label>
