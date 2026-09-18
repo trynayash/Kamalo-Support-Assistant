@@ -12,11 +12,12 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { Link, useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
+import { useSpeechInput } from '@/hooks/use-speech-input';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
@@ -73,7 +74,7 @@ function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: str
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
       <div className="max-w-md">
         <h1 className="text-[clamp(1.9rem,7vw,3.1rem)] font-extrabold leading-[1.04] tracking-[-.06em] text-foreground">
-          {showQuickPrompts ? <>Hey there.<br />How can I help today?</> : <>Welcome back.<br />Which conversation should we continue?</>}
+          <>How can I help you today?</>
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">{showQuickPrompts ? 'Choose a common question or type your own.' : 'Select a conversation from your history, or start a new one from the sidebar.'}</p>
         {showQuickPrompts && <div className="mt-7 grid gap-2 sm:grid-cols-3">
@@ -184,12 +185,12 @@ function StreamingBubble({ content }: { content: string }) {
   );
 }
 
-async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null): Promise<{ content: string; messageId: string | null }> {
+async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null, inputMode: 'text' | 'voice' = 'text'): Promise<{ content: string; messageId: string | null }> {
   const response = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
     credentials: 'include',
-    body: JSON.stringify({ content, attachmentId: attachmentId || undefined }),
+    body: JSON.stringify({ content, attachmentId: attachmentId || undefined, inputMode }),
   });
   if (!response.ok) {
     let detail = '';
