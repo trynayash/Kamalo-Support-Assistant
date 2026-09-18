@@ -241,15 +241,11 @@ export class OpenRouterProvider implements LLMProvider {
 
   async *stream(request: LLMRequest): AsyncIterable<string> {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-      let yieldedContent = false;
       try {
-        for await (const chunk of this.streamOnce(request)) {
-          yieldedContent = true;
-          yield chunk;
-        }
+        yield* this.streamOnce(request);
         return;
       } catch (error) {
-        if (yieldedContent || !(error instanceof OpenRouterError) || !error.retryable || attempt === MAX_RETRIES) throw error;
+        if (!(error instanceof OpenRouterError) || !error.retryable || attempt === MAX_RETRIES) throw error;
         await new Promise((resolve) => setTimeout(resolve, Math.min(250 * (2 ** attempt), 4_000)));
       }
     }
