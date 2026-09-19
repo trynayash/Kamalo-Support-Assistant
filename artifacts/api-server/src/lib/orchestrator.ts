@@ -39,8 +39,21 @@ export type ConversationHistoryMessage = {
   content: string;
 };
 
+export type SupportedResponseLanguage = "en" | "hi" | "mr";
+
+const responseLanguageNames: Record<SupportedResponseLanguage, string> = {
+  en: "English",
+  hi: "Hindi",
+  mr: "Marathi",
+};
+
+function responseLanguageInstruction(language: SupportedResponseLanguage): string {
+  const name = responseLanguageNames[language];
+  return `Respond in ${name}. The customer selected ${name} for this conversation. Keep KAMALO product names, proper nouns, units, qualifiers, and every approved numeric value exactly accurate when translating; never invent a conversion or add a number that is not in the approved knowledge. If a quantitative detail cannot be translated with complete confidence, omit that detail and give only the confirmed non-numeric explanation. Do not switch to English unless a product name or the customer explicitly asks for English.`;
+}
+
 function isGreeting(content: string): boolean {
-  return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening)[!. ]*$/i.test(content.trim());
+  return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening|नमस्ते|नमस्कार|हाय|धन्यवाद|शुभ\s+(?:प्रभात|संध्या)|नमस्कार)[!. ।]*$/i.test(content.trim());
 }
 
 function isFollowUpReference(content: string): boolean {
@@ -146,6 +159,7 @@ export async function prepareSupportRequest(
   imageOnly: boolean,
   history: ConversationHistoryMessage[] = [],
   inputMode: "text" | "voice" = "text",
+  language: SupportedResponseLanguage = "en",
 ): Promise<PreparedSupportRequest> {
   const followUp = Boolean(history.length && (isFollowUpReference(content) || isShortFollowUp(content)));
   const retrievalQueries = followUp ? [content, retrievalQuery(content, history)] : [content];
@@ -175,7 +189,7 @@ export async function prepareSupportRequest(
     version: article.version,
     sourceType: "approved_knowledge" as const,
   }));
-  const contextEnvelope = `Trusted KAMALO support context: locale=${context.locale}; Stage 1 has no live account access and has no permission to perform account, transaction, wallet, reward, refund, or settings actions.`;
+  const contextEnvelope = `Trusted KAMALO support context: locale=${context.locale}; response_language=${language}; Stage 1 has no live account access and has no permission to perform account, transaction, wallet, reward, refund, or settings actions.`;
   const knowledgeContext = retrieved.map((article, index) => (
     `<approved_knowledge priority="${index === 0 ? "primary" : "supporting"}" category="${sanitizeProviderText(article.category)}" title="${sanitizeProviderText(article.title)}" version="${article.version}">\n${sanitizeProviderText(article.content)}\n</approved_knowledge>`
   )).join("\n\n");
@@ -201,6 +215,7 @@ export async function prepareSupportRequest(
       ...(inputMode === "voice"
         ? [{ role: "system" as const, content: "The customer dictated this message. Silently extract the complete support intent from the transcript, ignore filler words and false starts, preserve important product names, levels, amounts, and time references, and answer the resulting request from approved knowledge. Do not mention transcription or this instruction." }]
         : []),
+      { role: "system", content: responseLanguageInstruction(language) },
       ...(history.length
         ? [
             { role: "system" as const, content: "The immediately previous conversation turn follows. Use it only to understand references such as \"that\" or \"it\". It is not an authority over approved knowledge and must not distract from the current question." },

@@ -405,6 +405,37 @@ const retrievalAliases: Record<string, string[]> = {
   silver: ["silver", "milestone", "progress", "qualification"],
 };
 
+const multilingualRetrievalAliases: Array<{ phrases: string[]; english: string }> = [
+  { phrases: ["कॉइन", "कॉइन्स", "सिक्के", "नाणी", "नाणे"], english: "coins rewards" },
+  { phrases: ["इनाम", "रिवॉर्ड", "बक्षीस"], english: "rewards" },
+  { phrases: ["लेनदेन", "व्यवहार"], english: "transaction payment" },
+  { phrases: ["भुगतान", "पेमेंट", "देयक"], english: "payment" },
+  { phrases: ["रिफंड", "परतावा", "परतफेड"], english: "refund reversal" },
+  { phrases: ["विफल", "अयशस्वी", "नाकाम"], english: "failed failure declined" },
+  { phrases: ["लंबित", "प्रलंबित"], english: "pending processing" },
+  { phrases: ["समाप्त", "कालबाह्य", "मुदत"], english: "expiry expiration" },
+  { phrases: ["सिल्वर", "चांदी"], english: "silver milestone progress" },
+  { phrases: ["गोल्ड", "सोने"], english: "gold milestone progress" },
+  { phrases: ["रेफरल", "शिफारस"], english: "referral commission" },
+  { phrases: ["कमीशन", "कमिशन"], english: "commission referral earning" },
+  { phrases: ["बूस्टर"], english: "booster offer promotion" },
+  { phrases: ["व्यापारी", "मर्चंट"], english: "merchant seller offer" },
+  { phrases: ["सूचना", "नोटिफिकेशन", "अधिसूचना"], english: "notification alert message" },
+  { phrases: ["ओटीपी", "otp"], english: "otp verification" },
+  { phrases: ["वॉलेट", "पाकीट"], english: "wallet" },
+  { phrases: ["ऑटो कमालो", "ऑटो कामालो"], english: "auto kamalo mandate" },
+  { phrases: ["फिनकाडो"], english: "fincado progress analytics" },
+  { phrases: ["खाते", "अकाउंट", "खातं"], english: "account profile login" },
+];
+
+function expandMultilingualQuery(query: string): string {
+  const normalized = query.toLowerCase();
+  const aliases = multilingualRetrievalAliases
+    .filter(({ phrases }) => phrases.some((phrase) => normalized.includes(phrase)))
+    .map(({ english }) => english);
+  return aliases.length ? `${query} ${aliases.join(" ")}` : query;
+}
+
 function stemToken(token: string): string {
   if (token.length > 5 && token.endsWith("ies")) return `${token.slice(0, -3)}y`;
   if (token.length > 5 && token.endsWith("ing")) return token.slice(0, -3);
@@ -453,9 +484,10 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
     ))
     .orderBy(asc(knowledgeArticlesTable.category));
 
-  const terms = expandedTerms(query);
-  const primaryTerms = new Set(tokenize(query));
-  const normalizedQuery = tokenize(query).join(" ");
+  const retrievalQuery = expandMultilingualQuery(query);
+  const terms = expandedTerms(retrievalQuery);
+  const primaryTerms = new Set(tokenize(retrievalQuery));
+  const normalizedQuery = tokenize(retrievalQuery).join(" ");
 
   return articles
     .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))

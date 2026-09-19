@@ -12,7 +12,7 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { useLocation } from 'wouter';
@@ -27,6 +27,25 @@ const quickPrompts = [
   { label: 'Transactions', text: 'Where can I see my recent transactions?' },
   { label: 'Auto KAMALO', text: 'What is Auto KAMALO?' },
 ];
+
+type ChatLanguage = 'en' | 'hi' | 'mr';
+
+const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: string }> = [
+  { value: 'en', label: 'English', voiceLocale: 'en-IN' },
+  { value: 'hi', label: 'हिन्दी', voiceLocale: 'hi-IN' },
+  { value: 'mr', label: 'मराठी', voiceLocale: 'mr-IN' },
+];
+
+const CHAT_LANGUAGE_STORAGE_KEY = 'kamalo-chat-language';
+
+function initialChatLanguage(): ChatLanguage {
+  if (typeof window !== 'undefined') {
+    const saved = window.localStorage.getItem(CHAT_LANGUAGE_STORAGE_KEY);
+    if (saved === 'en' || saved === 'hi' || saved === 'mr') return saved;
+  }
+  const browserLanguage = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
+  return browserLanguage.startsWith('hi') ? 'hi' : browserLanguage.startsWith('mr') ? 'mr' : 'en';
+}
 
 type PendingImage = {
   file: File;
@@ -148,12 +167,12 @@ function StreamingBubble({ content }: { content: string }) {
   );
 }
 
-async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null, inputMode: 'text' | 'voice' = 'text'): Promise<{ content: string; messageId: string | null }> {
+async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null, inputMode: 'text' | 'voice' = 'text', language: ChatLanguage = 'en'): Promise<{ content: string; messageId: string | null }> {
   const response = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+    headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', 'Accept-Language': language },
     credentials: 'include',
-    body: JSON.stringify({ content, attachmentId: attachmentId || undefined, inputMode }),
+    body: JSON.stringify({ content, attachmentId: attachmentId || undefined, inputMode, language }),
   });
   if (!response.ok) {
     let detail = '';
@@ -246,6 +265,7 @@ export function HomePage() {
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
+  const [preferredLanguage, setPreferredLanguage] = useState<ChatLanguage>(initialChatLanguage);
   const inputModeRef = useRef<'text' | 'voice'>('text');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -264,11 +284,12 @@ export function HomePage() {
   const loadedConversation = conversationQuery.data?.id === selectedId ? conversationQuery.data : null;
   const messages = localMessages ?? loadedConversation?.messages ?? [];
   const conversationLoading = Boolean(selectedId) && (conversationQuery.isLoading || conversationQuery.isFetching || !loadedConversation);
+  const selectedChatLanguage = chatLanguages.find((language) => language.value === preferredLanguage) || chatLanguages[0];
   const speech = useSpeechInput({
     value: input,
     onChange: setInput,
     disabled: isSending,
-    lang: typeof navigator !== 'undefined' ? navigator.language : 'en-US',
+    lang: selectedChatLanguage.voiceLocale,
   });
 
   useEffect(() => {
@@ -276,6 +297,10 @@ export function HomePage() {
       if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
     };
   }, [pendingImage]);
+
+  useEffect(() => {
+    window.localStorage.setItem(CHAT_LANGUAGE_STORAGE_KEY, preferredLanguage);
+  }, [preferredLanguage]);
 
   useEffect(() => {
     const conversationId = new URLSearchParams(window.location.search).get('conversation');
@@ -409,7 +434,7 @@ export function HomePage() {
       const userMessage: ChatMessage = { id: `local-user-${Date.now()}`, conversationId, role: 'user', content: messageContent, createdAt: new Date().toISOString(), feedback: null, attachments: uploadedImage ? [uploadedImage] : [] };
       setLocalMessages((current) => [...(current ?? []), userMessage]);
       setStreamingText('');
-      const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id, mode);
+      const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id, mode, preferredLanguage);
       const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
       setLocalMessages((current) => [...(current ?? []), assistantMessage]);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
@@ -598,14 +623,21 @@ export function HomePage() {
                     <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
-                        <button type="button" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${speech.isListening ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'}`} aria-label={speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />} <span className="hidden sm:inline">{speech.isListening ? 'Stop' : 'Voice'}</span></button>
+                         <label className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary" title={`Voice input and answers: ${selectedChatLanguage.label}`} data-testid="control-chat-language">
+                           <HiOutlineLanguage size={14} />
+                           <span className="sr-only">Chat language</span>
+                           <select value={preferredLanguage} onChange={(event) => setPreferredLanguage(event.target.value as ChatLanguage)} disabled={isSending || speech.isListening} className="max-w-[82px] cursor-pointer appearance-none bg-transparent text-[10px] font-semibold text-current outline-none disabled:cursor-not-allowed" aria-label="Chat language">
+                             {chatLanguages.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}
+                           </select>
+                         </label>
+                         <button type="button" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${speech.isListening ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'}`} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />} <span className="hidden sm:inline">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></button>
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
                          <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
                       <button onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button>
                     </div>
                  </div>
-                  {speech.error && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" aria-live="polite" data-testid="status-voice-error">{speech.error}</div>}
+                  {speech.error && <div className={`mt-2 rounded-lg border px-3.5 py-2.5 text-[11px] ${speech.isTranscribing ? 'border-primary/20 bg-primary/5 text-primary' : 'border-destructive/20 bg-destructive/5 text-destructive'}`} role="status" aria-live="polite" data-testid="status-voice-error">{speech.error}</div>}
                   {attachmentError && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" data-testid="status-attachment-error">{attachmentError}</div>}
                  <p className="mt-1 px-2 text-center text-[9px] leading-3.5 text-muted-foreground/65">KAMALO can make mistakes. Check important information before acting.</p>
                </div>

@@ -129,6 +129,7 @@ export function useSpeechInput({
   const recorderHandledRef = useRef(false);
   const baseTextRef = useRef('');
   const retriedNetworkErrorRef = useRef(false);
+  const recordingTimerRef = useRef<number | null>(null);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
@@ -137,6 +138,7 @@ export function useSpeechInput({
   useEffect(() => {
     setIsSupported(getVoiceSupport());
     return () => {
+      if (recordingTimerRef.current !== null) window.clearTimeout(recordingTimerRef.current);
       recognitionRef.current?.abort();
       recorderRef.current?.stop();
       microphoneStreamRef.current?.getTracks().forEach((track) => track.stop());
@@ -147,6 +149,10 @@ export function useSpeechInput({
   }, []);
 
   const stop = useCallback(() => {
+    if (recordingTimerRef.current !== null) {
+      window.clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
     recognitionRef.current?.stop();
     const recorder = recorderRef.current;
     if (!recognitionRef.current && recorder?.state === 'recording') recorder.stop();
@@ -230,6 +236,10 @@ export function useSpeechInput({
       setError(messageForRecognitionError(event.error));
     };
     recognition.onend = () => {
+      if (recordingTimerRef.current !== null) {
+        window.clearTimeout(recordingTimerRef.current);
+        recordingTimerRef.current = null;
+      }
       recognitionRef.current = null;
       if (!localFallbackRef.current) {
         stopRecording(false);
@@ -277,6 +287,10 @@ export function useSpeechInput({
           if (event.data.size > 0) recordedChunksRef.current.push(event.data);
         };
         recorder.onstop = () => {
+          if (recordingTimerRef.current !== null) {
+            window.clearTimeout(recordingTimerRef.current);
+            recordingTimerRef.current = null;
+          }
           const chunks = recordedChunksRef.current;
           recordedChunksRef.current = [];
           recorderRef.current = null;
@@ -297,13 +311,17 @@ export function useSpeechInput({
     }
 
     setStatus('listening');
+    recordingTimerRef.current = window.setTimeout(() => {
+      setError('Voice note reached the 60-second limit. Transcribing it now…');
+      stop();
+    }, 60_000);
     if (SpeechRecognition) beginRecognition();
-  }, [beginRecognition, disabled, startLocalTranscription, value]);
+  }, [beginRecognition, disabled, startLocalTranscription, stop, value]);
 
   const toggle = useCallback(() => {
     if (status === 'listening') stop();
     else start();
   }, [start, status, stop]);
 
-  return { error, isListening: status === 'listening' || isTranscribing, isSupported, start, stop, toggle };
+  return { error, isListening: status === 'listening' || isTranscribing, isTranscribing, isSupported, status, start, stop, toggle };
 }

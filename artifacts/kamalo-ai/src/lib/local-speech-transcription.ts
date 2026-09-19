@@ -12,14 +12,26 @@ type Transcriber = (
 
 let transcriberPromise: Promise<Transcriber> | null = null;
 
-function getTranscriber(): Promise<Transcriber> {
-  if (!transcriberPromise) {
-    env.allowLocalModels = false;
-    env.useBrowserCache = true;
-    transcriberPromise = pipeline('automatic-speech-recognition', 'Xenova/whisper-tiny', {
-      device: 'wasm',
-    }) as unknown as Promise<Transcriber>;
+async function createTranscriber(): Promise<Transcriber> {
+  env.allowLocalModels = false;
+  env.useBrowserCache = true;
+  const hasWebGpu = typeof navigator !== 'undefined' && Boolean((navigator as Navigator & { gpu?: unknown }).gpu);
+  if (hasWebGpu) {
+    try {
+      return await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny', {
+        device: 'webgpu',
+      }) as unknown as Transcriber;
+    } catch (error) {
+      console.debug('[KAMALO voice] WebGPU Whisper unavailable, using WASM fallback.', error);
+    }
   }
+  return await pipeline('automatic-speech-recognition', 'onnx-community/whisper-tiny', {
+    device: 'wasm',
+  }) as unknown as Transcriber;
+}
+
+function getTranscriber(): Promise<Transcriber> {
+  if (!transcriberPromise) transcriberPromise = createTranscriber();
   return transcriberPromise;
 }
 
@@ -49,7 +61,7 @@ export async function transcribeRecordedAudio(blob: Blob, language?: string): Pr
     const result = await transcriber(toMono(audioBuffer), {
       chunk_length_s: 30,
       stride_length_s: 5,
-      language: languageCode === 'en' ? 'en' : undefined,
+      language: languageCode === 'hi' || languageCode === 'mr' || languageCode === 'en' ? languageCode : 'en',
       task: 'transcribe',
     });
     const first = Array.isArray(result) ? result[0] : result;

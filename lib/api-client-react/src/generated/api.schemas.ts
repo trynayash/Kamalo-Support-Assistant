@@ -94,6 +94,14 @@ export const MessageInputInputMode = {
   voice: 'voice',
 } as const;
 
+export type MessageInputLanguage = typeof MessageInputLanguage[keyof typeof MessageInputLanguage];
+
+export const MessageInputLanguage = {
+  en: 'en',
+  hi: 'hi',
+  mr: 'mr',
+} as const;
+
 export interface MessageInput {
   /** @maxLength 4000 */
   content?: string;
@@ -104,6 +112,8 @@ export interface MessageInput {
   attachmentId?: string | null;
   /** Indicates whether the customer typed the message or dictated it. */
   inputMode?: MessageInputInputMode;
+  /** Preferred language for voice recognition and the assistant response. */
+  language?: MessageInputLanguage;
 }
 
 export interface ImageUploadInput {

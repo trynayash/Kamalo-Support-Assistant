@@ -150,8 +150,8 @@ export function condenseAssistantOutput(content: string): string {
  */
 export function keepCompleteAssistantOutput(content: string): string {
   const trimmed = content.trim();
-  if (!trimmed || /[.!?…]$/.test(trimmed)) return trimmed;
+  if (!trimmed || /[.!?।…]$/.test(trimmed)) return trimmed;
 
-  const lastBoundary = Math.max(trimmed.lastIndexOf("."), trimmed.lastIndexOf("!"), trimmed.lastIndexOf("?"));
+  const lastBoundary = Math.max(trimmed.lastIndexOf("."), trimmed.lastIndexOf("!"), trimmed.lastIndexOf("?"), trimmed.lastIndexOf("।"));
   return lastBoundary >= 0 ? trimmed.slice(0, lastBoundary + 1).trim() : "";
 }

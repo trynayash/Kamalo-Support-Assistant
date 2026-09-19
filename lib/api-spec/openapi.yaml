@@ -535,6 +535,11 @@ components:
           enum: [text, voice]
           default: text
           description: Indicates whether the customer typed the message or dictated it.
+         language:
+           type: string
+           enum: [en, hi, mr]
+           default: en
+           description: Preferred language for voice recognition and the assistant response.
     ImageUploadInput:
       type: object
       required: [file]
