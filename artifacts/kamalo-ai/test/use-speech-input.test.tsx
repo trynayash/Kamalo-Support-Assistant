@@ -251,6 +251,59 @@ describe('useSpeechInput', () => {
     view.unmount();
   });
 
+  it('recovers after microphone permission is restored and releases only the successful retry resources', async () => {
+    let permissionGranted = false;
+    const { stream, track } = createStream();
+    const getUserMedia = vi.fn(async () => {
+      if (!permissionGranted) {
+        throw new DOMException('Permission denied', 'NotAllowedError');
+      }
+      return stream;
+    });
+    installBrowserApis({ speechRecognition: true, getUserMedia });
+    const view = renderSpeechInput({ onChange: vi.fn() });
+
+    await act(async () => {
+      await view.speech.start();
+    });
+
+    expect(view.speech.status).toBe('error');
+    expect(FakeSpeechRecognition.instances).toHaveLength(0);
+
+    permissionGranted = true;
+    await act(async () => {
+      await view.speech.start();
+    });
+
+    expect(getUserMedia).toHaveBeenCalledTimes(2);
+    expect(view.speech.status).toBe('listening');
+    expect(FakeSpeechRecognition.instances).toHaveLength(1);
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+
+    view.unmount();
+
+    expect(FakeSpeechRecognition.instances[0].abort).toHaveBeenCalledOnce();
+    expect(FakeMediaRecorder.instances[0].stop).toHaveBeenCalledOnce();
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
+
+  it('refreshes support after browser voice APIs become available again', async () => {
+    installBrowserApis({ audioContext: false });
+    const view = renderSpeechInput({ onChange: vi.fn() });
+    await flushReact();
+
+    expect(view.speech.isSupported).toBe(false);
+
+    installBrowserApis();
+    await act(async () => {
+      await view.speech.refreshSupport();
+    });
+
+    expect(view.speech.isSupported).toBe(true);
+    expect(view.speech.status).toBe('idle');
+    view.unmount();
+  });
+
   it.each(['hi-IN', 'mr-IN'])('passes %s to local transcription during browser fallback', async (lang) => {
     const deferred = new Promise<string>((resolve) => {
       (globalThis as typeof globalThis & { resolveTranscript?: (value: string) => void }).resolveTranscript = resolve;

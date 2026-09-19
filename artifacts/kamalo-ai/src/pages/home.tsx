@@ -347,6 +347,10 @@ export function HomePage() {
   });
 
   useEffect(() => {
+    void speech.refreshSupport();
+  }, [location, speech.refreshSupport]);
+
+  useEffect(() => {
     return () => {
       if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
     };

@@ -85,6 +85,11 @@ function messageForRecognitionError(error: string | undefined): string {
   }
 }
 
+function isMicrophoneAccessError(message: string): boolean {
+  return message.startsWith('Microphone access is blocked')
+    || message.startsWith('No microphone');
+}
+
 async function ensureMicrophoneAccess(): Promise<{ ok: true; stream: MediaStream | null } | { ok: false; error: string }> {
   if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
     // Some browsers expose SpeechRecognition without exposing getUserMedia (e.g. older Safari).
@@ -130,36 +135,112 @@ export function useSpeechInput({
   const baseTextRef = useRef('');
   const retriedNetworkErrorRef = useRef(false);
   const recordingTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
 
-  useEffect(() => {
-    setIsSupported(getVoiceSupport());
-    return () => {
-      if (recordingTimerRef.current !== null) window.clearTimeout(recordingTimerRef.current);
-      recognitionRef.current?.abort();
-      recorderRef.current?.stop();
-      microphoneStreamRef.current?.getTracks().forEach((track) => track.stop());
-      recognitionRef.current = null;
-      recorderRef.current = null;
-      microphoneStreamRef.current = null;
-    };
+  const cleanupVoiceResources = useCallback(() => {
+    if (recordingTimerRef.current !== null) {
+      window.clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.onresult = null;
+      try {
+        recognition.abort();
+      } catch {
+        // The browser can throw if recognition already ended during teardown.
+      }
+    }
+
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state === 'recording') {
+        try {
+          recorder.stop();
+        } catch {
+          // The browser can throw if recording ended during teardown.
+        }
+      }
+    }
+
+    microphoneStreamRef.current?.getTracks().forEach((track) => track.stop());
+    microphoneStreamRef.current = null;
+    recordedChunksRef.current = [];
+    localFallbackRef.current = false;
+    recorderHandledRef.current = true;
   }, []);
+
+  const refreshSupport = useCallback(async () => {
+    const supported = getVoiceSupport();
+    if (!isMountedRef.current) return;
+    setIsSupported(supported);
+    if (!supported) {
+      setStatus((current) => (current === 'listening' ? current : 'unsupported'));
+      return;
+    }
+
+    setStatus((current) => (current === 'unsupported' ? 'idle' : current));
+
+    if (typeof navigator === 'undefined' || !navigator.permissions?.query) return;
+    try {
+      const permission = await navigator.permissions.query({ name: 'microphone' as PermissionName });
+      if (!isMountedRef.current) return;
+      if (permission.state === 'granted' || permission.state === 'prompt') {
+        setError((current) => (isMicrophoneAccessError(current) ? '' : current));
+      }
+    } catch {
+      // Permissions API is optional and can reject for unsupported browsers.
+    }
+  }, []);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    void refreshSupport();
+    const handleFocus = () => {
+      void refreshSupport();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshSupport();
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      isMountedRef.current = false;
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      cleanupVoiceResources();
+    };
+  }, [cleanupVoiceResources, refreshSupport]);
 
   const stop = useCallback(() => {
     if (recordingTimerRef.current !== null) {
       window.clearTimeout(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
-    recognitionRef.current?.stop();
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // Ignore a recognition instance that ended between the stop request and this call.
+    }
     const recorder = recorderRef.current;
-    if (!recognitionRef.current && recorder?.state === 'recording') recorder.stop();
+    if (recorder?.state === 'recording') recorder.stop();
   }, []);
 
   const startLocalTranscription = useCallback(async (blob: Blob, baseText: string) => {
+    if (!isMountedRef.current) return;
     if (!blob.size) {
+      if (baseText) onChange(baseText);
       setStatus('error');
       setError(messageForRecognitionError('no-speech'));
       return;
@@ -170,7 +251,9 @@ export function useSpeechInput({
     try {
       const { transcribeRecordedAudio } = await import('@/lib/local-speech-transcription');
       const transcript = await transcribeRecordedAudio(blob, lang);
+      if (!isMountedRef.current) return;
       if (!transcript) {
+        if (baseText) onChange(baseText);
         setStatus('error');
         setError(messageForRecognitionError('no-speech'));
         return;
@@ -179,10 +262,12 @@ export function useSpeechInput({
       setError('');
       setStatus('idle');
     } catch {
+      if (!isMountedRef.current) return;
+      if (baseText) onChange(baseText);
       setStatus('error');
       setError('Local voice transcription could not finish. Please try Voice again or type your question.');
     } finally {
-      setIsTranscribing(false);
+      if (isMountedRef.current) setIsTranscribing(false);
     }
   }, [lang, onChange]);
 
@@ -206,6 +291,7 @@ export function useSpeechInput({
   }, []);
 
   const beginRecognition = useCallback(() => {
+    if (!isMountedRef.current) return;
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition) return;
     recognitionRef.current?.abort();
@@ -232,6 +318,9 @@ export function useSpeechInput({
         stopRecording(true);
         return;
       }
+      if (event.error === 'not-allowed' || event.error === 'permission-denied' || event.error === 'audio-capture') {
+        cleanupVoiceResources();
+      }
       setStatus('error');
       setError(messageForRecognitionError(event.error));
     };
@@ -251,25 +340,34 @@ export function useSpeechInput({
     try {
       recognition.start();
     } catch {
-      recognitionRef.current = null;
+      cleanupVoiceResources();
       setStatus('error');
       setError('Voice input could not start. Please try again.');
     }
-  }, [lang, onChange, stopRecording, value]);
+  }, [cleanupVoiceResources, lang, onChange, stopRecording, value]);
 
   const start = useCallback(async () => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (!isMountedRef.current) return;
     if (disabled || !getVoiceSupport()) {
       setStatus('unsupported');
       setError('Voice input is not supported in this browser. Try Chrome, Edge, or the KAMALO mobile app.');
       return;
     }
+    if (recognitionRef.current || recorderRef.current || microphoneStreamRef.current) {
+      cleanupVoiceResources();
+    }
     setError('');
     retriedNetworkErrorRef.current = false;
     const access = await ensureMicrophoneAccess();
+    if (!isMountedRef.current) return;
     if (!access.ok) {
       setStatus('error');
       setError(messageForRecognitionError(access.error));
+      return;
+    }
+    if (!isMountedRef.current) {
+      access.stream?.getTracks().forEach((track) => track.stop());
       return;
     }
     baseTextRef.current = value.trim();
@@ -297,7 +395,7 @@ export function useSpeechInput({
           access.stream?.getTracks().forEach((track) => track.stop());
           microphoneStreamRef.current = null;
           recorderHandledRef.current = true;
-          if (localFallbackRef.current) {
+          if (localFallbackRef.current && isMountedRef.current) {
             void startLocalTranscription(new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' }), baseTextRef.current);
           }
         };
@@ -310,18 +408,22 @@ export function useSpeechInput({
       }
     }
 
+    if (!isMountedRef.current) {
+      cleanupVoiceResources();
+      return;
+    }
     setStatus('listening');
     recordingTimerRef.current = window.setTimeout(() => {
       setError('Voice note reached the 60-second limit. Transcribing it now…');
       stop();
     }, 60_000);
     if (SpeechRecognition) beginRecognition();
-  }, [beginRecognition, disabled, startLocalTranscription, stop, value]);
+  }, [beginRecognition, cleanupVoiceResources, disabled, startLocalTranscription, stop, value]);
 
   const toggle = useCallback(() => {
     if (status === 'listening') stop();
     else start();
   }, [start, status, stop]);
 
-  return { error, isListening: status === 'listening' || isTranscribing, isTranscribing, isSupported, status, start, stop, toggle };
+  return { error, isListening: status === 'listening' || isTranscribing, isTranscribing, isSupported, refreshSupport, status, start, stop, toggle };
 }
