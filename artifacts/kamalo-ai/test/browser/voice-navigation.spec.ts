@@ -98,6 +98,51 @@ async function installVoiceObserver(page: Page, disableSpeechRecognition: boolea
   }, { disableSpeechRecognition });
 }
 
+async function installFailingLocalRecorder(page: Page) {
+  await page.addInitScript(() => {
+    const track = {
+      readyState: 'live',
+      stop() {
+        this.readyState = 'ended';
+      },
+    };
+    const stream = { getTracks: () => [track] };
+
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: async () => stream,
+      },
+    });
+
+    class FailingMediaRecorder {
+      static isTypeSupported() {
+        return true;
+      }
+
+      state = 'inactive';
+      mimeType = 'audio/webm';
+      ondataavailable: ((event: { data: Blob }) => void) | null = null;
+      onstop: (() => void) | null = null;
+
+      start() {
+        this.state = 'recording';
+      }
+
+      stop() {
+        this.state = 'inactive';
+        this.ondataavailable?.({ data: new Blob(['not an audio file'], { type: 'audio/webm' }) });
+        this.onstop?.();
+      }
+    }
+
+    Object.defineProperty(window, 'MediaRecorder', {
+      configurable: true,
+      value: FailingMediaRecorder,
+    });
+  });
+}
+
 async function stubConversationList(page: Page) {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
@@ -129,6 +174,83 @@ async function startVoiceAndNavigateAway(page: Page) {
     .flatMap((stream) => stream.getTracks())
     .filter((track) => track.readyState === 'live').length || 0)).toBe(0);
 }
+
+test('preserves a failed voice draft for editing and sends the edited content', async ({ page }) => {
+  await installVoiceObserver(page, true);
+  await installFailingLocalRecorder(page);
+
+  let messageRequestBody: Record<string, unknown> | undefined;
+  await page.route('**/api/**', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+
+    if (request.method() === 'GET' && url.pathname === '/api/conversations') {
+      await route.fulfill({ contentType: 'application/json', body: '[]' });
+      return;
+    }
+    if (request.method() === 'POST' && url.pathname === '/api/conversations') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'voice-edit-conversation',
+          title: 'Original voice draft',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }),
+      });
+      return;
+    }
+    if (request.method() === 'POST' && url.pathname === '/api/conversations/voice-edit-conversation/messages') {
+      messageRequestBody = request.postDataJSON() as Record<string, unknown>;
+      await route.fulfill({
+        contentType: 'text/event-stream',
+        body: [
+          'data: {"content":"Edited response"}',
+          '',
+          'data: {"done":true,"messageId":"voice-edit-assistant","finalContent":"Edited response"}',
+          '',
+        ].join('\n'),
+      });
+      return;
+    }
+    if (request.method() === 'GET' && url.pathname === '/api/conversations/voice-edit-conversation') {
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'voice-edit-conversation',
+          title: 'Edited voice draft',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          messages: [],
+        }),
+      });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.goto('/');
+  const composer = page.getByTestId('input-chat-message');
+  const voiceButton = page.getByTestId('button-voice-input');
+  await expect(composer).toBeVisible();
+  await composer.fill('Original voice draft');
+
+  await voiceButton.click();
+  await expect(voiceButton).toHaveAttribute('aria-label', 'Stop voice input');
+  await voiceButton.click();
+
+  await expect(page.getByTestId('status-voice-error')).toContainText('Local voice transcription could not finish');
+  await expect(composer).toHaveValue('Original voice draft');
+
+  await composer.fill('Edited voice draft');
+  await page.getByTestId('button-send-message').click();
+  await expect.poll(() => messageRequestBody).toEqual({
+    content: 'Edited voice draft',
+    inputMode: 'voice',
+    language: 'en',
+  });
+  await expect(page.getByTestId('conversation-messages')).toContainText('Edited voice draft');
+});
 
 test('stops the real browser recognition microphone when navigating away from chat', async ({ page }) => {
   await installVoiceObserver(page, false);
