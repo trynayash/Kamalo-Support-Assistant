@@ -18,6 +18,7 @@ import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feed
 import { useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
 import { useSpeechInput } from '@/hooks/use-speech-input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
@@ -36,6 +37,12 @@ const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: st
   { value: 'mr', label: 'मराठी', voiceLocale: 'mr-IN' },
 ];
 
+const chatLanguageDescriptions: Record<ChatLanguage, string> = {
+  en: 'Listen and reply in English',
+  hi: 'सुनें और हिन्दी में जवाब दें',
+  mr: 'ऐका आणि मराठीत उत्तर द्या',
+};
+
 const CHAT_LANGUAGE_STORAGE_KEY = 'kamalo-chat-language';
 
 function initialChatLanguage(): ChatLanguage {
@@ -45,6 +52,53 @@ function initialChatLanguage(): ChatLanguage {
   }
   const browserLanguage = typeof navigator !== 'undefined' ? navigator.language.toLowerCase() : '';
   return browserLanguage.startsWith('hi') ? 'hi' : browserLanguage.startsWith('mr') ? 'mr' : 'en';
+}
+
+function ChatLanguageSelect({
+  value,
+  selectedLabel,
+  onChange,
+  disabled,
+}: {
+  value: ChatLanguage;
+  selectedLabel: string;
+  onChange: (value: ChatLanguage) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <Select value={value} onValueChange={(nextValue) => onChange(nextValue as ChatLanguage)} disabled={disabled}>
+      <SelectTrigger
+        className="chat-language-trigger h-9 w-[6.8rem] gap-1.5 rounded-xl border-border/80 bg-background/80 px-2.5 text-[10px] font-semibold text-foreground shadow-none transition-[border-color,box-shadow,background-color] hover:border-primary/40 hover:bg-card focus:ring-4 focus:ring-primary/10 sm:w-[7.2rem]"
+        aria-label="Chat language"
+        data-testid="control-chat-language"
+      >
+        <HiOutlineLanguage size={14} className="shrink-0 text-primary" />
+        <SelectValue aria-label={selectedLabel}>{selectedLabel}</SelectValue>
+      </SelectTrigger>
+      <SelectContent
+        align="start"
+        sideOffset={8}
+        className="chat-language-content w-[14rem] rounded-2xl border-border/80 bg-popover/95 p-1.5 shadow-[0_18px_55px_hsl(var(--foreground)/.16)] backdrop-blur-xl"
+      >
+        <div className="px-2.5 pb-1.5 pt-1">
+          <div className="font-mono text-[9px] uppercase tracking-[.16em] text-muted-foreground">Response language</div>
+          <div className="mt-1 text-[11px] text-muted-foreground">Choose how KAMALO listens and replies.</div>
+        </div>
+        {chatLanguages.map((language) => (
+          <SelectItem
+            key={language.value}
+            value={language.value}
+            className="min-h-12 rounded-xl py-2 pl-3 pr-9 transition-colors data-[highlighted]:bg-primary/10 data-[highlighted]:text-foreground"
+          >
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-[11px] font-bold">{language.label}</span>
+              <span className="text-[9px] font-normal text-muted-foreground">{chatLanguageDescriptions[language.value]}</span>
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 type PendingImage = {
@@ -596,9 +650,9 @@ export function HomePage() {
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
             {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
-            {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+             {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/90 px-3 pt-2 backdrop-blur-xl sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[980px]">
-                 <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
+                  <div className="chat-composer-card relative rounded-2xl border border-border/90 bg-card/90 p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10">
                     {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
                       <img src={pendingImage.previewUrl} alt={`Preview of ${pendingImage.file.name}`} className="h-12 w-12 shrink-0 rounded-md object-cover" />
                        <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{pendingImage.file.name}</div><div className="mt-0.5 text-[9px] leading-4 text-muted-foreground">Stored with this conversation; the current text provider does not interpret image contents.</div></div>
@@ -617,22 +671,16 @@ export function HomePage() {
                       placeholder="Ask about KAMALO..."
                       rows={1}
                       maxLength={4000}
-                       className="h-11 max-h-24 min-h-11 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70"
+                        className="chat-textarea h-12 max-h-28 min-h-12 w-full resize-none overflow-y-auto bg-transparent px-3 py-2.5 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/65"
                       data-testid="input-chat-message"
                     />
                     <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
                       <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
-                         <label className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-border px-2 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary" title={`Voice input and answers: ${selectedChatLanguage.label}`} data-testid="control-chat-language">
-                           <HiOutlineLanguage size={14} />
-                           <span className="sr-only">Chat language</span>
-                           <select value={preferredLanguage} onChange={(event) => setPreferredLanguage(event.target.value as ChatLanguage)} disabled={isSending || speech.isListening} className="max-w-[82px] cursor-pointer appearance-none bg-transparent text-[10px] font-semibold text-current outline-none disabled:cursor-not-allowed" aria-label="Chat language">
-                             {chatLanguages.map((language) => <option key={language.value} value={language.value}>{language.label}</option>)}
-                           </select>
-                         </label>
+                          <ChatLanguageSelect value={preferredLanguage} selectedLabel={selectedChatLanguage.label} onChange={setPreferredLanguage} disabled={isSending || speech.isListening} />
                          <button type="button" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-2 text-[10px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${speech.isListening ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'}`} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />} <span className="hidden sm:inline">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></button>
                         <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
-                         <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
+                          <span id="attachment-help" className="hidden truncate text-[9px] text-muted-foreground/70 sm:inline">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
                       <button onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button>
                     </div>
