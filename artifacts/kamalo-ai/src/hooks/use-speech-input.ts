@@ -202,6 +202,7 @@ export function useSpeechInput({
   const startLocalTranscription = useCallback(async (blob: Blob, baseText: string) => {
     if (!isMountedRef.current) return;
     if (!blob.size) {
+      if (baseText) onChange(baseText);
       setStatus('error');
       setError(messageForRecognitionError('no-speech'));
       return;
@@ -214,6 +215,7 @@ export function useSpeechInput({
       const transcript = await transcribeRecordedAudio(blob, lang);
       if (!isMountedRef.current) return;
       if (!transcript) {
+        if (baseText) onChange(baseText);
         setStatus('error');
         setError(messageForRecognitionError('no-speech'));
         return;
@@ -223,6 +225,7 @@ export function useSpeechInput({
       setStatus('idle');
     } catch {
       if (!isMountedRef.current) return;
+      if (baseText) onChange(baseText);
       setStatus('error');
       setError('Local voice transcription could not finish. Please try Voice again or type your question.');
     } finally {

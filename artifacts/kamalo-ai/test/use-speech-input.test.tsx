@@ -312,7 +312,33 @@ describe('useSpeechInput', () => {
     view.unmount();
   });
 
-  it('reports empty recordings and transcription failures', async () => {
+  it('preserves the pre-voice draft when local transcription fails', async () => {
+    const onChange = vi.fn();
+    installBrowserApis({ speechRecognition: true });
+    const view = renderSpeechInput({ initialValue: 'Existing question', onChange });
+    const transcriptionFailure = new Error('model unavailable');
+    vi.mocked(transcribeRecordedAudio).mockRejectedValueOnce(transcriptionFailure);
+
+    await act(async () => {
+      await view.speech.start();
+    });
+    const recognition = FakeSpeechRecognition.instances[0];
+    act(() => {
+      recognition.onresult?.({
+        resultIndex: 0,
+        results: [{ isFinal: false, 0: { transcript: 'partial voice text' } }],
+      });
+      recognition.onerror?.({ error: 'network' });
+    });
+    await flushReact();
+
+    expect(onChange).toHaveBeenLastCalledWith('Existing question');
+    expect(view.speech.status).toBe('error');
+    expect(view.speech.error).toContain('Local voice transcription could not finish');
+    view.unmount();
+  });
+
+  it('reports empty recordings and transcription failures without a draft', async () => {
     installBrowserApis();
     const view = renderSpeechInput({ onChange: vi.fn() });
     FakeMediaRecorder.nextBlob = new Blob([]);
