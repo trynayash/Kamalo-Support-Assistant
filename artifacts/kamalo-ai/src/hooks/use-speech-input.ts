@@ -135,11 +135,18 @@ export function useSpeechInput({
   const baseTextRef = useRef('');
   const retriedNetworkErrorRef = useRef(false);
   const recordingTimerRef = useRef<number | null>(null);
+  const retryableRecordingRef = useRef<{ blob: Blob; baseText: string } | null>(null);
   const isMountedRef = useRef(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
+  const [hasRetryableRecording, setHasRetryableRecording] = useState(false);
+
+  const clearRetryableRecording = useCallback((updateState = true) => {
+    retryableRecordingRef.current = null;
+    if (updateState) setHasRetryableRecording(false);
+  }, []);
 
   const cleanupVoiceResources = useCallback(() => {
     if (recordingTimerRef.current !== null) {
@@ -220,8 +227,9 @@ export function useSpeechInput({
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       cleanupVoiceResources();
+      clearRetryableRecording(false);
     };
-  }, [cleanupVoiceResources, refreshSupport]);
+  }, [cleanupVoiceResources, clearRetryableRecording, refreshSupport]);
 
   const stop = useCallback(() => {
     if (recordingTimerRef.current !== null) {
@@ -240,11 +248,14 @@ export function useSpeechInput({
   const startLocalTranscription = useCallback(async (blob: Blob, baseText: string) => {
     if (!isMountedRef.current) return;
     if (!blob.size) {
+      clearRetryableRecording();
       if (baseText) onChange(baseText);
       setStatus('error');
       setError(messageForRecognitionError('no-speech'));
       return;
     }
+    retryableRecordingRef.current = { blob, baseText };
+    setHasRetryableRecording(true);
     setIsTranscribing(true);
     setStatus('listening');
     setError('Transcribing locally…');
@@ -259,17 +270,28 @@ export function useSpeechInput({
         return;
       }
       onChange(joinTranscript(baseText, transcript));
+      clearRetryableRecording();
       setError('');
       setStatus('idle');
     } catch {
       if (!isMountedRef.current) return;
       if (baseText) onChange(baseText);
       setStatus('error');
-      setError('Local voice transcription could not finish. Please try Voice again or type your question.');
+      setError('Local voice transcription could not finish. Retry voice or type your question.');
     } finally {
       if (isMountedRef.current) setIsTranscribing(false);
     }
-  }, [lang, onChange]);
+  }, [clearRetryableRecording, lang, onChange]);
+
+  const retryTranscription = useCallback(() => {
+    const recording = retryableRecordingRef.current;
+    if (!recording || isTranscribing || !isMountedRef.current) return;
+    void startLocalTranscription(recording.blob, recording.baseText);
+  }, [isTranscribing, startLocalTranscription]);
+
+  const dismissRetryableRecording = useCallback(() => {
+    clearRetryableRecording();
+  }, [clearRetryableRecording]);
 
   const stopRecording = useCallback((shouldTranscribe: boolean) => {
     localFallbackRef.current = shouldTranscribe;
@@ -302,6 +324,7 @@ export function useSpeechInput({
     recognition.interimResults = true;
     recognition.onresult = (event) => {
       retriedNetworkErrorRef.current = false;
+      clearRetryableRecording();
       let transcript = '';
       for (let index = event.resultIndex; index < event.results.length; index += 1) {
         transcript += event.results[index]?.[0]?.transcript || '';
@@ -344,7 +367,7 @@ export function useSpeechInput({
       setStatus('error');
       setError('Voice input could not start. Please try again.');
     }
-  }, [cleanupVoiceResources, lang, onChange, stopRecording, value]);
+  }, [cleanupVoiceResources, clearRetryableRecording, lang, onChange, stopRecording, value]);
 
   const start = useCallback(async () => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
@@ -425,5 +448,18 @@ export function useSpeechInput({
     else start();
   }, [start, status, stop]);
 
-  return { error, isListening: status === 'listening' || isTranscribing, isTranscribing, isSupported, refreshSupport, status, start, stop, toggle };
+  return {
+    error,
+    hasRetryableRecording,
+    isListening: status === 'listening' || isTranscribing,
+    isTranscribing,
+    isSupported,
+    refreshSupport,
+    retryTranscription,
+    dismissRetryableRecording,
+    status,
+    start,
+    stop,
+    toggle,
+  };
 }

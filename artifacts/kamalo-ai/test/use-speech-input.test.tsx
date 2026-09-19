@@ -388,6 +388,57 @@ describe('useSpeechInput', () => {
     expect(onChange).toHaveBeenLastCalledWith('Existing question');
     expect(view.speech.status).toBe('error');
     expect(view.speech.error).toContain('Local voice transcription could not finish');
+    expect(view.speech.hasRetryableRecording).toBe(true);
+    view.unmount();
+  });
+
+  it('retries the failed recording through local transcription without recording again', async () => {
+    const onChange = vi.fn();
+    installBrowserApis();
+    const view = renderSpeechInput({ initialValue: 'Existing question', onChange });
+    vi.mocked(transcribeRecordedAudio)
+      .mockRejectedValueOnce(new Error('model unavailable'))
+      .mockResolvedValueOnce('recorded answer');
+
+    await act(async () => {
+      await view.speech.start();
+    });
+    act(() => view.speech.stop());
+    await flushReact();
+
+    expect(view.speech.hasRetryableRecording).toBe(true);
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+
+    act(() => view.speech.retryTranscription());
+    await flushReact();
+
+    expect(transcribeRecordedAudio).toHaveBeenCalledTimes(2);
+    expect(transcribeRecordedAudio.mock.calls[1][0]).toBe(transcribeRecordedAudio.mock.calls[0][0]);
+    expect(FakeMediaRecorder.instances).toHaveLength(1);
+    expect(onChange).toHaveBeenLastCalledWith('Existing question recorded answer');
+    expect(view.speech.hasRetryableRecording).toBe(false);
+    expect(view.speech.status).toBe('idle');
+    view.unmount();
+  });
+
+  it('dismisses a failed recording and does not retry it', async () => {
+    installBrowserApis();
+    const view = renderSpeechInput({ onChange: vi.fn() });
+    vi.mocked(transcribeRecordedAudio).mockRejectedValueOnce(new Error('model unavailable'));
+
+    await act(async () => {
+      await view.speech.start();
+    });
+    act(() => view.speech.stop());
+    await flushReact();
+
+    expect(view.speech.hasRetryableRecording).toBe(true);
+    act(() => view.speech.dismissRetryableRecording());
+
+    expect(view.speech.hasRetryableRecording).toBe(false);
+    act(() => view.speech.retryTranscription());
+    await flushReact();
+    expect(transcribeRecordedAudio).toHaveBeenCalledTimes(1);
     view.unmount();
   });
 
