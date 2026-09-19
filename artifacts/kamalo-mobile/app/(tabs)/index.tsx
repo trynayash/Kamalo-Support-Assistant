@@ -26,6 +26,14 @@ import { NavigationMenu } from '@/components/NavigationMenu';
 import { FeedbackOverlay } from '@/components/FeedbackOverlay';
 
 let messageCounter = 0;
+type ChatLanguage = 'en' | 'hi' | 'mr';
+
+const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: string }> = [
+  { value: 'en', label: 'English', voiceLocale: 'en-IN' },
+  { value: 'hi', label: 'हिन्दी', voiceLocale: 'hi-IN' },
+  { value: 'mr', label: 'मराठी', voiceLocale: 'mr-IN' },
+];
+
 function localMessage(role: ChatMessage['role'], content: string, conversationId: string, attachment?: ChatMessage['attachments']): ChatMessage {
   messageCounter += 1;
   return { id: `mobile-${Date.now()}-${messageCounter}`, conversationId, role, content, createdAt: new Date().toISOString(), attachments: attachment ?? [] };
@@ -59,6 +67,7 @@ export default function ChatScreen() {
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [selectedLanguage, setSelectedLanguage] = useState<ChatLanguage>('en');
   const voiceInputMode = useRef<'text' | 'voice'>('text');
   const voiceBaseDraft = useRef('');
   const [ticketToast, setTicketToast] = useState<{ title: string; message: string } | null>(null);
@@ -156,7 +165,7 @@ export default function ChatScreen() {
       voiceBaseDraft.current = draft.trim();
       voiceInputMode.current = 'voice';
       ExpoSpeechRecognitionModule.start({
-        lang: 'en-IN',
+        lang: chatLanguages.find((language) => language.value === selectedLanguage)?.voiceLocale || 'en-IN',
         interimResults: true,
         continuous: false,
         contextualStrings: ['KAMALO', 'Coins', 'Silver', 'Gold', 'FINCADO', 'Guru'],
@@ -218,7 +227,7 @@ export default function ChatScreen() {
         } else {
           setMessages((previous) => previous.map((message, index) => index === previous.length - 1 ? { ...message, content: answer } : message));
         }
-      }, voiceInputMode.current);
+      }, voiceInputMode.current, selectedLanguage);
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(activeId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch (error) {
@@ -325,6 +334,24 @@ export default function ChatScreen() {
           {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
           {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
           {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><Feather name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
+          <View style={[styles.languageSelector, { backgroundColor: colors.secondary, borderColor: colors.border }]} accessibilityRole="radiogroup" accessibilityLabel="Chat language">
+            {chatLanguages.map((language) => {
+              const selected = selectedLanguage === language.value;
+              return (
+                <Pressable
+                  key={language.value}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected, disabled: isStreaming || isListening }}
+                  accessibilityLabel={`Use ${language.label} for voice input and answers`}
+                  disabled={isStreaming || isListening}
+                  onPress={() => setSelectedLanguage(language.value)}
+                  style={({ pressed }) => [styles.languageOption, selected && { backgroundColor: colors.card }, { opacity: isStreaming || isListening ? 0.48 : pressed ? 0.68 : 1 }]}
+                >
+                  <Text style={[styles.languageOptionText, { color: selected ? colors.primary : colors.mutedForeground }]}>{language.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
             <TextInput
@@ -411,6 +438,9 @@ const styles = StyleSheet.create({
   composerInput: { flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 9, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
   send: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   composerNote: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 2 },
+  languageSelector: { flexDirection: 'row', alignSelf: 'stretch', borderWidth: 1, borderRadius: 9, padding: 3, marginBottom: 7 },
+  languageOption: { flex: 1, alignItems: 'center', borderRadius: 7, paddingVertical: 6 },
+  languageOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   attachmentPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: 8, paddingLeft: 10, marginBottom: 7, maxWidth: '92%' },
   attachmentText: { fontFamily: 'Inter_500Medium', fontSize: 12, marginLeft: 6, maxWidth: 180 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },

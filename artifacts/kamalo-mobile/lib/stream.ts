@@ -29,13 +29,14 @@ export async function streamConversationMessage(
   attachmentId: string | null,
   onChunk: (chunk: string) => void,
   inputMode: 'text' | 'voice' = 'text',
+  language: 'en' | 'hi' | 'mr' = 'en',
 ) {
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/api/conversations/${conversationId}/messages`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
-      body: JSON.stringify({ content, attachmentId, inputMode }),
+      body: JSON.stringify({ content, attachmentId, inputMode, language }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message.toLowerCase() : '';
