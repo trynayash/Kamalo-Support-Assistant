@@ -49,3 +49,6 @@ Thumbs.db
 
 # KAMALO server-controlled attachment storage
 /artifacts/api-server/data/
+
+# Playwright browser test artifacts
+/artifacts/kamalo-ai/test-results/
