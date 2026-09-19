@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Image, Keyboard, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Keyboard, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -71,6 +71,7 @@ export default function ChatScreen() {
   const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<ChatLanguage>('en');
+  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const voiceInputMode = useRef<'text' | 'voice'>('text');
   const voiceBaseDraft = useRef('');
   const [ticketToast, setTicketToast] = useState<{ title: string; message: string } | null>(null);
@@ -319,7 +320,7 @@ export default function ChatScreen() {
             scrollEnabled={false}
             style={styles.listViewport}
             ListEmptyComponent={
-              <EmptyState icon="message-square" title="How can I help you today?" body="Ask by voice or text. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
+              <EmptyState icon="message-square" title="How can I help you today?" body="Ask a question. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
             }
             contentContainerStyle={styles.emptyList}
           />
@@ -342,24 +343,25 @@ export default function ChatScreen() {
           {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
           {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
           {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><Feather name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
-          <View style={[styles.languageSelector, { backgroundColor: colors.secondary, borderColor: colors.border }]} accessibilityRole="radiogroup" accessibilityLabel="Chat language">
-            {chatLanguages.map((language) => {
-              const selected = selectedLanguage === language.value;
-              return (
-                <Pressable
-                  key={language.value}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected, disabled: isStreaming || isListening }}
-                  accessibilityLabel={`Use ${language.label} for voice input and answers`}
-                  disabled={isStreaming || isListening}
-                  onPress={() => setSelectedLanguage(language.value)}
-                  style={({ pressed }) => [styles.languageOption, selected && { backgroundColor: colors.card }, { opacity: isStreaming || isListening ? 0.48 : pressed ? 0.68 : 1 }]}
-                >
-                  <Text style={[styles.languageOptionText, { color: selected ? colors.primary : colors.mutedForeground }]}>{language.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <Pressable
+            testID="language-picker"
+            accessibilityRole="button"
+            accessibilityLabel={`Chat language: ${chatLanguages.find((language) => language.value === selectedLanguage)?.label ?? 'English'}`}
+            accessibilityHint="Opens the language menu"
+            accessibilityState={{ expanded: languageMenuOpen, disabled: isStreaming || isListening }}
+            disabled={isStreaming || isListening}
+            onPress={() => setLanguageMenuOpen(true)}
+            style={({ pressed }) => [
+              styles.languagePicker,
+              { backgroundColor: colors.secondary, borderColor: colors.border, opacity: isStreaming || isListening ? 0.48 : pressed ? 0.72 : 1 },
+            ]}
+          >
+            <Feather name="globe" size={15} color={colors.primary} />
+            <Text style={[styles.languagePickerText, { color: colors.foreground }]}>
+              {chatLanguages.find((language) => language.value === selectedLanguage)?.label ?? 'English'}
+            </Text>
+            <Feather name="chevron-down" size={15} color={colors.mutedForeground} />
+          </Pressable>
           <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
             <TextInput
@@ -381,6 +383,76 @@ export default function ChatScreen() {
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>
         </View>
       </KeyboardAvoidingView>
+      <Modal
+        visible={languageMenuOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLanguageMenuOpen(false)}
+      >
+        <View style={styles.languageModalRoot}>
+          <Pressable
+            accessibilityLabel="Close language menu"
+            onPress={() => setLanguageMenuOpen(false)}
+            style={styles.languageBackdrop}
+          />
+          <View
+            style={[
+              styles.languageMenu,
+              {
+                backgroundColor: colors.card,
+                borderColor: colors.border,
+                paddingBottom: insets.bottom + 14,
+              },
+            ]}
+          >
+            <View style={styles.languageMenuHeader}>
+              <View>
+                <Text style={[styles.languageMenuEyebrow, { color: colors.primary }]}>LANGUAGE</Text>
+                <Text style={[styles.languageMenuTitle, { color: colors.foreground }]}>Choose a language</Text>
+              </View>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close language menu"
+                onPress={() => setLanguageMenuOpen(false)}
+                hitSlop={10}
+                style={({ pressed }) => ({ opacity: pressed ? 0.58 : 1 })}
+              >
+                <Feather name="x" size={21} color={colors.foreground} />
+              </Pressable>
+            </View>
+            <View style={styles.languageMenuOptions}>
+              {chatLanguages.map((language) => {
+                const selected = selectedLanguage === language.value;
+                return (
+                  <Pressable
+                    key={language.value}
+                    testID={`language-option-${language.value}`}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected }}
+                    accessibilityLabel={`Use ${language.label}`}
+                    onPress={() => {
+                      setSelectedLanguage(language.value);
+                      setLanguageMenuOpen(false);
+                    }}
+                    style={({ pressed }) => [
+                      styles.languageMenuOption,
+                      {
+                        backgroundColor: selected ? colors.secondary : 'transparent',
+                        opacity: pressed ? 0.68 : 1,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.languageMenuOptionText, { color: selected ? colors.primary : colors.foreground }]}>
+                      {language.label}
+                    </Text>
+                    {selected ? <Feather name="check" size={18} color={colors.primary} /> : null}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        </View>
+      </Modal>
       <FeedbackOverlay
         visible={Boolean(activeFeedback)}
         rating={activeFeedback?.rating ?? 'helpful'}
@@ -446,9 +518,17 @@ const styles = StyleSheet.create({
   composerInput: { flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 9, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
   send: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
   composerNote: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 2 },
-  languageSelector: { flexDirection: 'row', alignSelf: 'stretch', borderWidth: 1, borderRadius: 9, padding: 3, marginBottom: 7 },
-  languageOption: { flex: 1, alignItems: 'center', borderRadius: 7, paddingVertical: 6 },
-  languageOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  languagePicker: { alignSelf: 'flex-start', minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 17, paddingHorizontal: 12, marginBottom: 7 },
+  languagePickerText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
+  languageModalRoot: { flex: 1, justifyContent: 'flex-end' },
+  languageBackdrop: { flex: 1, backgroundColor: 'rgba(21, 35, 33, 0.38)' },
+  languageMenu: { borderTopWidth: 1, borderTopLeftRadius: 22, borderTopRightRadius: 22, paddingHorizontal: 18, paddingTop: 18 },
+  languageMenuHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+  languageMenuEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 10, letterSpacing: 1.4 },
+  languageMenuTitle: { fontFamily: 'Inter_700Bold', fontSize: 22, letterSpacing: -0.4, marginTop: 5 },
+  languageMenuOptions: { gap: 7, marginTop: 20 },
+  languageMenuOption: { minHeight: 50, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14 },
+  languageMenuOptionText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   attachmentPill: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', borderRadius: 8, paddingLeft: 10, marginBottom: 7, maxWidth: '92%' },
   attachmentText: { fontFamily: 'Inter_500Medium', fontSize: 12, marginLeft: 6, maxWidth: 180 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
