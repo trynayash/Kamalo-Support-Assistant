@@ -16,47 +16,12 @@ import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
 import { condenseAssistantOutput, containsProviderDrafting, hasPossibleSensitiveTail, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
-import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage, type SupportedResponseLanguage } from "../lib/orchestrator";
+import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
 
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
-const localizedResponses: Record<SupportedResponseLanguage, { greeting: string; fallback: string; image: string; error: string }> = {
-  en: {
-    greeting: "Hi! I'm KAMALO AI. How can I help you understand KAMALO?",
-    fallback: STAGE_ONE_FALLBACK,
-    image: IMAGE_NOT_SUPPORTED_RESPONSE,
-    error: "I’m having trouble responding right now. Please try again.",
-  },
-  hi: {
-    greeting: "नमस्ते! मैं KAMALO AI हूँ। मैं KAMALO को समझने में आपकी कैसे मदद कर सकता हूँ?",
-    fallback: "KAMALO की उपलब्ध जानकारी में मुझे इसकी पुष्टि की हुई जानकारी नहीं मिली।",
-    image: "इमेज आपके संदेश के साथ सेव हो गई है, लेकिन यह चैट अभी इमेज की सामग्री समझ नहीं सकती।",
-    error: "अभी जवाब देने में समस्या आ रही है। कृपया फिर से कोशिश करें।",
-  },
-  mr: {
-    greeting: "नमस्कार! मी KAMALO AI आहे. KAMALO समजून घेण्यासाठी मी तुमची कशी मदत करू?",
-    fallback: "KAMALO च्या उपलब्ध माहितीत याची पुष्टी केलेली माहिती मला मिळाली नाही.",
-    image: "इमेज तुमच्या संदेशासोबत सेव्ह झाली आहे, पण ही चॅट सध्या इमेजमधील मजकूर समजू शकत नाही.",
-    error: "आत्ता उत्तर देताना अडचण येत आहे. कृपया पुन्हा प्रयत्न करा.",
-  },
-};
-
-function responseLanguage(value: string | undefined): SupportedResponseLanguage {
-  return value === "hi" || value === "mr" ? value : "en";
-}
-
-function numericTokens(value: string): string[] {
-  return [...value.matchAll(/\d+(?:[.,]\d+)?/g)].map((match) => match[0].replace(",", "."));
-}
-
-function introducesUnapprovedNumbers(candidate: string, groundedFact: string | null): boolean {
-  if (!groundedFact) return false;
-  const approvedNumbers = new Set(numericTokens(groundedFact));
-  return numericTokens(candidate).some((number) => !approvedNumbers.has(number));
-}
-
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -319,11 +284,10 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   await db.update(conversationsTable).set({ updatedAt: new Date(), title: (content || storedContent).slice(0, 64) }).where(eq(conversationsTable.id, conversationId));
 
   const supportContext = createSupportRequestContext(req, conversationId);
-  const selectedLanguage = responseLanguage(body.data.language);
   const startedAt = Date.now();
   recordSupportEvent(req.log, { event: "support_request_started", context: supportContext });
   const history = await getConversationHistory(conversationId, userMessageId);
-  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content), history, body.data.inputMode || "text", selectedLanguage);
+  const prepared = await prepareSupportRequest(supportContext, content, Boolean(attachment && !content), history, body.data.inputMode || "text", body.data.language || "en");
   recordSupportEvent(req.log, {
     event: "knowledge_retrieved",
     context: supportContext,
@@ -353,12 +317,10 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   let fullResponse = "";
   let emittedResponse = "";
   const emitResponse = async (candidate: string, flush = false): Promise<boolean> => {
-    const draftFallback = selectedLanguage === "en"
-      ? prepared.groundedFact || localizedResponses[selectedLanguage].error
-      : localizedResponses[selectedLanguage].fallback;
-    const preferredCandidate = containsProviderDrafting(candidate) || introducesUnapprovedNumbers(candidate, prepared.groundedFact)
+    const draftFallback = prepared.groundedFact || SAFE_ASSISTANT_ERROR;
+    const preferredCandidate = containsProviderDrafting(candidate)
       ? draftFallback
-      : selectedLanguage === "en" ? preferGroundedFact(candidate, prepared.groundedFact) : candidate;
+      : preferGroundedFact(candidate, prepared.groundedFact);
     const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(preferredCandidate));
     const safePrefix = !flush && hasPossibleSensitiveTail(candidate)
       ? safeCandidate.slice(0, Math.max(emittedResponse.length, safeCandidate.length - 512))
@@ -375,13 +337,13 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
 
   try {
     if (attachment && !content) {
-      fullResponse = localizedResponses[selectedLanguage].image;
+      fullResponse = IMAGE_NOT_SUPPORTED_RESPONSE;
     } else if (isPromptExtractionAttempt(content)) {
       fullResponse = PROMPT_EXTRACTION_RESPONSE;
     } else if (prepared.decision === "greeting") {
-      fullResponse = localizedResponses[selectedLanguage].greeting;
+      fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
     } else if (prepared.retrieved.length === 0) {
-      fullResponse = localizedResponses[selectedLanguage].fallback;
+      fullResponse = STAGE_ONE_FALLBACK;
     } else {
       for await (const chunk of llmProvider.stream({
         messages: prepared.llmMessages,
@@ -413,21 +375,15 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       providerStatus: error instanceof OpenRouterError ? error.status : null,
       retrievedArticleIds: prepared.retrieved.map((article) => article.id),
     }, "LLM request failed");
-    fullResponse = selectedLanguage === "en"
-      ? prepared.groundedFact || localizedResponses[selectedLanguage].error
-      : localizedResponses[selectedLanguage].fallback;
+    fullResponse = SAFE_ASSISTANT_ERROR;
   }
 
-  const draftFallback = selectedLanguage === "en"
-    ? prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : localizedResponses[selectedLanguage].error)
-    : localizedResponses[selectedLanguage].fallback;
-  const preferredResponse = containsProviderDrafting(fullResponse) || introducesUnapprovedNumbers(fullResponse, prepared.groundedFact)
+  const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
+  const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
-    : selectedLanguage === "en"
-      ? preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact)
-      : fullResponse || localizedResponses[selectedLanguage].error;
+    : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
-  fullResponse = keepCompleteAssistantOutput(condensedResponse) || localizedResponses[selectedLanguage].error;
+  fullResponse = keepCompleteAssistantOutput(condensedResponse) || SAFE_ASSISTANT_ERROR;
    if (!clientClosed) await emitResponse(fullResponse, true);
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
