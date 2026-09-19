@@ -12,10 +12,10 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineTrash, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
-import { Link, useLocation } from 'wouter';
+import { useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
 import { useSpeechInput } from '@/hooks/use-speech-input';
 
@@ -27,8 +27,6 @@ const quickPrompts = [
   { label: 'Transactions', text: 'Where can I see my recent transactions?' },
   { label: 'Auto KAMALO', text: 'What is Auto KAMALO?' },
 ];
-
-const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(value));
 
 type PendingImage = {
   file: File;
@@ -65,10 +63,6 @@ function cleanDisplayedAssistantContent(content: string) {
     .trim();
 }
 
-function ConversationSkeleton() {
-  return <div className="space-y-2 px-1"><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /><div className="skeleton h-14 rounded-lg" /></div>;
-}
-
 function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: string) => void; showQuickPrompts: boolean }) {
   return (
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
@@ -86,37 +80,6 @@ function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: str
           ))}
         </div>}
       </div>
-    </div>
-  );
-}
-
-function ConversationHistory({ conversations, selectedId, loading, error, onSelect, onDelete, limit = 1 }: { conversations: ConversationSummary[]; selectedId: string | null; loading: boolean; error?: boolean; onSelect: (id: string) => void; onDelete: (conversation: ConversationSummary) => void; limit?: number }) {
-  if (!loading && !error && conversations.length === 0) return null;
-  const visibleConversations = conversations.slice(0, limit);
-  return (
-    <div id="conversation-history" className="mt-7" data-testid="panel-conversation-history">
-      <div className="mb-3 flex items-center justify-between px-1">
-        <span className="font-mono text-[10px] uppercase tracking-[.17em] text-muted-foreground">Recent conversations</span>
-        <span className="font-mono text-[10px] text-muted-foreground/70" data-testid="text-conversation-count">{conversations.length}</span>
-      </div>
-       {error ? <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-4 text-center text-[11px] leading-relaxed text-destructive" role="alert" aria-live="assertive" data-testid="status-conversation-history-error">History is temporarily unavailable. Please try again shortly.</div> : loading ? <div role="status" aria-live="polite"><ConversationSkeleton /><span className="sr-only">Loading recent conversations</span></div> : (
-        <div className="space-y-1 pr-1">
-          {visibleConversations.map((conversation) => (
-            <div key={conversation.id} className={`group flex items-center rounded-lg border px-2.5 py-2.5 transition-colors ${selectedId === conversation.id ? 'border-[hsl(var(--primary)/.28)] bg-[hsl(var(--primary)/.09)]' : 'border-transparent hover:border-border hover:bg-card'}`} data-testid={`conversation-item-${conversation.id}`}>
-              <button onClick={() => onSelect(conversation.id)} className="min-w-0 flex-1 text-left" data-testid={`button-select-conversation-${conversation.id}`}>
-                <div className="truncate text-[12px] font-semibold">{conversation.title || 'Untitled conversation'}</div>
-                <div className="mt-1 font-mono text-[9px] text-muted-foreground">{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'} · {compactDate(conversation.updatedAt)}</div>
-              </button>
-              <button onClick={() => onDelete(conversation)} className="ml-1 rounded-md p-1.5 text-muted-foreground opacity-70 transition-opacity hover:bg-destructive/10 hover:text-destructive md:opacity-0 md:group-hover:opacity-100" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-delete-conversation-${conversation.id}`}><HiOutlineTrash size={13} /></button>
-            </div>
-          ))}
-        </div>
-      )}
-      {!loading && !error && conversations.length > limit && (
-        <Link href="/history" className="mt-3 inline-flex w-full items-center justify-center rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary transition-colors hover:border-primary/40 hover:bg-primary/5" data-testid="link-more-history">
-          More history
-        </Link>
-      )}
     </div>
   );
 }
@@ -283,7 +246,6 @@ export function HomePage() {
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
-  const [mobileHistoryOpen, setMobileHistoryOpen] = useState(false);
   const inputModeRef = useRef<'text' | 'voice'>('text');
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -322,7 +284,6 @@ export function HomePage() {
        setConversationMode('readonly');
        setLocalMessages(null);
        setRetryContent(null);
-       setMobileHistoryOpen(false);
     }
   }, [location]);
 
@@ -403,7 +364,6 @@ export function HomePage() {
     setConversationMode('new');
     setLocalMessages(null);
     setRetryContent(null);
-    setMobileHistoryOpen(false);
     setInput('');
     removeImage();
     setStreamingText('');
@@ -411,22 +371,6 @@ export function HomePage() {
     setInactivityResetToken((value) => value + 1);
     setNotice('');
     window.setTimeout(() => inputRef.current?.focus(), 0);
-  };
-
-  const openReadOnlyConversation = (conversationId: string) => {
-    if (conversationId === selectedId && conversationMode === 'active') {
-      setMobileHistoryOpen(false);
-      return;
-    }
-    setSelectedId(conversationId);
-    setConversationMode('readonly');
-    setLocalMessages(null);
-    setRetryContent(null);
-    setMobileHistoryOpen(false);
-    setInput('');
-    removeImage();
-    setInactivityState('active');
-    setStreamingText('');
   };
 
   const sendMessage = async (contentOverride?: string, imageOverride?: PendingImage | null, mode: 'text' | 'voice' = inputModeRef.current) => {
@@ -565,7 +509,6 @@ export function HomePage() {
         setConversationMode('new');
         setLocalMessages(null);
         setRetryContent(null);
-        setMobileHistoryOpen(false);
         setInactivityState('active');
         setNotice('Conversation removed from history.');
         window.setTimeout(() => setNotice(''), 2600);
@@ -585,7 +528,6 @@ export function HomePage() {
       setConversationMode('new');
       setLocalMessages(null);
       setRetryContent(null);
-      setMobileHistoryOpen(false);
       setInactivityState('active');
       setNotice('Conversation removed from history.');
       window.setTimeout(() => setNotice(''), 2600);
@@ -613,9 +555,6 @@ export function HomePage() {
              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void conversationQuery.refetch()} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
-                    <div className="xl:hidden">
-                       <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} />
-                    </div>
                    <ChatWelcomeState
                      onPrompt={(text) => void sendMessage(text)}
                      showQuickPrompts={conversationsQuery.isSuccess && !selectedId}
@@ -624,10 +563,6 @@ export function HomePage() {
               </div>
             ) : (
                  <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
-                 <div className="xl:hidden">
-                   <button type="button" onClick={() => setMobileHistoryOpen((open) => !open)} className="mb-4 flex w-full items-center justify-between rounded-lg border border-border bg-card/70 px-3.5 py-2.5 text-left text-[11px] font-semibold text-muted-foreground hover:border-primary/35 hover:text-primary" aria-expanded={mobileHistoryOpen} aria-controls="mobile-conversation-history" data-testid="button-mobile-conversation-history"><span>Conversation history</span><span className="font-mono text-[9px] uppercase tracking-[.12em]">{mobileHistoryOpen ? 'Hide' : `${conversations.length} saved`}</span></button>
-                    {mobileHistoryOpen && <div id="mobile-conversation-history" className="mb-5 rounded-lg border border-border/70 bg-background/60 px-3 pb-3"><ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} limit={4} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} /></div>}
-                 </div>
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
@@ -677,9 +612,6 @@ export function HomePage() {
             </div>}
           </section>
 
-           {(conversationsQuery.isLoading || conversationsQuery.isError || conversations.length > 0) && <aside className="hidden border-l border-border/70 pl-7 xl:block">
-              <ConversationHistory conversations={conversations} selectedId={selectedId} loading={conversationsQuery.isLoading} error={conversationsQuery.isError} onSelect={openReadOnlyConversation} onDelete={deleteConversationItem} />
-           </aside>}
         </div>
       </div>
       {feedbackDialog && (() => {
