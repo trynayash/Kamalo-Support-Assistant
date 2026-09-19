@@ -7,7 +7,6 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { fetch } from 'expo/fetch';
 import { Feather } from '@expo/vector-icons';
-import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from 'expo-speech-recognition';
 import {
   ChatMessage,
   getGetConversationQueryKey,
@@ -21,6 +20,10 @@ import {
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
 import { streamConversationMessage } from '@/lib/stream';
+import {
+  getSpeechRecognitionModule,
+  useOptionalSpeechRecognitionEvent,
+} from '@/lib/speechRecognition';
 import { EmptyState, IconButton, LoadingState, Screen, ToastNotification } from '@/components/ui';
 import { NavigationMenu } from '@/components/NavigationMenu';
 import { FeedbackOverlay } from '@/components/FeedbackOverlay';
@@ -76,15 +79,15 @@ export default function ChatScreen() {
   const ticketRaised = typeof params.ticketRaised === 'string' ? params.ticketRaised : params.ticketRaised?.[0];
   const ticketNumber = typeof params.ticketNumber === 'string' ? params.ticketNumber : params.ticketNumber?.[0];
 
-  useSpeechRecognitionEvent('start', () => setIsListening(true));
-  useSpeechRecognitionEvent('end', () => setIsListening(false));
-  useSpeechRecognitionEvent('result', (event) => {
+  useOptionalSpeechRecognitionEvent('start', () => setIsListening(true));
+  useOptionalSpeechRecognitionEvent('end', () => setIsListening(false));
+  useOptionalSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript?.trim();
     if (!transcript) return;
     const base = voiceBaseDraft.current.trim();
     setDraft(`${base}${base ? ' ' : ''}${transcript}`.slice(0, 4000));
   });
-  useSpeechRecognitionEvent('error', (event) => {
+  useOptionalSpeechRecognitionEvent('error', (event) => {
     setIsListening(false);
     if (event.error !== 'aborted') setVoiceError(event.error === 'not-allowed' ? 'Microphone access is blocked. Allow microphone access and try again.' : 'Voice input could not hear that. Please try again.');
   });
@@ -132,18 +135,23 @@ export default function ChatScreen() {
     setStreamError(null);
     setVoiceError(null);
     voiceInputMode.current = 'text';
-    if (isListening) ExpoSpeechRecognitionModule.stop();
+    if (isListening) getSpeechRecognitionModule()?.stop();
   }
 
   async function toggleVoiceInput() {
     if (isStreaming) return;
     setVoiceError(null);
+    const speechRecognitionModule = getSpeechRecognitionModule();
+    if (!speechRecognitionModule) {
+      setVoiceError('Voice input is not available in this Expo Go simulator. You can still type your question.');
+      return;
+    }
     if (isListening) {
-      ExpoSpeechRecognitionModule.stop();
+      speechRecognitionModule.stop();
       return;
     }
     try {
-      const permission = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      const permission = await speechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
         if (permission.canAskAgain === false && Platform.OS !== 'web') {
           Alert.alert(
@@ -164,7 +172,7 @@ export default function ChatScreen() {
       }
       voiceBaseDraft.current = draft.trim();
       voiceInputMode.current = 'voice';
-      ExpoSpeechRecognitionModule.start({
+      speechRecognitionModule.start({
         lang: chatLanguages.find((language) => language.value === selectedLanguage)?.voiceLocale || 'en-IN',
         interimResults: true,
         continuous: false,
@@ -201,7 +209,7 @@ export default function ChatScreen() {
   async function send() {
     const text = draft.trim();
     if ((!text && !attachment) || isStreaming) return;
-    if (isListening) ExpoSpeechRecognitionModule.stop();
+    if (isListening) getSpeechRecognitionModule()?.stop();
     Keyboard.dismiss();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStreamError(null);

@@ -18,3 +18,16 @@ different machines, and the raw assigned port is not the managed mobile route.
 **How to apply:** Keep the managed mobile workflow as the source of truth, use a
 non-localhost Expo host mode for development, use the portless managed proxy
 route for QR/bundle URLs, and do not block the app on optional DevTools.
+
+Expo Go may not contain third-party native modules such as
+`expo-speech-recognition`; importing one at screen startup can prevent the
+first route from mounting. Load optional native modules behind a guarded
+runtime require and provide a text-only fallback when unavailable.
+
+**Why:** Expo Go's bundled native runtime and a custom development build do not
+contain the same module set, while the core KAMALO chat should remain usable
+without voice input.
+
+**How to apply:** Keep native-module imports out of the initial route module
+path, catch missing-module errors, and surface capability-specific errors only
+when the user activates the unavailable feature.
