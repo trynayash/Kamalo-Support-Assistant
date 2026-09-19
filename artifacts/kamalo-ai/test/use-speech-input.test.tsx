@@ -44,6 +44,7 @@ function renderSpeechInput(props: Omit<HarnessProps, 'onReady'>) {
       if (!speech) throw new Error('Speech hook did not render.');
       return speech;
     },
+    leaveRoute: () => act(() => root.render(null)),
     unmount: () => act(() => root.unmount()),
   };
 }
@@ -60,21 +61,26 @@ function createStream() {
 
 class FakeMediaRecorder {
   static nextBlob = new Blob(['recorded audio'], { type: 'audio/webm' });
+  static instances: FakeMediaRecorder[] = [];
   static isTypeSupported = vi.fn(() => true);
   state: RecordingState = 'inactive';
   mimeType = 'audio/webm';
   ondataavailable: ((event: { data: Blob }) => void) | null = null;
   onstop: (() => void) | null = null;
 
-  start() {
-    this.state = 'recording';
+  constructor() {
+    FakeMediaRecorder.instances.push(this);
   }
 
-  stop() {
+  start = vi.fn(() => {
+    this.state = 'recording';
+  });
+
+  stop = vi.fn(() => {
     this.state = 'inactive';
     this.ondataavailable?.({ data: FakeMediaRecorder.nextBlob });
     this.onstop?.();
-  }
+  });
 }
 
 class FakeSpeechRecognition {
@@ -147,12 +153,68 @@ describe('useSpeechInput', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     FakeSpeechRecognition.instances = [];
+    FakeMediaRecorder.instances = [];
     FakeMediaRecorder.nextBlob = new Blob(['recorded audio'], { type: 'audio/webm' });
     installBrowserApis();
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it('cleans up browser recognition, recording, microphone, and timers when leaving the chat route', async () => {
+    vi.useFakeTimers();
+    const { stream, track } = createStream();
+    installBrowserApis({
+      speechRecognition: true,
+      getUserMedia: vi.fn(async () => stream),
+    });
+    const view = renderSpeechInput({ onChange: vi.fn() });
+
+    await act(async () => {
+      await view.speech.start();
+    });
+
+    const recognition = FakeSpeechRecognition.instances[0];
+    const recorder = FakeMediaRecorder.instances[0];
+    expect(recognition).toBeDefined();
+    expect(recorder).toBeDefined();
+    expect(recorder.state).toBe('recording');
+    expect(vi.getTimerCount()).toBe(1);
+
+    view.leaveRoute();
+
+    expect(recognition.abort).toHaveBeenCalledOnce();
+    expect(recorder.stop).toHaveBeenCalledOnce();
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('cleans up local fallback recording, microphone, and timers on unmount without transcribing', async () => {
+    vi.useFakeTimers();
+    const { stream, track } = createStream();
+    installBrowserApis({
+      getUserMedia: vi.fn(async () => stream),
+    });
+    const view = renderSpeechInput({ onChange: vi.fn() });
+
+    await act(async () => {
+      await view.speech.start();
+    });
+
+    const recorder = FakeMediaRecorder.instances[0];
+    expect(recorder).toBeDefined();
+    expect(recorder.state).toBe('recording');
+    expect(vi.getTimerCount()).toBe(1);
+
+    view.unmount();
+    await flushReact();
+
+    expect(recorder.stop).toHaveBeenCalledOnce();
+    expect(track.stop).toHaveBeenCalledOnce();
+    expect(transcribeRecordedAudio).not.toHaveBeenCalled();
+    expect(vi.getTimerCount()).toBe(0);
   });
 
   it('reports unsupported browsers without requesting a microphone', async () => {

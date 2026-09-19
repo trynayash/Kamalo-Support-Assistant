@@ -130,35 +130,77 @@ export function useSpeechInput({
   const baseTextRef = useRef('');
   const retriedNetworkErrorRef = useRef(false);
   const recordingTimerRef = useRef<number | null>(null);
+  const isMountedRef = useRef(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
   const [error, setError] = useState('');
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
 
+  const cleanupVoiceResources = useCallback(() => {
+    if (recordingTimerRef.current !== null) {
+      window.clearTimeout(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (recognition) {
+      recognition.onend = null;
+      recognition.onerror = null;
+      recognition.onresult = null;
+      try {
+        recognition.abort();
+      } catch {
+        // The browser can throw if recognition already ended during teardown.
+      }
+    }
+
+    const recorder = recorderRef.current;
+    recorderRef.current = null;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state === 'recording') {
+        try {
+          recorder.stop();
+        } catch {
+          // The browser can throw if recording ended during teardown.
+        }
+      }
+    }
+
+    microphoneStreamRef.current?.getTracks().forEach((track) => track.stop());
+    microphoneStreamRef.current = null;
+    recordedChunksRef.current = [];
+    localFallbackRef.current = false;
+    recorderHandledRef.current = true;
+  }, []);
+
   useEffect(() => {
+    isMountedRef.current = true;
     setIsSupported(getVoiceSupport());
     return () => {
-      if (recordingTimerRef.current !== null) window.clearTimeout(recordingTimerRef.current);
-      recognitionRef.current?.abort();
-      recorderRef.current?.stop();
-      microphoneStreamRef.current?.getTracks().forEach((track) => track.stop());
-      recognitionRef.current = null;
-      recorderRef.current = null;
-      microphoneStreamRef.current = null;
+      isMountedRef.current = false;
+      cleanupVoiceResources();
     };
-  }, []);
+  }, [cleanupVoiceResources]);
 
   const stop = useCallback(() => {
     if (recordingTimerRef.current !== null) {
       window.clearTimeout(recordingTimerRef.current);
       recordingTimerRef.current = null;
     }
-    recognitionRef.current?.stop();
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // Ignore a recognition instance that ended between the stop request and this call.
+    }
     const recorder = recorderRef.current;
-    if (!recognitionRef.current && recorder?.state === 'recording') recorder.stop();
+    if (recorder?.state === 'recording') recorder.stop();
   }, []);
 
   const startLocalTranscription = useCallback(async (blob: Blob, baseText: string) => {
+    if (!isMountedRef.current) return;
     if (!blob.size) {
       setStatus('error');
       setError(messageForRecognitionError('no-speech'));
@@ -170,6 +212,7 @@ export function useSpeechInput({
     try {
       const { transcribeRecordedAudio } = await import('@/lib/local-speech-transcription');
       const transcript = await transcribeRecordedAudio(blob, lang);
+      if (!isMountedRef.current) return;
       if (!transcript) {
         setStatus('error');
         setError(messageForRecognitionError('no-speech'));
@@ -179,10 +222,11 @@ export function useSpeechInput({
       setError('');
       setStatus('idle');
     } catch {
+      if (!isMountedRef.current) return;
       setStatus('error');
       setError('Local voice transcription could not finish. Please try Voice again or type your question.');
     } finally {
-      setIsTranscribing(false);
+      if (isMountedRef.current) setIsTranscribing(false);
     }
   }, [lang, onChange]);
 
@@ -206,6 +250,7 @@ export function useSpeechInput({
   }, []);
 
   const beginRecognition = useCallback(() => {
+    if (!isMountedRef.current) return;
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!SpeechRecognition) return;
     recognitionRef.current?.abort();
@@ -259,6 +304,7 @@ export function useSpeechInput({
 
   const start = useCallback(async () => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
+    if (!isMountedRef.current) return;
     if (disabled || !getVoiceSupport()) {
       setStatus('unsupported');
       setError('Voice input is not supported in this browser. Try Chrome, Edge, or the KAMALO mobile app.');
@@ -267,9 +313,14 @@ export function useSpeechInput({
     setError('');
     retriedNetworkErrorRef.current = false;
     const access = await ensureMicrophoneAccess();
+    if (!isMountedRef.current) return;
     if (!access.ok) {
       setStatus('error');
       setError(messageForRecognitionError(access.error));
+      return;
+    }
+    if (!isMountedRef.current) {
+      access.stream?.getTracks().forEach((track) => track.stop());
       return;
     }
     baseTextRef.current = value.trim();
@@ -297,7 +348,7 @@ export function useSpeechInput({
           access.stream?.getTracks().forEach((track) => track.stop());
           microphoneStreamRef.current = null;
           recorderHandledRef.current = true;
-          if (localFallbackRef.current) {
+          if (localFallbackRef.current && isMountedRef.current) {
             void startLocalTranscription(new Blob(chunks, { type: recorder.mimeType || mimeType || 'audio/webm' }), baseTextRef.current);
           }
         };
@@ -310,13 +361,17 @@ export function useSpeechInput({
       }
     }
 
+    if (!isMountedRef.current) {
+      cleanupVoiceResources();
+      return;
+    }
     setStatus('listening');
     recordingTimerRef.current = window.setTimeout(() => {
       setError('Voice note reached the 60-second limit. Transcribing it now…');
       stop();
     }, 60_000);
     if (SpeechRecognition) beginRecognition();
-  }, [beginRecognition, disabled, startLocalTranscription, stop, value]);
+  }, [beginRecognition, cleanupVoiceResources, disabled, startLocalTranscription, stop, value]);
 
   const toggle = useCallback(() => {
     if (status === 'listening') stop();
