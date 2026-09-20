@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { AddressInfo } from "node:net";
 import type { Request } from "express";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like, or } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, DEMO_USER_ID, type SupportRequestContext } from "../src/lib/context";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
@@ -31,6 +31,7 @@ const ticketIds: string[] = [];
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl = "";
+let cleanupPromise: Promise<void> | undefined;
 
 function testContext(overrides: Partial<SupportRequestContext> = {}): SupportRequestContext {
   return {
@@ -127,6 +128,48 @@ async function createConversation(title = testPrefix): Promise<{ id: string }> {
   return conversation;
 }
 
+async function closeServer(): Promise<void> {
+  if (!server?.listening) return;
+  await new Promise<void>((resolve, reject) => {
+    server.close((error) => (error ? reject(error) : resolve()));
+  });
+}
+
+async function cleanupFixtures(): Promise<void> {
+  if (cleanupPromise) return cleanupPromise;
+  cleanupPromise = (async () => {
+    try {
+      if (ticketIds.length > 0) {
+        await db.delete(supportTicketsTable).where(inArray(supportTicketsTable.id, ticketIds));
+      }
+      await db.delete(conversationsTable).where(or(
+        inArray(conversationsTable.id, conversationIds),
+        like(conversationsTable.title, `${testPrefix}%`),
+      ));
+      await db.delete(knowledgeArticlesTable).where(inArray(knowledgeArticlesTable.id, articleIds));
+    } finally {
+      await closeServer();
+      await pool.end();
+      process.removeListener("SIGINT", handleInterrupt);
+      process.removeListener("SIGTERM", handleInterrupt);
+    }
+  })();
+  return cleanupPromise;
+}
+
+async function handleInterrupt(signal: NodeJS.Signals): Promise<void> {
+  try {
+    await cleanupFixtures();
+  } catch (error) {
+    console.error(`Support Core fixture cleanup failed during ${signal}:`, error);
+  } finally {
+    process.exit(signal === "SIGINT" ? 130 : 143);
+  }
+}
+
+process.once("SIGINT", handleInterrupt);
+process.once("SIGTERM", handleInterrupt);
+
 before(async () => {
   const approvedId = crypto.randomUUID();
   const draftId = crypto.randomUUID();
@@ -180,19 +223,7 @@ before(async () => {
 });
 
 after(async () => {
-  if (ticketIds.length > 0) {
-    await db.delete(supportTicketsTable).where(inArray(supportTicketsTable.id, ticketIds));
-  }
-  if (conversationIds.length > 0) {
-    await db.delete(conversationsTable).where(inArray(conversationsTable.id, conversationIds));
-  }
-  if (articleIds.length > 0) {
-    await db.delete(knowledgeArticlesTable).where(inArray(knowledgeArticlesTable.id, articleIds));
-  }
-  await new Promise<void>((resolve, reject) => {
-    server.close((error) => (error ? reject(error) : resolve()));
-  });
-  await pool.end();
+  await cleanupFixtures();
 });
 
 test("creates trusted support context from bounded request headers", () => {

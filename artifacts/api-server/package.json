@@ -8,7 +8,8 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "../kamalo-ai/node_modules/.bin/tsx --test test/support-core.test.ts"
+    "test:prepare": "node ./test/prepare-database.mjs",
+    "test": "pnpm run test:prepare && ../kamalo-ai/node_modules/.bin/tsx --test test/support-core.test.ts"
   },
   "dependencies": {
     "@workspace/api-zod": "workspace:*",
