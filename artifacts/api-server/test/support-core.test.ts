@@ -9,7 +9,7 @@ import { createSession } from "../src/lib/auth";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
-import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
+import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
 import { representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
@@ -420,6 +420,16 @@ test("keeps assistant answers concise when a provider is verbose", () => {
   assert.equal(keepCompleteAssistantOutput("A complete sentence."), "A complete sentence.");
   assert.equal(containsProviderDrafting("Here's a thinking process: 1. Analyze user input."), true);
   assert.equal(sanitizeProviderText("Use the Coin Engine tool."), "Use the Coin Engine tool.");
+});
+
+test("accepts only answers supported by approved evidence", () => {
+  const evidence = [
+    "Coin expiration follows the documented 3-month FIFO approach, where the oldest applicable Coins are handled first.",
+  ];
+  assert.equal(isGroundedAssistantOutput("Coin expiration follows a 3-month FIFO approach.", evidence), true);
+  assert.equal(isGroundedAssistantOutput("Coin expiration happens after 12 months.", evidence), false);
+  assert.equal(isGroundedAssistantOutput("I checked your current balance and you have 500 Coins.", evidence), false);
+  assert.equal(isGroundedAssistantOutput("Verified answer. [redacted]", ["Verified support guidance."], "en"), true);
 });
 
 test("rejects malformed local OpenRouter SSE frames", async () => {

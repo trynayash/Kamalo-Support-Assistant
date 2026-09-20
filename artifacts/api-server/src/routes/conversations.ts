@@ -13,7 +13,7 @@ import {
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
 import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
-import { condenseAssistantOutput, containsProviderDrafting, hasPossibleSensitiveTail, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
+import { condenseAssistantOutput, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
@@ -315,25 +315,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   res.once("close", onClientClosed);
 
   let fullResponse = "";
-  let emittedResponse = "";
-  const emitResponse = async (candidate: string, flush = false): Promise<boolean> => {
-    const draftFallback = prepared.groundedFact || SAFE_ASSISTANT_ERROR;
-    const preferredCandidate = containsProviderDrafting(candidate)
-      ? draftFallback
-      : preferGroundedFact(candidate, prepared.groundedFact);
-    const safeCandidate = condenseAssistantOutput(sanitizeAssistantOutput(preferredCandidate));
-    const safePrefix = !flush && hasPossibleSensitiveTail(candidate)
-      ? safeCandidate.slice(0, Math.max(emittedResponse.length, safeCandidate.length - 512))
-      : safeCandidate;
-    const delta = safePrefix.startsWith(emittedResponse)
-      ? safePrefix.slice(emittedResponse.length)
-      : "";
-    if (delta) {
-      emittedResponse = safePrefix;
-      return writeSse(res, { content: delta });
-    }
-    return !clientClosed;
-  };
+  let providerAnswerGenerated = false;
 
   try {
     if (attachment && !content) {
@@ -351,8 +333,8 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
         signal: abortController.signal,
       })) {
         fullResponse += chunk;
-        if (!(await emitResponse(fullResponse))) break;
       }
+      providerAnswerGenerated = true;
     }
   } catch (error) {
     if (clientClosed) {
@@ -383,8 +365,21 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     ? draftFallback
     : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
-  fullResponse = keepCompleteAssistantOutput(condensedResponse) || SAFE_ASSISTANT_ERROR;
-   if (!clientClosed) await emitResponse(fullResponse, true);
+  const candidateResponse = keepCompleteAssistantOutput(condensedResponse);
+  // Validate numeric claims against article content only. Article titles carry
+  // internal sequence numbers that must never make an unsupported customer
+  // number appear approved.
+  const approvedSources = prepared.retrieved.map((article) => article.content);
+  const outputIsGrounded = !providerAnswerGenerated
+    || prepared.decision !== "knowledge_answer"
+    || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");
+  const usedGroundingFallback = providerAnswerGenerated
+    && prepared.decision === "knowledge_answer"
+    && !outputIsGrounded;
+  fullResponse = outputIsGrounded
+    ? candidateResponse
+    : keepCompleteAssistantOutput(prepared.groundedFact || STAGE_ONE_FALLBACK);
+  if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
     res.removeListener("close", onClientClosed);
@@ -412,8 +407,13 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     context: supportContext,
     latencyMs: Date.now() - startedAt,
     evidenceCount: prepared.evidence.length,
-    outcome: fullResponse === SAFE_ASSISTANT_ERROR ? "safe_error" : "complete",
+    outcome: fullResponse === SAFE_ASSISTANT_ERROR
+      ? "safe_error"
+      : usedGroundingFallback
+        ? "grounding_fallback"
+        : "complete",
   });
+  await writeSse(res, { content: fullResponse });
   req.log.info({
     conversationId,
     requestId: supportContext.requestId,
@@ -422,6 +422,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     latency: Date.now() - startedAt,
     retrievalUsed: prepared.retrieved.length > 0,
     retrievedArticleIds: prepared.retrieved.map((article) => article.id),
+    groundingValidated: !providerAnswerGenerated || prepared.decision !== "knowledge_answer" || !usedGroundingFallback,
     responseStatus: "complete",
   }, "KAMALO AI response generated");
   await writeSse(res, { done: true, messageId: assistantMessage.id, finalContent: fullResponse });

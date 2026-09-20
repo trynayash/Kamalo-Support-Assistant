@@ -498,6 +498,12 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
       const titleTerms = new Set(title);
       const categoryTerms = new Set(category);
       const contentTerms = new Set(content);
+      const primaryMatches = [...primaryTerms].filter((term) =>
+        titleTerms.has(term) || categoryTerms.has(term) || contentTerms.has(term),
+      );
+      const titleCategoryMatches = [...terms].filter((term) =>
+        titleTerms.has(term) || categoryTerms.has(term),
+      );
       const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
         ? 12
         : 0;
@@ -511,9 +517,14 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
         + numericLevelBoost
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
-      return { article, score };
+      return { article, score, primaryMatches, titleCategoryMatches };
     })
-    .filter(({ score }) => score > 0)
+    // A single common word in an article body is not enough evidence. Require
+    // either a title/category match or two independent query terms so generic
+    // questions do not accidentally receive an unrelated article.
+    .filter(({ score, primaryMatches, titleCategoryMatches }) =>
+      score >= 4 && (titleCategoryMatches.length > 0 || primaryMatches.length >= 2),
+    )
     .sort((a, b) => b.score - a.score || b.article.version - a.article.version || a.article.title.localeCompare(b.article.title))
     .slice(0, 6)
     .map(({ article }) => article);

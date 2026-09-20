@@ -155,3 +155,82 @@ export function keepCompleteAssistantOutput(content: string): string {
   const lastBoundary = Math.max(trimmed.lastIndexOf("."), trimmed.lastIndexOf("!"), trimmed.lastIndexOf("?"), trimmed.lastIndexOf("।"));
   return lastBoundary >= 0 ? trimmed.slice(0, lastBoundary + 1).trim() : "";
 }
+
+const groundingStopWords = new Set([
+  "a", "about", "after", "again", "all", "also", "an", "and", "are", "as", "at",
+  "be", "because", "but", "by", "can", "could", "do", "does", "for", "from",
+  "has", "have", "how", "if", "in", "is", "it", "may", "me", "more", "my",
+  "not", "of", "on", "or", "our", "please", "so", "that", "the", "their",
+  "then", "there", "these", "this", "to", "us", "was", "we", "what", "when",
+  "where", "which", "who", "why", "with", "would", "you", "your",
+]);
+
+function groundingTokens(value: string): string[] {
+  return value
+    .normalize("NFKC")
+    .toLocaleLowerCase()
+    .match(/[\p{L}\p{N}]+/gu)
+    ?.filter((token) => token.length > 1 && !groundingStopWords.has(token))
+    || [];
+}
+
+function extractedNumbers(value: string): string[] {
+  return [...value.matchAll(/\b\d+(?:[.,]\d+)*\b/g)]
+    .map((match) => match[0].replaceAll(",", ""));
+}
+
+const unsafeLiveClaimPatterns = [
+  /\b(?:i|we)\s+(?:checked|looked up|verified|can see|have access to|found in)\b/i,
+  /\b(?:your|the customer'?s)\s+(?:current|live|actual)\s+(?:balance|coins?|status|eligibility|progress|transaction|refund|notification|mandate)\b/i,
+  /\b(?:you have|you received|you were charged|your payment (?:was|is)|your refund (?:was|is))\s+\d/i,
+  /\b(?:has been|was|is)\s+(?:credited|refunded|processed|completed|sent|created|updated)\b/i,
+];
+
+const safeUnmatchedSentencePatterns = [
+  /^(?:i do not|i don't|i can(?:not|'t)) have confirmed information\b/i,
+  /^(?:please|you can|try|contact|reach|ask|allow|check|confirm|make sure|use|request)\b/i,
+  /\b(?:live|personal|account-specific|verified)\s+(?:information|check|support)\b/i,
+  /^\[redacted\]$/i,
+];
+
+function sentenceList(value: string): string[] {
+  return value.match(/[^.!?।]+(?:[.!?।]+|$)/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [];
+}
+
+/**
+ * Presentation sanitizing is not factuality validation. This second gate
+ * rejects unsupported numeric claims, live-account claims, and English
+ * sentences with no meaningful overlap with the approved evidence.
+ */
+export function isGroundedAssistantOutput(
+  content: string,
+  approvedSources: string[],
+  language: "en" | "hi" | "mr" = "en",
+): boolean {
+  const normalized = content.trim();
+  if (!normalized || containsProviderDrafting(normalized) || containsInstructionInjection(normalized)) return false;
+  if (unsafeLiveClaimPatterns.some((pattern) => pattern.test(normalized))) return false;
+
+  const sourceText = approvedSources.join("\n");
+  const sourceNumbers = new Set(extractedNumbers(sourceText));
+  if (extractedNumbers(normalized).some((number) => !sourceNumbers.has(number))) return false;
+
+  // Hindi and Marathi are translated by the provider, so English token
+  // overlap is not a reliable validator. Numeric and live-data gates still
+  // apply to those languages.
+  if (language !== "en") return true;
+
+  const sourceTokens = groundingTokens(sourceText);
+  if (sourceTokens.length === 0) return false;
+  const sentences = sentenceList(normalized);
+  const containsRedactedValue = /\[redacted\]/i.test(normalized);
+  return sentences.length > 0 && sentences.every((sentence) => {
+    if (safeUnmatchedSentencePatterns.some((pattern) => pattern.test(sentence))) return true;
+    const tokens = groundingTokens(sentence);
+    const overlap = tokens.filter((token) => sourceTokens.some((sourceToken) =>
+      sourceToken === token || sourceToken.startsWith(token) || token.startsWith(sourceToken),
+    )).length;
+    if (containsRedactedValue && overlap >= 1) return true;
+    return overlap >= Math.min(2, tokens.length);
+  });
+}
