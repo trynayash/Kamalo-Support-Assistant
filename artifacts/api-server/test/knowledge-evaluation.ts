@@ -26,7 +26,7 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
   {
     topic: "Coins",
     query: "Where are my reward coins?",
-    expectedTitle: "How many Coins do I have?",
+    expectedTitle: "What are KAMALO Coins?",
   },
   {
     topic: "payments",

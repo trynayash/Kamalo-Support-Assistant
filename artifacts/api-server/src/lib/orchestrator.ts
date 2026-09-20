@@ -162,7 +162,9 @@ export async function prepareSupportRequest(
   language: SupportedResponseLanguage = "en",
 ): Promise<PreparedSupportRequest> {
   const followUp = Boolean(history.length && (isFollowUpReference(content) || isShortFollowUp(content)));
-  const retrievalQueries = followUp ? [content, retrievalQuery(content, history)] : [content];
+  // Resolve a follow-up against the recent conversation before considering
+  // weak matches from the short reference itself.
+  const retrievalQueries = followUp ? [retrievalQuery(content, history), content] : [content];
   const retrievalResults = await Promise.all(
     retrievalQueries.map((query) => toolGateway.execute("knowledge.retrieve", { query }, context) as Promise<KnowledgeToolResult>),
   );

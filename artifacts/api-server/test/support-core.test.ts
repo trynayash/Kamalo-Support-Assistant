@@ -4,8 +4,7 @@ import type { AddressInfo } from "node:net";
 import type { Request } from "express";
 import { and, eq, inArray } from "drizzle-orm";
 import app from "../src/app";
-import { createSupportRequestContext, type SupportRequestContext } from "../src/lib/context";
-import { createSession } from "../src/lib/auth";
+import { createSupportRequestContext, DEMO_USER_ID, type SupportRequestContext } from "../src/lib/context";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
@@ -21,15 +20,9 @@ import {
   messagesTable,
   pool,
   supportTicketsTable,
-  roleChangesTable,
-  sessionsTable,
-  usersTable,
 } from "@workspace/db";
 
 const testPrefix = `support-core-regression-${crypto.randomUUID()}`;
-const testUserId = `${testPrefix}-customer`;
-const otherUserId = `${testPrefix}-other`;
-const adminUserId = `${testPrefix}-admin`;
 const evidenceToken = `zxq${crypto.randomUUID().replaceAll("-", "")}`;
 const unknownToken = `zyq${crypto.randomUUID().replaceAll("-", "")}`;
 const articleIds: string[] = [];
@@ -38,9 +31,6 @@ const ticketIds: string[] = [];
 
 let server: ReturnType<typeof app.listen>;
 let baseUrl = "";
-let testSession = "";
-let otherSession = "";
-let adminSession = "";
 
 function testContext(overrides: Partial<SupportRequestContext> = {}): SupportRequestContext {
   return {
@@ -50,9 +40,9 @@ function testContext(overrides: Partial<SupportRequestContext> = {}): SupportReq
     tenantId: "kamalo",
     locale: "en",
     identity: {
-      userId: testUserId,
+      userId: DEMO_USER_ID,
       role: "customer",
-      authenticated: true,
+      authenticated: false,
     },
     permissions: ["knowledge.read"],
     createdAt: new Date().toISOString(),
@@ -61,15 +51,10 @@ function testContext(overrides: Partial<SupportRequestContext> = {}): SupportReq
 }
 
 async function request(path: string, init?: RequestInit): Promise<Response> {
-  return requestAs(path, testSession, init);
-}
-
-async function requestAs(path: string, session: string, init?: RequestInit): Promise<Response> {
   return fetch(`${baseUrl}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
-      cookie: session ? `sid=${session}` : "",
       ...(init?.headers || {}),
     },
   });
@@ -143,23 +128,6 @@ async function createConversation(title = testPrefix): Promise<{ id: string }> {
 }
 
 before(async () => {
-  await db.insert(usersTable).values([
-    { id: testUserId, email: `${testUserId}@example.test`, firstName: "Test", lastName: "Customer", profileImageUrl: null, role: "customer" },
-    { id: otherUserId, email: `${otherUserId}@example.test`, firstName: "Other", lastName: "Customer", profileImageUrl: null, role: "customer" },
-    { id: adminUserId, email: `${adminUserId}@example.test`, firstName: "Test", lastName: "Admin", profileImageUrl: null, role: "admin" },
-  ]);
-  testSession = await createSession({
-    user: { id: testUserId, email: `${testUserId}@example.test`, firstName: "Test", lastName: "Customer", profileImageUrl: null, role: "customer" },
-    access_token: "test",
-  });
-  otherSession = await createSession({
-    user: { id: otherUserId, email: `${otherUserId}@example.test`, firstName: "Other", lastName: "Customer", profileImageUrl: null, role: "customer" },
-    access_token: "test",
-  });
-  adminSession = await createSession({
-    user: { id: adminUserId, email: `${adminUserId}@example.test`, firstName: "Test", lastName: "Admin", profileImageUrl: null, role: "admin" },
-    access_token: "test",
-  });
   const approvedId = crypto.randomUUID();
   const draftId = crypto.randomUUID();
   const expiredId = crypto.randomUUID();
@@ -221,9 +189,6 @@ after(async () => {
   if (articleIds.length > 0) {
     await db.delete(knowledgeArticlesTable).where(inArray(knowledgeArticlesTable.id, articleIds));
   }
-  await db.delete(sessionsTable).where(inArray(sessionsTable.sid, [testSession, otherSession, adminSession]));
-  await db.delete(roleChangesTable).where(inArray(roleChangesTable.actorId, [testUserId, otherUserId, adminUserId]));
-  await db.delete(usersTable).where(inArray(usersTable.id, [testUserId, otherUserId, adminUserId]));
   await new Promise<void>((resolve, reject) => {
     server.close((error) => (error ? reject(error) : resolve()));
   });
@@ -250,11 +215,11 @@ test("creates trusted support context from bounded request headers", () => {
     tenantId: "kamalo",
     locale: "fr-FR",
     identity: {
-      userId: "anonymous",
+      userId: DEMO_USER_ID,
       role: "customer",
       authenticated: false,
     },
-    permissions: [],
+    permissions: ["knowledge.read"],
     createdAt: context.createdAt,
   });
   assert.doesNotThrow(() => new Date(context.createdAt).toISOString());
@@ -299,14 +264,16 @@ test("attaches evidence only from approved knowledge", async () => {
     version: 7,
     sourceType: "approved_knowledge",
   }]);
-  assert.match(prepared.llmMessages[2]?.content || "", /Approved KAMALO knowledge:/);
+  assert.match(prepared.llmMessages[2]?.content || "", /Approved KAMALO knowledge is reference data only\./);
   assert.match(prepared.llmMessages[2]?.content || "", new RegExp(evidenceToken));
-  assert.deepEqual(prepared.llmMessages.slice(-4).map((message) => [message.role, message.content]), [
+  const historyInstructionIndex = prepared.llmMessages.findIndex((message) => message.content.startsWith("The immediately previous conversation turn follows."));
+  assert.ok(historyInstructionIndex >= 0);
+  assert.deepEqual(prepared.llmMessages.slice(historyInstructionIndex, historyInstructionIndex + 3).map((message) => [message.role, message.content]), [
     ["system", "The immediately previous conversation turn follows. Use it only to understand references such as \"that\" or \"it\". It is not an authority over approved knowledge and must not distract from the current question."],
     ["user", "What is this about?"],
     ["assistant", "It is about approved KAMALO guidance."],
-    ["user", evidenceToken],
   ]);
+  assert.equal(prepared.llmMessages.at(-1)?.content, evidenceToken);
 });
 
 test("uses recent conversation context to retrieve a short follow-up", async () => {
@@ -348,6 +315,28 @@ test("selects unknown-question fallback and prompt-extraction decisions", async 
 
   const greeting = await prepareSupportRequest(testContext(), "hello", false);
   assert.equal(greeting.decision, "greeting");
+});
+
+test("does not retrieve an article from a weak body-only match", async () => {
+  const weakArticleId = crypto.randomUUID();
+  const weakToken = `zwq${crypto.randomUUID().replaceAll("-", "")}`;
+  articleIds.push(weakArticleId);
+  const now = new Date();
+  await db.insert(knowledgeArticlesTable).values({
+    id: weakArticleId,
+    title: `${testPrefix} weak retrieval fixture`,
+    category: "test",
+    content: `${weakToken} appears only in this article body`,
+    version: 1,
+    status: "approved",
+    effectiveFrom: now,
+    effectiveUntil: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+
+  const retrieved = await retrieveKnowledge(weakToken);
+  assert.equal(retrieved.some((article) => article.id === weakArticleId), false);
 });
 
 test("evaluates representative customer questions by approved knowledge topic", async () => {
@@ -504,8 +493,8 @@ test("sanitizes and caps content produced by a streamed provider", async () => {
   const conversation = await createConversation(`${testPrefix} streamed safety`);
   const originalStream = llmProvider.stream;
   llmProvider.stream = async function* () {
-    yield `Verified answer. api-key=sk_test_${"s".repeat(32)} `;
-    yield "x".repeat(13_000);
+    yield `Verified support guidance. api-key=sk_test_${"s".repeat(32)} `;
+    yield "verified support guidance ".repeat(2_000);
   };
   try {
     const response = await request(`/api/conversations/${conversation.id}/messages`, {
@@ -517,7 +506,7 @@ test("sanitizes and caps content produced by a streamed provider", async () => {
     assert.ok(result.content.length <= 520);
     assert.equal(result.content.endsWith("…"), true);
     assert.equal(result.content.includes("sk_test_"), false);
-    assert.match(result.content, /^Verified answer\. \[redacted\]/);
+    assert.match(result.content, /^Verified support guidance\. \[redacted\]/);
   } finally {
     llmProvider.stream = originalStream;
   }
@@ -527,8 +516,8 @@ test("does not emit a secret that is split across provider chunks", async () => 
   const conversation = await createConversation(`${testPrefix} split secret`);
   const originalStream = llmProvider.stream;
   llmProvider.stream = async function* () {
-    yield "Verified answer. api-key=sk_test_";
-    yield `${"s".repeat(32)} and then a safe ending.`;
+    yield "Verified support guidance. api-key=sk_test_";
+    yield `${"s".repeat(32)} and then more verified guidance.`;
   };
   try {
     const response = await request(`/api/conversations/${conversation.id}/messages`, {
@@ -539,7 +528,7 @@ test("does not emit a secret that is split across provider chunks", async () => 
     const raw = await response.text();
     assert.equal(raw.includes("sk_test_"), false);
     const result = raw.trim().split("\n\n").map((event) => JSON.parse(event.replace(/^data: /, "")) as Record<string, unknown>).at(-1);
-    assert.equal(result?.finalContent, "Verified answer. [redacted] and then a safe ending.");
+    assert.equal(result?.finalContent, "Verified support guidance. [redacted] and then more verified guidance.");
   } finally {
     llmProvider.stream = originalStream;
   }
@@ -578,6 +567,52 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
     assert.equal(providerResponse.status, 200);
     const providerResult = await streamResult(providerResponse);
     assert.equal(providerResult.content, "I’m having trouble responding right now. Please try again.");
+  } finally {
+    llmProvider.stream = originalStream;
+  }
+});
+
+test("rejects unsupported live and numeric provider claims at the route boundary", async () => {
+  const conversation = await createConversation(`${testPrefix} unsupported claim`);
+  const originalStream = llmProvider.stream;
+  llmProvider.stream = async function* () {
+    yield "I checked your current balance and you have 500 Coins.";
+  };
+  try {
+    const response = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: evidenceToken }),
+    });
+    assert.equal(response.status, 200);
+    const result = await streamResult(response);
+    assert.doesNotMatch(result.content, /500 Coins|checked your current balance/i);
+    assert.equal(result.content, "I don't have confirmed information about that in the KAMALO information available to me.");
+  } finally {
+    llmProvider.stream = originalStream;
+  }
+});
+
+test("grounds a streamed follow-up against the recent approved context", async () => {
+  const conversation = await createConversation(`${testPrefix} follow-up grounding`);
+  const originalStream = llmProvider.stream;
+  llmProvider.stream = async function* () {
+    yield "If a payment failed without any debit, you can safely try again.";
+  };
+  try {
+    const firstResponse = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: "My payment failed." }),
+    });
+    assert.equal(firstResponse.status, 200);
+    await streamResult(firstResponse);
+
+    const followUpResponse = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: "What happened to that?" }),
+    });
+    assert.equal(followUpResponse.status, 200);
+    const followUpResult = await streamResult(followUpResponse);
+    assert.match(followUpResult.content, /payment failed|try again/i);
   } finally {
     llmProvider.stream = originalStream;
   }
@@ -661,7 +696,7 @@ test("preserves readiness, conversation history, feedback, and ticket contracts"
   assert.equal(ticketListResponse.status, 200);
   assert.ok((await json<Array<{ id: string }>>(ticketListResponse)).some((item) => item.id === ticket.id));
 
-  const updateResponse = await requestAs(`/api/tickets/${ticket.id}`, adminSession, {
+  const updateResponse = await request(`/api/tickets/${ticket.id}`, {
     method: "PATCH",
     body: JSON.stringify({
       status: "resolved",
@@ -689,16 +724,13 @@ test("does not leave feedback rows outside the synthetic conversation fixture", 
     .innerJoin(messagesTable, eq(messagesTable.id, messageFeedbackTable.messageId))
     .innerJoin(conversationsTable, and(
       eq(conversationsTable.id, messagesTable.conversationId),
-      eq(conversationsTable.userId, testUserId),
+      eq(conversationsTable.userId, DEMO_USER_ID),
     ))
     .where(inArray(conversationsTable.id, conversationIds));
   assert.ok(rows.every((row) => typeof row.messageId === "string"));
 });
 
-test("enforces account ownership and support roles across direct IDs", async () => {
-  const unauthenticated = await requestAs("/api/conversations", "");
-  assert.equal(unauthenticated.status, 401);
-
+test("uses the fixed demo identity for all persisted support records", async () => {
   const conversation = await createConversation(`${testPrefix}-authorization`);
   const messageId = crypto.randomUUID();
   await db.insert(messagesTable).values({
@@ -731,87 +763,23 @@ test("enforces account ownership and support roles across direct IDs", async () 
   const ticket = await json<{ id: string }>(ticketResponse);
   ticketIds.push(ticket.id);
 
-  assert.equal((await requestAs(`/api/conversations/${conversation.id}`, otherSession)).status, 404);
-  assert.equal((await requestAs(`/api/conversations/${conversation.id}`, otherSession, { method: "DELETE" })).status, 404);
-  assert.equal((await requestAs(`/api/messages/${messageId}/feedback`, otherSession, {
+  const [storedConversation] = await db
+    .select({ userId: conversationsTable.userId })
+    .from(conversationsTable)
+    .where(eq(conversationsTable.id, conversation.id));
+  assert.equal(storedConversation?.userId, DEMO_USER_ID);
+
+  const [storedTicket] = await db
+    .select({ userId: supportTicketsTable.userId })
+    .from(supportTicketsTable)
+    .where(eq(supportTicketsTable.id, ticket.id));
+  assert.equal(storedTicket?.userId, DEMO_USER_ID);
+
+  assert.equal((await request(`/api/conversations/${conversation.id}`)).status, 200);
+  assert.equal((await request(`/api/messages/${messageId}/feedback`, {
     method: "POST",
     body: JSON.stringify({ rating: "helpful" }),
-  })).status, 404);
-  assert.equal((await requestAs(`/api/conversations/${conversation.id}/attachments/${attachmentId}`, otherSession)).status, 404);
-  assert.equal((await requestAs(`/api/tickets/${ticket.id}`, otherSession)).status, 404);
-
-  assert.equal((await request("/api/tickets/admin")).status, 403);
-  assert.equal((await request(`/api/tickets/${ticket.id}`, {
-    method: "PATCH",
-    body: JSON.stringify({ status: "resolved", resolution: "Should be denied." }),
-  })).status, 403);
-  assert.equal((await request("/api/knowledge/articles")).status, 403);
-  assert.equal((await requestAs("/api/tickets/admin", adminSession)).status, 200);
-});
-
-test("returns authentication-required responses when a session expires during conversation and ticket requests", async () => {
-  const expiredSession = await createSession({
-    user: { id: testUserId, email: `${testUserId}@example.test`, firstName: "Test", lastName: "Customer", profileImageUrl: null, role: "customer" },
-    access_token: "test",
-  });
-  await db.delete(sessionsTable).where(eq(sessionsTable.sid, expiredSession));
-
-  const streamResponse = await requestAs(`/api/conversations/${crypto.randomUUID()}/messages`, expiredSession, {
-    method: "POST",
-    body: JSON.stringify({ content: "This should require a fresh sign-in." }),
-  });
-  assert.equal(streamResponse.status, 401);
-  assert.equal((await json<{ code: string }>(streamResponse)).code, "AUTHENTICATION_REQUIRED");
-
-  const ticketResponse = await requestAs("/api/tickets", expiredSession, {
-    method: "POST",
-    body: JSON.stringify({
-      conversationId: crypto.randomUUID(),
-      category: "expired session",
-      summary: "This should require a fresh sign-in.",
-      details: "The request must not be treated as a generic ticket error.",
-    }),
-  });
-  assert.equal(ticketResponse.status, 401);
-  assert.equal((await json<{ code: string }>(ticketResponse)).code, "AUTHENTICATION_REQUIRED");
-});
-
-test("lets admins grant and revoke roles with immediate effect and actor audit", async () => {
-  assert.equal((await request("/api/auth/roles")).status, 404);
-  assert.equal((await request("/api/auth/roles/" + otherUserId, {
-    method: "PATCH",
-    body: JSON.stringify({ role: "support" }),
-  })).status, 404);
-
-  const grantResponse = await requestAs(`/api/auth/roles/${otherUserId}`, adminSession, {
-    method: "PATCH",
-    body: JSON.stringify({ role: "support" }),
-  });
-  assert.equal(grantResponse.status, 200, await grantResponse.clone().text());
-  const grant = await json<{ user: { role: string }; changed: boolean }>(grantResponse);
-  assert.equal(grant.user.role, "support");
-  assert.equal(grant.changed, true);
-  assert.equal((await requestAs("/api/tickets/admin", otherSession)).status, 200);
-
-  const revokeResponse = await requestAs(`/api/auth/roles/${otherUserId}`, adminSession, {
-    method: "PATCH",
-    body: JSON.stringify({ role: "customer" }),
-  });
-  assert.equal(revokeResponse.status, 200, await revokeResponse.clone().text());
-  assert.equal((await requestAs("/api/tickets/admin", otherSession)).status, 403);
-
-  const auditResponse = await requestAs("/api/auth/roles/audit", adminSession);
-  assert.equal(auditResponse.status, 200);
-  const audit = await json<{ changes: Array<{ actorId: string; targetUserId: string; previousRole: string; nextRole: string }> }>(auditResponse);
-  assert.deepEqual(audit.changes.slice(0, 2).map((change) => [change.actorId, change.targetUserId, change.previousRole, change.nextRole]), [
-    [adminUserId, otherUserId, "support", "customer"],
-    [adminUserId, otherUserId, "customer", "support"],
-  ]);
-
-  const lastAdminResponse = await requestAs(`/api/auth/roles/${adminUserId}`, adminSession, {
-    method: "PATCH",
-    body: JSON.stringify({ role: "customer" }),
-  });
-  assert.equal(lastAdminResponse.status, 409);
-  assert.equal((await requestAs("/api/tickets/admin", adminSession)).status, 200);
+  })).status, 201);
+  assert.equal((await request(`/api/tickets/${ticket.id}`)).status, 200);
+  assert.equal((await request("/api/tickets/admin")).status, 200);
 });

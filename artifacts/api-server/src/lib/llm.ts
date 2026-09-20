@@ -156,12 +156,12 @@ function parseSseEvent(event: string): { done: boolean; content?: string } {
   try {
     parsed = JSON.parse(data) as typeof parsed;
   } catch {
-    throw new OpenRouterError("OpenRouter returned malformed streaming data", null, true, "protocol");
+    throw new OpenRouterError("OpenRouter returned malformed streaming data", null, false, "protocol");
   }
 
   const content = parsed.choices?.[0]?.delta?.content;
   if (content !== undefined && typeof content !== "string") {
-    throw new OpenRouterError("OpenRouter returned an invalid content chunk", null, true, "protocol");
+    throw new OpenRouterError("OpenRouter returned an invalid content chunk", null, false, "protocol");
   }
   return {
     done: false,
