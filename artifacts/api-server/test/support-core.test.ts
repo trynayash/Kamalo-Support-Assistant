@@ -6,11 +6,11 @@ import { and, eq, inArray } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, DEMO_USER_ID, type SupportRequestContext } from "../src/lib/context";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
-import { retrieveKnowledge } from "../src/lib/knowledge";
+import { rankKnowledgeArticles, retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
 import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
-import { representativeKnowledgeQuestions } from "./knowledge-evaluation";
+import { representativeKnowledgeFixtures, representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
   conversationsTable,
   db,
@@ -340,30 +340,37 @@ test("does not retrieve an article from a weak body-only match", async () => {
 });
 
 test("evaluates representative customer questions by approved knowledge topic", async () => {
-  const failures: string[] = [];
+  const evaluateCatalog = (catalog: typeof representativeKnowledgeFixtures) => {
+    const failures: string[] = [];
 
-  for (const evaluationCase of representativeKnowledgeQuestions) {
-    const prepared = await prepareSupportRequest(
-      testContext(),
-      evaluationCase.query,
-      false,
-      evaluationCase.history,
-    );
-    const matchedArticle = prepared.retrieved.find((article) => article.title.includes(evaluationCase.expectedTitle));
-    if (!matchedArticle) {
-      failures.push([
-        evaluationCase.topic,
-        `query=${JSON.stringify(evaluationCase.query)}`,
-        `expected=${JSON.stringify(evaluationCase.expectedTitle)}`,
-        `retrieved=${prepared.retrieved.map((article) => article.title).join(" | ") || "none"}`,
-      ].join(" "));
+    for (const evaluationCase of representativeKnowledgeQuestions) {
+      const historyContext = evaluationCase.history
+        ?.map((message) => `${message.role}: ${message.content}`)
+        .join("\n");
+      const query = historyContext
+        ? `${evaluationCase.query}\nRelevant recent conversation:\n${historyContext}`
+        : evaluationCase.query;
+      const retrieved = rankKnowledgeArticles(query, catalog);
+      const matchedArticle = retrieved.find((article) => article.title === evaluationCase.expectedTitle);
+      if (!matchedArticle) {
+        failures.push([
+          evaluationCase.topic,
+          `query=${JSON.stringify(evaluationCase.query)}`,
+          `expected=${JSON.stringify(evaluationCase.expectedTitle)}`,
+          `retrieved=${retrieved.map((article) => article.title).join(" | ") || "none"}`,
+        ].join(" "));
+      }
     }
-  }
 
+    return failures;
+  };
+
+  const seededFailures = evaluateCatalog(representativeKnowledgeFixtures);
+  const reseededFailures = evaluateCatalog([...representativeKnowledgeFixtures].reverse());
   assert.equal(
-    failures.length,
+    seededFailures.length + reseededFailures.length,
     0,
-    `Knowledge evaluation failures (topic, query, expected, retrieved):\n${failures.join("\n")}`,
+    `Knowledge evaluation failures (topic, query, expected, retrieved):\n${[...seededFailures, ...reseededFailures].join("\n")}`,
   );
 });
 

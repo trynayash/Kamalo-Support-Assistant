@@ -2,7 +2,16 @@ export type KnowledgeEvaluationCase = {
   topic: string;
   query: string;
   expectedTitle: string;
+  fixtureCategory?: string;
   history?: Array<{ role: "user" | "assistant"; content: string }>;
+};
+
+export type KnowledgeEvaluationFixture = {
+  id: string;
+  title: string;
+  category: string;
+  content: string;
+  version: number;
 };
 
 /**
@@ -97,6 +106,7 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
     topic: "OTP",
     query: "I am not receiving my one time password",
     expectedTitle: "OTP support",
+    fixtureCategory: "OTP / One-Time Password",
   },
   {
     topic: "Fincado",
@@ -110,3 +120,19 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
     expectedTitle: "My payment failed.",
   },
 ];
+
+/**
+ * A deliberately small approved-knowledge catalog for retrieval evaluation.
+ *
+ * The production corpus is imported and re-seeded independently of tests, so
+ * it is not a stable test dependency. Keep this catalog aligned with the
+ * representative questions above when a supported topic changes.
+ */
+export const representativeKnowledgeFixtures: KnowledgeEvaluationFixture[] =
+  representativeKnowledgeQuestions.map((evaluationCase, index) => ({
+    id: `knowledge-evaluation-${String(index + 1).padStart(2, "0")}`,
+    title: evaluationCase.expectedTitle,
+    category: evaluationCase.fixtureCategory ?? evaluationCase.topic,
+    content: "Deterministic approved-knowledge fixture for retrieval evaluation.",
+    version: 1,
+  }));

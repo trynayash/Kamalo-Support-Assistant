@@ -326,6 +326,60 @@ export type RetrievedArticle = {
   version: number;
 };
 
+/**
+ * Rank an already-selected set of approved articles.
+ *
+ * Keeping scoring separate from database loading lets retrieval evaluations use
+ * a small, deterministic topic catalog instead of depending on the imported
+ * corpus or its insertion order.
+ */
+export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[]): RetrievedArticle[] {
+  const retrievalQuery = expandMultilingualQuery(query);
+  const terms = expandedTerms(retrievalQuery);
+  const primaryTerms = new Set(tokenize(retrievalQuery));
+  const normalizedQuery = tokenize(retrievalQuery).join(" ");
+
+  return articles
+    .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
+    .map((article) => {
+      const title = tokenize(article.title);
+      const category = tokenize(article.category);
+      const content = tokenize(article.content);
+      const titleTerms = new Set(title);
+      const categoryTerms = new Set(category);
+      const contentTerms = new Set(content);
+      const primaryMatches = [...primaryTerms].filter((term) =>
+        titleTerms.has(term) || categoryTerms.has(term) || contentTerms.has(term),
+      );
+      const titleCategoryMatches = [...terms].filter((term) =>
+        titleTerms.has(term) || categoryTerms.has(term),
+      );
+      const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
+        ? 12
+        : 0;
+      const score = terms.reduce((total, term) => {
+        const weight = primaryTerms.has(term) ? 2 : 1;
+        if (titleTerms.has(term)) return total + (8 * weight);
+        if (categoryTerms.has(term)) return total + (4 * weight);
+        if (contentTerms.has(term)) return total + weight;
+        return total;
+      }, 0)
+        + numericLevelBoost
+        + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
+        + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
+      return { article, score, primaryMatches, titleCategoryMatches };
+    })
+    // A single common word in an article body is not enough evidence. Require
+    // either a title/category match or two independent query terms so generic
+    // questions do not accidentally receive an unrelated article.
+    .filter(({ score, primaryMatches, titleCategoryMatches }) =>
+      score >= 4 && (titleCategoryMatches.length > 0 || primaryMatches.length >= 2),
+    )
+    .sort((a, b) => b.score - a.score || b.article.version - a.article.version || a.article.title.localeCompare(b.article.title))
+    .slice(0, 6)
+    .map(({ article }) => article);
+}
+
 const retrievalStopWords = new Set([
   "a",
   "about",
@@ -484,48 +538,5 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
     ))
     .orderBy(asc(knowledgeArticlesTable.category));
 
-  const retrievalQuery = expandMultilingualQuery(query);
-  const terms = expandedTerms(retrievalQuery);
-  const primaryTerms = new Set(tokenize(retrievalQuery));
-  const normalizedQuery = tokenize(retrievalQuery).join(" ");
-
-  return articles
-    .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
-    .map((article) => {
-      const title = tokenize(article.title);
-      const category = tokenize(article.category);
-      const content = tokenize(article.content);
-      const titleTerms = new Set(title);
-      const categoryTerms = new Set(category);
-      const contentTerms = new Set(content);
-      const primaryMatches = [...primaryTerms].filter((term) =>
-        titleTerms.has(term) || categoryTerms.has(term) || contentTerms.has(term),
-      );
-      const titleCategoryMatches = [...terms].filter((term) =>
-        titleTerms.has(term) || categoryTerms.has(term),
-      );
-      const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
-        ? 12
-        : 0;
-      const score = terms.reduce((total, term) => {
-        const weight = primaryTerms.has(term) ? 2 : 1;
-        if (titleTerms.has(term)) return total + (8 * weight);
-        if (categoryTerms.has(term)) return total + (4 * weight);
-        if (contentTerms.has(term)) return total + weight;
-        return total;
-      }, 0)
-        + numericLevelBoost
-        + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
-        + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
-      return { article, score, primaryMatches, titleCategoryMatches };
-    })
-    // A single common word in an article body is not enough evidence. Require
-    // either a title/category match or two independent query terms so generic
-    // questions do not accidentally receive an unrelated article.
-    .filter(({ score, primaryMatches, titleCategoryMatches }) =>
-      score >= 4 && (titleCategoryMatches.length > 0 || primaryMatches.length >= 2),
-    )
-    .sort((a, b) => b.score - a.score || b.article.version - a.article.version || a.article.title.localeCompare(b.article.title))
-    .slice(0, 6)
-    .map(({ article }) => article);
+  return rankKnowledgeArticles(query, articles);
 }

@@ -14,3 +14,9 @@ Representative knowledge evaluations should assert stable article topics by titl
 **Why:** Article IDs change when seed knowledge is recreated, but topic-title matches make regressions readable and preserve coverage across re-seeding.
 
 **How to apply:** Keep evaluation cases in a maintained catalog, include aliases and follow-up wording, and report the topic, query, expected title, and retrieved titles when a case fails.
+
+Retrieval ranking should be testable independently from database loading through a small in-memory approved-knowledge catalog.
+
+**Why:** The imported corpus is intentionally mutable, so representative retrieval checks must not depend on its row order, article IDs, or unrelated seeded topics.
+
+**How to apply:** Keep the production database query as the source of approved articles, but run representative ranking cases against the maintained catalog in both normal and re-seeded order; encode important customer-language synonyms in the catalog metadata.
