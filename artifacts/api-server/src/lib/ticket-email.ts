@@ -14,6 +14,16 @@ type FeedbackEmail = {
   feedback?: string | null;
 };
 
+type AssignmentEmail = {
+  to: string;
+  ticketNumber: string;
+  assignee: string;
+  level: number;
+  category: string;
+  summary: string;
+  details: string;
+};
+
 function configuredSender(): string {
   const sender = process.env.RESEND_FROM_EMAIL?.trim();
   if (!sender) {
@@ -81,6 +91,27 @@ export async function sendTicketEmail({ to, subject, ticketNumber, title, body, 
   ].join("");
 
   await sendEmail({ to: [to], subject, html });
+}
+
+export async function sendTicketAssignmentEmail({ to, ticketNumber, assignee, level, category, summary, details }: AssignmentEmail): Promise<void> {
+  const html = [
+    `<div style="font-family:Arial,sans-serif;line-height:1.6;color:#17343a;max-width:640px">`,
+    `<p style="font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:#557277">KAMALO Support Operations</p>`,
+    `<h1 style="font-size:22px;margin:0 0 12px">New ticket assigned to your support role</h1>`,
+    `<p><strong>Assignment:</strong> ${escapeHtml(assignee)} · Level ${level}</p>`,
+    `<p><strong>Ticket ID:</strong> ${escapeHtml(ticketNumber)}</p>`,
+    `<p><strong>Category:</strong> ${escapeHtml(category)}</p>`,
+    `<p><strong>Issue brief:</strong> ${escapeHtml(summary)}</p>`,
+    `<div style="margin-top:20px;padding:16px;border:1px solid #d7e0dc;border-radius:10px;background:#f6faf7"><strong>Customer details</strong><p>${escapeHtml(details)}</p></div>`,
+    `<p style="font-size:12px;color:#6b7c7f;margin-top:28px">Review the ticket in the KAMALO support workspace before responding.</p>`,
+    `</div>`,
+  ].join("");
+
+  await sendEmail({
+    to: [to],
+    subject: `KAMALO ${assignee} assignment · ${ticketNumber}`,
+    html,
+  });
 }
 
 export async function sendFeedbackEmail({ messageId, rating, score, feedback }: FeedbackEmail): Promise<void> {

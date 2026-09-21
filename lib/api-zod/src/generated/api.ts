@@ -50,6 +50,12 @@ export const CreateConversationResponse = zod.object({
 
 
 /**
+ * @summary Remove all conversations from visible history
+ */
+export const DeleteAllConversationsResponse = zod.void()
+
+
+/**
  * @summary Get a conversation with messages
  */
 export const GetConversationParams = zod.object({
@@ -86,6 +92,29 @@ export const GetConversationResponse = zod.object({
 })).max(getConversationResponseTwoMessagesItemAttachmentsMax)
 }))
 }))
+
+
+/**
+ * @summary Rename a conversation
+ */
+export const UpdateConversationParams = zod.object({
+  "conversationId": zod.coerce.string()
+})
+
+export const updateConversationBodyTitleMax = 120;
+
+
+
+export const UpdateConversationBody = zod.object({
+  "title": zod.string().min(1).max(updateConversationBodyTitleMax)
+})
+
+export const UpdateConversationResponse = zod.object({
+  "id": zod.string(),
+  "title": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
 
 
 /**

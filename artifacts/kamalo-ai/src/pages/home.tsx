@@ -7,12 +7,13 @@ import {
   useCreateConversation,
   useCreateMessageFeedback,
   useDeleteConversation,
+  useUpdateConversation,
   useGetConversation,
   useListConversations,
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
@@ -197,8 +198,8 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
             <div className="flex items-start gap-2.5">
               <HiOutlineLifebuoy size={16} className="mt-0.5 shrink-0 text-primary" />
               <div className="min-w-0">
-                <p className="text-[11px] font-bold text-foreground">Need a confirmed answer?</p>
-                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Raise a support ticket and a specialist can review this question.</p>
+                 <p className="text-[11px] font-bold text-foreground">I don’t have confirmed knowledge for this yet.</p>
+                 <p className="mt-1 text-[11px] leading-5 text-muted-foreground">If you want, I can raise a ticket so a specialist can review the question and any reference image.</p>
                 <button type="button" onClick={onRaiseTicket} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid={`button-raise-ticket-${message.id}`}><HiOutlineLifebuoy size={13} />Raise a ticket</button>
               </div>
             </div>
@@ -338,6 +339,8 @@ export function HomePage() {
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
+  const [renaming, setRenaming] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<ChatLanguage>(initialChatLanguage);
   const inputModeRef = useRef<'text' | 'voice'>('text');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -350,6 +353,7 @@ export function HomePage() {
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
   const createConversation = useCreateConversation();
   const deleteConversation = useDeleteConversation();
+  const updateConversation = useUpdateConversation();
   const createFeedback = useCreateMessageFeedback();
   const createSupportTicket = useCreateSupportTicket();
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
@@ -561,6 +565,26 @@ export function HomePage() {
     });
   };
 
+  const beginRename = () => {
+    if (!selectedId || !activeConversation || updateConversation.isPending) return;
+    setTitleDraft(activeConversation.title);
+    setRenaming(true);
+  };
+
+  const saveConversationTitle = async () => {
+    if (!selectedId || !titleDraft.trim() || updateConversation.isPending) return;
+    try {
+      const updated = await updateConversation.mutateAsync({ conversationId: selectedId, data: { title: titleDraft.trim() } });
+      queryClient.setQueryData<ConversationSummary[]>(getListConversationsQueryKey(), (current) => current?.map((item) => item.id === updated.id ? { ...item, title: updated.title, updatedAt: updated.updatedAt } : item));
+      queryClient.setQueryData(getGetConversationQueryKey(selectedId), (current: typeof loadedConversation) => current ? { ...current, title: updated.title, updatedAt: updated.updatedAt } : current);
+      setRenaming(false);
+      setNotice('Conversation renamed.');
+      window.setTimeout(() => setNotice(''), 2200);
+    } catch {
+      setErrorMessage('This conversation could not be renamed right now.');
+    }
+  };
+
   const submitFeedback = async (submission: FeedbackDialogSubmission) => {
     if (!feedbackDialog) return;
     const { message, reaction } = feedbackDialog;
@@ -586,7 +610,7 @@ export function HomePage() {
               details: conversationContext,
               contactEmail: submission.contactEmail,
               feedbackRating: reaction,
-              attachmentIds: relatedUserMessage?.attachments?.map((attachment) => attachment.id) || [],
+               attachmentIds: submission.attachmentIds,
             },
           });
            const deliveryNotice = ticket.emailStatus === 'sent'
@@ -668,7 +692,10 @@ export function HomePage() {
      <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
         <div className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 sm:px-6 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
           {selectedId && <header className="mx-auto flex w-full max-w-[980px] shrink-0 items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
-              <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
+              <div className="min-w-0 flex-1">
+                {renaming ? <form onSubmit={(event) => { event.preventDefault(); void saveConversationTitle(); }} className="flex max-w-xl items-center gap-2"><input value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} maxLength={120} autoFocus className="h-9 min-w-0 flex-1 rounded-lg border border-primary/40 bg-card px-3 text-[14px] font-bold outline-none focus:ring-4 focus:ring-primary/10" aria-label="Conversation title" data-testid="input-conversation-title" /><button type="submit" disabled={!titleDraft.trim() || updateConversation.isPending} className="rounded-md bg-primary px-3 py-2 text-[10px] font-bold text-primary-foreground disabled:opacity-50" data-testid="button-save-conversation-title">Save</button><button type="button" onClick={() => setRenaming(false)} className="rounded-md p-2 text-muted-foreground hover:bg-muted" aria-label="Cancel rename" data-testid="button-cancel-conversation-title"><HiOutlineXMark size={15} /></button></form> : <div className="flex min-w-0 items-center gap-2"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || loadedConversation?.title || 'Support workspace'}</h2><button type="button" onClick={beginRename} disabled={conversationMode === 'readonly'} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary disabled:opacity-40" aria-label="Rename conversation" data-testid="button-rename-conversation"><HiOutlinePencilSquare size={14} /></button></div>}
+                {conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}
+              </div>
             <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} className="hidden sm:inline-flex" data-testid="button-clear-conversation">Clear</KamaloActionButton>
          </header>}
          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
@@ -719,8 +746,9 @@ export function HomePage() {
                       data-testid="input-chat-message"
                     />
                     <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
-                      <div className="flex min-w-0 items-center gap-2">
+                         <div className="flex min-w-0 items-center gap-2">
                         <input ref={fileInputRef} type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { chooseImage(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-chat-attachment" />
+                          <KamaloActionButton type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSending} leftIcon={<HiOutlinePaperClip size={14} />} className="kamalo-attach-button" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><span>Attach image</span></KamaloActionButton>
                           <ChatLanguageSelect
                             value={preferredLanguage}
                             selectedLabel={selectedChatLanguage.label}
@@ -728,7 +756,6 @@ export function HomePage() {
                             disabled={isSending || speech.isListening}
                           />
                          <KamaloActionButton type="button" variant={speech.isListening ? 'outline' : 'quiet'} size="icon" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} title={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}<span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></KamaloActionButton>
-                         <KamaloActionButton type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSending} leftIcon={<HiOutlinePaperClip size={14} />} className="kamalo-attach-button" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><span>Attach image</span></KamaloActionButton>
                          <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
                        <KamaloActionButton size="icon" onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></KamaloActionButton>
@@ -746,7 +773,7 @@ export function HomePage() {
       {feedbackDialog && (() => {
         const index = messages.findIndex((item) => item.id === feedbackDialog.message.id);
         const relatedUserMessage = [...messages.slice(0, index)].reverse().find((item) => item.role === 'user');
-        return <FeedbackDialog message={feedbackDialog.message} reaction={feedbackDialog.reaction} defaults={feedbackDialog.defaults} imageCount={relatedUserMessage?.attachments?.length || 0} saving={createFeedback.isPending || createSupportTicket.isPending} onClose={() => setFeedbackDialog(null)} onSubmit={(submission) => void submitFeedback(submission)} />;
+        return <FeedbackDialog message={feedbackDialog.message} reaction={feedbackDialog.reaction} defaults={feedbackDialog.defaults} initialEvidence={relatedUserMessage?.attachments || []} onUploadEvidence={async (file) => { if (!selectedId) throw new Error('Conversation is not selected'); return uploadConversationImage(selectedId, { file }); }} saving={createFeedback.isPending || createSupportTicket.isPending} onClose={() => setFeedbackDialog(null)} onSubmit={(submission) => void submitFeedback(submission)} />;
       })()}
     </KamaloShell>
   );

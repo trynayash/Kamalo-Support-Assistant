@@ -4,9 +4,12 @@ import {
   CreateConversationBody,
   CreateConversationResponse,
   DeleteConversationParams,
+  DeleteAllConversationsResponse,
   GetConversationParams,
   GetConversationResponse,
   ListConversationsResponse,
+  UpdateConversationBody,
+  UpdateConversationResponse,
   StreamAssistantMessageBody,
   StreamAssistantMessageParams,
   UploadConversationImageResponse,
@@ -120,6 +123,16 @@ router.post("/conversations", async (req, res): Promise<void> => {
   }));
 });
 
+router.delete("/conversations", async (req, res): Promise<void> => {
+  const clearedAt = new Date();
+  const cleared = await db.update(conversationsTable)
+    .set({ clearedAt, updatedAt: clearedAt })
+    .where(and(eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
+    .returning({ id: conversationsTable.id });
+  req.log.info({ clearedAt: clearedAt.toISOString(), count: cleared.length }, "All conversations removed from user history");
+  res.status(204).send();
+});
+
 router.get("/conversations/:conversationId", async (req, res): Promise<void> => {
   const params = GetConversationParams.safeParse(req.params);
   if (!params.success || !(await conversationExists(params.data.conversationId))) {
@@ -154,6 +167,34 @@ router.get("/conversations/:conversationId", async (req, res): Promise<void> => 
       createdAt: dateString(message.createdAt),
       attachments: attachmentsByMessage.get(message.id) || [],
     })),
+  }));
+});
+
+router.patch("/conversations/:conversationId", async (req, res): Promise<void> => {
+  const params = GetConversationParams.safeParse(req.params);
+  const body = UpdateConversationBody.safeParse(req.body ?? {});
+  if (!params.success || !body.success || !body.data.title.trim()) {
+    res.status(400).json({ error: "Enter a conversation title." });
+    return;
+  }
+  const title = body.data.title.trim();
+  const updatedAt = new Date();
+  const [conversation] = await db.update(conversationsTable)
+    .set({ title, updatedAt })
+    .where(and(
+      eq(conversationsTable.id, params.data.conversationId),
+      eq(conversationsTable.userId, DEMO_USER_ID),
+      isNull(conversationsTable.clearedAt),
+    ))
+    .returning();
+  if (!conversation) {
+    res.status(404).json({ error: "Conversation not found." });
+    return;
+  }
+  res.json(UpdateConversationResponse.parse({
+    ...conversation,
+    createdAt: dateString(conversation.createdAt),
+    updatedAt: dateString(conversation.updatedAt),
   }));
 });
 
@@ -282,7 +323,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   if (attachment) {
     await db.update(messageAttachmentsTable).set({ messageId: userMessageId }).where(eq(messageAttachmentsTable.id, attachment.id));
   }
-  await db.update(conversationsTable).set({ updatedAt: new Date(), title: (content || storedContent).slice(0, 64) }).where(eq(conversationsTable.id, conversationId));
+  await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, conversationId));
 
   const supportContext = createSupportRequestContext(req, conversationId);
   const startedAt = Date.now();

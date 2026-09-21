@@ -361,7 +361,9 @@ export default function ChatScreen() {
           {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><KamaloIcon name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
           {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><KamaloIcon name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
           {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><KamaloIcon name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
-          <Pressable
+           <View style={styles.composerTools}>
+           <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
+           <Pressable
             testID="language-picker"
             accessibilityRole="button"
             accessibilityLabel={`Chat language: ${chatLanguages.find((language) => language.value === selectedLanguage)?.label ?? 'English'}`}
@@ -379,9 +381,9 @@ export default function ChatScreen() {
               {chatLanguages.find((language) => language.value === selectedLanguage)?.label ?? 'English'}
             </Text>
             <KamaloIcon name="chevron-down" size={15} color={colors.mutedForeground} />
-          </Pressable>
+           </Pressable>
+           </View>
           <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
             <TextInput
               ref={inputRef}
               value={draft}
@@ -500,7 +502,7 @@ function MessageBubble({ message, colors, onRate, onRaiseTicket }: { message: Ch
           <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>
           {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><KamaloIcon name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
           {!isUser && onRaiseTicket ? <View style={[styles.escalationCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '35' }]}>
-            <View style={styles.escalationCopy}><KamaloIcon name="life-buoy" size={15} color={colors.primary} /><View style={styles.escalationText}><Text style={[styles.escalationTitle, { color: colors.foreground }]}>Need a confirmed answer?</Text><Text style={[styles.escalationBody, { color: colors.mutedForeground }]}>A specialist can review this question.</Text></View></View>
+             <View style={styles.escalationCopy}><KamaloIcon name="life-buoy" size={15} color={colors.primary} /><View style={styles.escalationText}><Text style={[styles.escalationTitle, { color: colors.foreground }]}>I don’t have confirmed knowledge for this yet.</Text><Text style={[styles.escalationBody, { color: colors.mutedForeground }]}>If you want, I can raise a ticket for a specialist to review it.</Text></View></View>
             <Pressable accessibilityRole="button" accessibilityLabel="Raise a support ticket" onPress={onRaiseTicket} style={({ pressed }) => [styles.escalationButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><KamaloIcon name="life-buoy" size={13} color={colors.primaryForeground} /><Text style={[styles.escalationButtonText, { color: colors.primaryForeground }]}>Raise a ticket</Text></Pressable>
           </View> : null}
         </View>
@@ -543,6 +545,7 @@ const styles = StyleSheet.create({
   dot: { width: 6, height: 6, borderRadius: 3 },
   typingText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
   composerShell: { paddingHorizontal: 14, paddingTop: 8 },
+  composerTools: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 7 },
   composer: { flexDirection: 'row', alignItems: 'flex-end', borderWidth: 1, borderRadius: 13, minHeight: 58, paddingHorizontal: 5, paddingVertical: 6 },
   composerInput: { flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 9, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
   send: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },

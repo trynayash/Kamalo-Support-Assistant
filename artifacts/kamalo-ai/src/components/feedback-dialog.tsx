@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ChatMessage } from '@workspace/api-client-react';
+import type { ChatMessage, ImageAttachment } from '@workspace/api-client-react';
 import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from '@/components/kamalo-icons';
 import { SectionLabel } from '@/components/kamalo-shell';
 import { ticketLevelMeta } from '@/lib/ticket-levels';
@@ -12,12 +12,14 @@ export type FeedbackDialogSubmission = {
   category: string;
   summary: string;
   details: string;
+  attachmentIds: string[];
 };
 
 type FeedbackDialogProps = {
   message: ChatMessage;
   reaction: 'helpful' | 'not_helpful';
-  imageCount: number;
+  initialEvidence: ImageAttachment[];
+  onUploadEvidence: (file: File) => Promise<ImageAttachment>;
   defaults?: {
     category?: string;
     summary?: string;
@@ -28,7 +30,7 @@ type FeedbackDialogProps = {
   onSubmit: (submission: FeedbackDialogSubmission) => void;
 };
 
-export function FeedbackDialog({ message, reaction, imageCount, defaults, saving, onClose, onSubmit }: FeedbackDialogProps) {
+export function FeedbackDialog({ message, reaction, initialEvidence, onUploadEvidence, defaults, saving, onClose, onSubmit }: FeedbackDialogProps) {
   const [score, setScore] = useState(reaction === 'helpful' ? 5 : 1);
   const [feedback, setFeedback] = useState('');
   const [escalate, setEscalate] = useState(reaction === 'not_helpful');
@@ -36,6 +38,8 @@ export function FeedbackDialog({ message, reaction, imageCount, defaults, saving
   const [category, setCategory] = useState(defaults?.category || 'Answer quality');
   const [summary, setSummary] = useState(defaults?.summary || 'I need help with this answer');
   const [details, setDetails] = useState(defaults?.details || '');
+  const [evidence, setEvidence] = useState<ImageAttachment[]>(initialEvidence);
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -89,7 +93,30 @@ export function FeedbackDialog({ message, reaction, imageCount, defaults, saving
       }
     }
     setError('');
-    onSubmit({ score, feedback: feedback.trim(), escalate, contactEmail: contactEmail.trim(), category: category.trim(), summary: summary.trim(), details: details.trim() });
+    onSubmit({ score, feedback: feedback.trim(), escalate, contactEmail: contactEmail.trim(), category: category.trim(), summary: summary.trim(), details: details.trim(), attachmentIds: evidence.map((attachment) => attachment.id) });
+  };
+
+  const chooseEvidence = async (file: File | undefined) => {
+    if (!file) return;
+    const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+    if (!['.jpg', '.jpeg', '.png'].includes(extension) || !['image/jpeg', 'image/png'].includes(file.type)) {
+      setError('Only JPG and PNG images can be attached.');
+      return;
+    }
+    if (!file.size || file.size > 5 * 1024 * 1024) {
+      setError('Choose an image smaller than 5 MB.');
+      return;
+    }
+    setError('');
+    setUploadingEvidence(true);
+    try {
+      const uploaded = await onUploadEvidence(file);
+      setEvidence((current) => current.some((item) => item.id === uploaded.id) ? current : [...current, uploaded]);
+    } catch {
+      setError('The reference image could not be uploaded. Please try again.');
+    } finally {
+      setUploadingEvidence(false);
+    }
   };
 
   return (
@@ -129,7 +156,17 @@ export function FeedbackDialog({ message, reaction, imageCount, defaults, saving
             <label className="block"><span className="mb-2 block text-[11px] font-semibold">Short issue brief</span><input value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={180} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[12px] outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-summary" /></label>
           </div>
           <label className="block"><span className="mb-2 block text-[11px] font-semibold">What were you trying to do?</span><textarea value={details} onChange={(event) => setDetails(event.target.value)} maxLength={2000} rows={3} placeholder="Give the specialist the shortest useful explanation." className="w-full resize-y rounded-lg border border-input bg-background px-3 py-3 text-[12px] leading-5 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-details" /></label>
-          <div className="font-mono text-[9px] text-muted-foreground">{imageCount > 0 ? `${imageCount} conversation image${imageCount === 1 ? '' : 's'} will be included.` : 'No image is attached to this answer.'}</div>
+           <div className="rounded-lg border border-dashed border-primary/25 bg-background/60 p-3">
+             <div className="flex items-center justify-between gap-3">
+               <div><div className="text-[11px] font-semibold">Reference images</div><div className="mt-1 text-[10px] leading-4 text-muted-foreground">Optional JPG or PNG evidence for the support team.</div></div>
+               <label className={`inline-flex shrink-0 cursor-pointer items-center rounded-md border border-border bg-card px-3 py-2 text-[10px] font-bold text-primary hover:border-primary/40 ${uploadingEvidence ? 'pointer-events-none opacity-50' : ''}`}>
+                 <input type="file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" className="sr-only" disabled={uploadingEvidence || saving} onChange={(event) => { void chooseEvidence(event.target.files?.[0]); event.target.value = ''; }} data-testid="input-ticket-evidence" />
+                 {uploadingEvidence ? 'Uploading…' : 'Add image'}
+               </label>
+             </div>
+             {evidence.length > 0 && <div className="mt-3 grid gap-2 sm:grid-cols-2">{evidence.map((attachment) => <div key={attachment.id} className="flex min-w-0 items-center gap-2 rounded-md border border-border bg-card p-2"><img src={attachment.url} alt={`Reference image ${attachment.filename}`} className="h-10 w-10 shrink-0 rounded object-cover" /><span className="min-w-0 flex-1 truncate text-[10px] font-semibold">{attachment.filename}</span><button type="button" onClick={() => setEvidence((current) => current.filter((item) => item.id !== attachment.id))} className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={`Remove ${attachment.filename}`} data-testid={`button-remove-ticket-evidence-${attachment.id}`}><HiOutlineXMark size={13} /></button></div>)}</div>}
+             <div className="mt-2 font-mono text-[9px] text-muted-foreground">{evidence.length > 0 ? `${evidence.length} image${evidence.length === 1 ? '' : 's'} will be included.` : 'No reference image attached.'}</div>
+           </div>
         </div>}
 
         {error && <div className="mt-4 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2.5 text-[11px] text-destructive" role="alert" data-testid="status-feedback-error">{error}</div>}

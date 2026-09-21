@@ -83,6 +83,14 @@ export interface ConversationInput {
   title?: string;
 }
 
+export interface ConversationUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  title: string;
+}
+
 /**
  * Indicates whether the customer typed the message or dictated it.
  */

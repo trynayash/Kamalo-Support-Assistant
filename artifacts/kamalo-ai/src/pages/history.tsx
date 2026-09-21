@@ -1,11 +1,13 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { HiOutlineArrowLeft, HiOutlineChatBubbleLeftRight, HiOutlineTrash } from '@/components/kamalo-icons';
+import { HiOutlineArrowLeft, HiOutlineChatBubbleLeftRight, HiOutlineCheck, HiOutlinePencilSquare, HiOutlineTrash, HiOutlineXMark } from '@/components/kamalo-icons';
 import type { ConversationSummary } from '@workspace/api-client-react';
 import {
   getListConversationsQueryKey,
   useDeleteConversation,
+  useDeleteAllConversations,
+  useUpdateConversation,
   useListConversations,
 } from '@workspace/api-client-react';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
@@ -16,6 +18,10 @@ export function HistoryPage() {
   const queryClient = useQueryClient();
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const deleteConversation = useDeleteConversation();
+  const deleteAllConversations = useDeleteAllConversations();
+  const updateConversation = useUpdateConversation();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [titleDraft, setTitleDraft] = useState('');
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
 
   const removeConversation = async (conversation: ConversationSummary) => {
@@ -25,6 +31,28 @@ export function HistoryPage() {
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
       // The list query remains visible; the user can retry from the page.
+    }
+  };
+
+  const saveTitle = async (conversationId: string) => {
+    if (!titleDraft.trim() || updateConversation.isPending) return;
+    try {
+      const updated = await updateConversation.mutateAsync({ conversationId, data: { title: titleDraft.trim() } });
+      queryClient.setQueryData<ConversationSummary[]>(getListConversationsQueryKey(), (current) => current?.map((item) => item.id === updated.id ? { ...item, title: updated.title, updatedAt: updated.updatedAt } : item));
+      setEditingId(null);
+    } catch {
+      // Keep the draft open so the user can retry.
+    }
+  };
+
+  const removeAllConversations = async () => {
+    if (!window.confirm('Remove all conversations from your visible history?\n\nKAMALO will retain an internal record for support continuity. This cannot be undone.')) return;
+    try {
+      await deleteAllConversations.mutateAsync();
+      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      setEditingId(null);
+    } catch {
+      // Keep the list visible so the user can retry.
     }
   };
 
@@ -40,7 +68,7 @@ export function HistoryPage() {
              <h1 className="page-title">History</h1>
              <p className="page-description">Open an earlier conversation or remove it from your visible history.</p>
           </div>
-          <span className="font-mono text-[10px] text-muted-foreground">{conversations.length} conversations</span>
+           <div className="flex items-center gap-3"><span className="font-mono text-[10px] text-muted-foreground">{conversations.length} conversations</span>{conversations.length > 0 && <button type="button" onClick={() => void removeAllConversations()} disabled={deleteAllConversations.isPending} className="rounded-lg border border-destructive/20 px-3 py-2 font-mono text-[9px] font-bold uppercase tracking-[.08em] text-destructive hover:bg-destructive/5 disabled:opacity-50" data-testid="button-history-delete-all">{deleteAllConversations.isPending ? 'Removing…' : 'Delete all'}</button>}</div>
         </div>
 
         {conversationsQuery.isLoading ? (
@@ -59,11 +87,12 @@ export function HistoryPage() {
         ) : (
            <div className="mt-8 space-y-2.5" data-testid="history-list">
             {conversations.map((conversation) => (
-               <div key={conversation.id} className="surface group flex items-center gap-3 px-4 py-4 transition-colors hover:border-primary/35 sm:px-5" data-testid={`history-item-${conversation.id}`}>
-                <Link href={`/?conversation=${conversation.id}`} className="min-w-0 flex-1" data-testid={`link-history-conversation-${conversation.id}`}>
-                  <div className="truncate text-[13px] font-bold">{conversation.title || 'Untitled conversation'}</div>
-                  <div className="mt-1 font-mono text-[10px] text-muted-foreground">{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'} · {compactDate(conversation.updatedAt)}</div>
-                </Link>
+                 <div key={conversation.id} className="surface group flex items-center gap-3 px-4 py-4 transition-colors hover:border-primary/35 sm:px-5" data-testid={`history-item-${conversation.id}`}>
+                 {editingId === conversation.id ? <form onSubmit={(event) => { event.preventDefault(); void saveTitle(conversation.id); }} className="flex min-w-0 flex-1 items-center gap-2"><input value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} maxLength={120} autoFocus className="h-9 min-w-0 flex-1 rounded-lg border border-primary/40 bg-background px-3 text-[12px] font-bold outline-none focus:ring-4 focus:ring-primary/10" aria-label="Conversation title" data-testid={`input-history-title-${conversation.id}`} /><button type="submit" disabled={!titleDraft.trim() || updateConversation.isPending} className="rounded-md bg-primary p-2 text-primary-foreground disabled:opacity-50" aria-label="Save conversation name" data-testid={`button-history-save-title-${conversation.id}`}><HiOutlineCheck size={14} /></button><button type="button" onClick={() => setEditingId(null)} className="rounded-md p-2 text-muted-foreground hover:bg-muted" aria-label="Cancel conversation rename" data-testid={`button-history-cancel-title-${conversation.id}`}><HiOutlineXMark size={14} /></button></form> : <Link href={`/?conversation=${conversation.id}`} className="min-w-0 flex-1" data-testid={`link-history-conversation-${conversation.id}`}>
+                   <div className="truncate text-[13px] font-bold">{conversation.title || 'Untitled conversation'}</div>
+                   <div className="mt-1 font-mono text-[10px] text-muted-foreground">{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'} · {compactDate(conversation.updatedAt)}</div>
+                 </Link>}
+                  {editingId !== conversation.id && <button type="button" onClick={() => { setEditingId(conversation.id); setTitleDraft(conversation.title || ''); }} className="icon-button rounded-lg p-2 text-muted-foreground hover:bg-muted hover:text-primary" aria-label={`Rename ${conversation.title || 'conversation'}`} data-testid={`button-history-rename-${conversation.id}`}><HiOutlinePencilSquare size={15} /></button>}
                  <button onClick={() => void removeConversation(conversation)} className="icon-button rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive" aria-label={`Delete ${conversation.title || 'conversation'}`} data-testid={`button-history-delete-${conversation.id}`}>
                   <HiOutlineTrash size={15} />
                 </button>

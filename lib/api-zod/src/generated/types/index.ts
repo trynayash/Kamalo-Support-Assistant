@@ -13,6 +13,7 @@ export * from './conversation';
 export * from './conversationDetail';
 export * from './conversationInput';
 export * from './conversationSummary';
+export * from './conversationUpdate';
 export * from './feedbackInput';
 export * from './feedbackInputRating';
 export * from './healthStatus';

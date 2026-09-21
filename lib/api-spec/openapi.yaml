@@ -65,6 +65,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Conversation"
+    delete:
+      operationId: deleteAllConversations
+      tags: [conversations]
+      summary: Remove all conversations from visible history
+      responses:
+        "204":
+          description: Conversations removed from visible history
   /conversations/{conversationId}:
     get:
       operationId: getConversation
@@ -79,6 +86,29 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ConversationDetail"
+        "404":
+          description: Conversation not found
+    patch:
+      operationId: updateConversation
+      tags: [conversations]
+      summary: Rename a conversation
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationUpdate"
+      responses:
+        "200":
+          description: Renamed conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "400":
+          description: Invalid conversation title
         "404":
           description: Conversation not found
     delete:
@@ -528,6 +558,14 @@ components:
       properties:
         title:
           type: string
+          maxLength: 120
+    ConversationUpdate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
           maxLength: 120
     MessageInput:
       type: object
