@@ -3,6 +3,7 @@ import type { ChatMessage, ImageAttachment } from '@workspace/api-client-react';
 import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from '@/components/kamalo-icons';
 import { SectionLabel } from '@/components/kamalo-shell';
 import { ticketLevelMeta } from '@/lib/ticket-levels';
+import { KamaloSelect } from '@/components/kamalo-select';
 
 export type FeedbackDialogSubmission = {
   score: number;
@@ -152,7 +153,7 @@ export function FeedbackDialog({ message, reaction, initialEvidence, onUploadEvi
            </div>
           <label className="block"><span className="mb-2 block text-[11px] font-semibold">Email for the resolution</span><input type="email" value={contactEmail} onChange={(event) => setContactEmail(event.target.value)} placeholder="you@example.com" className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[12px] outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-email" /></label>
           <div className="grid gap-4 sm:grid-cols-[150px_minmax(0,1fr)]">
-            <label className="block"><span className="mb-2 block text-[11px] font-semibold">Stuck category</span><select value={category} onChange={(event) => setCategory(event.target.value)} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[11px] outline-none focus:border-primary" data-testid="select-ticket-category"><option>Answer quality</option><option>Rewards</option><option>Auto KAMALO</option><option>FINCADO</option><option>Transactions</option><option>Account access</option><option>Other</option></select></label>
+             <label className="block"><span className="mb-2 block text-[11px] font-semibold">Stuck category</span><KamaloSelect value={category} onValueChange={setCategory} ariaLabel="Support ticket category" testId="select-ticket-category" options={['Answer quality', 'Rewards', 'Auto KAMALO', 'FINCADO', 'Transactions', 'Account access', 'Other'].map((item) => ({ value: item, label: item }))} /></label>
             <label className="block"><span className="mb-2 block text-[11px] font-semibold">Short issue brief</span><input value={summary} onChange={(event) => setSummary(event.target.value)} maxLength={180} className="h-10 w-full rounded-lg border border-input bg-background px-3 text-[12px] outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-summary" /></label>
           </div>
           <label className="block"><span className="mb-2 block text-[11px] font-semibold">What were you trying to do?</span><textarea value={details} onChange={(event) => setDetails(event.target.value)} maxLength={2000} rows={3} placeholder="Give the specialist the shortest useful explanation." className="w-full resize-y rounded-lg border border-input bg-background px-3 py-3 text-[12px] leading-5 outline-none focus:border-primary focus:ring-4 focus:ring-primary/10" data-testid="input-ticket-details" /></label>
