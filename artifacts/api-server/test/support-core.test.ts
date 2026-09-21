@@ -499,6 +499,35 @@ test("flags duplicate active approved topics while allowing non-overlapping vers
   );
 });
 
+test("reports every duplicate topic with its category and conflicting versions", () => {
+  const now = new Date("2026-09-21T12:00:00.000Z");
+  const article = (title: string, category: string, version: number, id: string) => ({
+    id,
+    title,
+    category,
+    version,
+    status: "approved",
+    effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+    effectiveUntil: null,
+  });
+  const duplicates = [
+    article("Coin expiry", "Coins", 2, "coin-expiry-one"),
+    article("coin expiry", " coins ", 3, "coin-expiry-two"),
+    article("OTP support", "Authentication", 4, "otp-one"),
+    article("OTP support", "Authentication", 5, "otp-two"),
+  ];
+
+  assert.throws(
+    () => assertNoDuplicateActiveApprovedTopics(duplicates, now),
+    (error: unknown) => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, /"Coin expiry" \[Coins\].*versions: 2, 3/s);
+      assert.match(error.message, /"OTP support" \[Authentication\].*versions: 4, 5/s);
+      return true;
+    },
+  );
+});
+
 test("keeps draft and expired knowledge out of evidence", async () => {
   const retrieved = await retrieveKnowledge(evidenceToken);
   assert.deepEqual(retrieved.map((article) => article.id), [articleIds[0]]);

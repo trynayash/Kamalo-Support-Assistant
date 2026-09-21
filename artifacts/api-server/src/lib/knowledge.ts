@@ -324,6 +324,20 @@ export function assertNoDuplicateActiveApprovedTopics(
   ].join("\n"));
 }
 
+export async function loadKnowledgeTopicRows(): Promise<KnowledgeTopicRow[]> {
+  return db
+    .select({
+      id: knowledgeArticlesTable.id,
+      title: knowledgeArticlesTable.title,
+      category: knowledgeArticlesTable.category,
+      version: knowledgeArticlesTable.version,
+      status: knowledgeArticlesTable.status,
+      effectiveFrom: knowledgeArticlesTable.effectiveFrom,
+      effectiveUntil: knowledgeArticlesTable.effectiveUntil,
+    })
+    .from(knowledgeArticlesTable);
+}
+
 async function readKnowledgeSource(filename: string): Promise<string> {
   const sourcePaths = [
     path.resolve(process.cwd(), "attached_assets", filename),
@@ -382,17 +396,7 @@ async function setupKnowledge(): Promise<void> {
     }
   }
 
-  const knowledgeRows = await db
-    .select({
-      id: knowledgeArticlesTable.id,
-      title: knowledgeArticlesTable.title,
-      category: knowledgeArticlesTable.category,
-      version: knowledgeArticlesTable.version,
-      status: knowledgeArticlesTable.status,
-      effectiveFrom: knowledgeArticlesTable.effectiveFrom,
-      effectiveUntil: knowledgeArticlesTable.effectiveUntil,
-    })
-    .from(knowledgeArticlesTable);
+  const knowledgeRows = await loadKnowledgeTopicRows();
   assertNoDuplicateActiveApprovedTopics(knowledgeRows);
 }
 
