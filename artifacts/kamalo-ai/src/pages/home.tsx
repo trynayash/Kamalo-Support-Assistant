@@ -651,7 +651,7 @@ export function HomePage() {
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
        <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full flex-1 flex-col pb-40 sm:pb-36" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
          <div className="flex min-h-0 w-full min-w-0 flex-1">
-          <section className="flex min-h-0 min-w-0 flex-col">
+           <section className="flex min-h-0 min-w-0 flex-1 w-full flex-col">
          {selectedId && <header className="conversation-header sticky top-0 z-20 flex min-h-[88px] items-center justify-between border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6 md:px-8" data-testid="conversation-header">
              <div className="min-w-0">
                <div className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-muted-foreground">Conversation</div>
