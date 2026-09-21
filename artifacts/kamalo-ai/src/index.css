@@ -269,6 +269,102 @@
 .button-primary:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 8px 18px hsl(var(--primary) / .16); }
 .button-secondary:hover:not(:disabled) { border-color: hsl(var(--primary) / .4); background: hsl(var(--primary) / .05); color: hsl(var(--primary)); }
 .icon-button:hover:not(:disabled) { background: hsl(var(--muted)); color: hsl(var(--foreground)); }
+.kamalo-action-button {
+  --kamalo-button-bg: hsl(var(--primary));
+  --kamalo-button-fg: hsl(var(--primary-foreground));
+  --kamalo-button-border: hsl(var(--primary));
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid var(--kamalo-button-border);
+  border-radius: .8rem;
+  background: var(--kamalo-button-bg);
+  color: var(--kamalo-button-fg);
+  font-size: .75rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: border-color .2s ease, background-color .2s ease, color .2s ease, box-shadow .2s ease, transform .2s ease;
+}
+.kamalo-action-button:hover:not(:disabled) {
+  border-color: hsl(var(--accent) / .78);
+  box-shadow: 0 8px 20px hsl(var(--foreground) / .1);
+  transform: translateY(-1px);
+}
+.kamalo-action-button:active:not(:disabled) {
+  box-shadow: none;
+  transform: translateY(1px);
+}
+.kamalo-action-button:focus-visible {
+  outline: 2px solid hsl(var(--accent));
+  outline-offset: 3px;
+}
+.kamalo-action-button-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(circle 96px at var(--kamalo-pointer-x) var(--kamalo-pointer-y), hsl(var(--accent) / .28), transparent 72%);
+  opacity: 0;
+  transition: opacity .25s ease;
+}
+.kamalo-action-button:hover:not(:disabled) .kamalo-action-button-glow { opacity: 1; }
+.kamalo-action-button > .relative { transition: opacity .2s ease; }
+.kamalo-action-button-outline {
+  --kamalo-button-bg: hsl(var(--card) / .72);
+  --kamalo-button-fg: hsl(var(--foreground));
+  --kamalo-button-border: hsl(var(--border));
+}
+.kamalo-action-button-outline:hover:not(:disabled) {
+  background: hsl(var(--primary) / .06);
+  color: hsl(var(--primary));
+}
+.kamalo-action-button-quiet {
+  --kamalo-button-bg: transparent;
+  --kamalo-button-fg: hsl(var(--muted-foreground));
+  --kamalo-button-border: transparent;
+}
+.kamalo-action-button-quiet:hover:not(:disabled) {
+  background: hsl(var(--muted));
+  color: hsl(var(--foreground));
+  box-shadow: none;
+}
+.kamalo-action-button-default { padding: .75rem 1rem; }
+.kamalo-action-button-sm { min-height: 2.25rem; border-radius: .65rem; padding: .55rem .75rem; font-size: .6875rem; }
+.kamalo-action-button-lg { min-height: 3.25rem; padding: .85rem 1rem; }
+.kamalo-action-button-icon { width: 2.75rem; padding: 0; }
+.kamalo-action-button-disabled { cursor: not-allowed; opacity: .42; }
+.kamalo-action-button-loader {
+  width: .9rem;
+  height: .9rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: kamalo-button-spin .75s linear infinite;
+}
+@keyframes kamalo-button-spin { to { transform: rotate(360deg); } }
+.kamalo-prompt-card {
+  min-height: 4.9rem;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  font-weight: 400;
+  line-height: 1.25;
+}
+.kamalo-attach-button {
+  width: 2.75rem;
+  padding: 0;
+}
+.kamalo-attach-button > .relative > span:last-child { display: none; }
+@media (min-width: 640px) {
+  .kamalo-attach-button {
+    width: auto;
+    padding: .55rem .75rem;
+  }
+  .kamalo-attach-button > .relative > span:last-child { display: inline; }
+}
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }
 }

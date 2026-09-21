@@ -377,7 +377,7 @@ export default function ChatScreen() {
               editable={!isStreaming}
             />
             <IconButton icon={isListening ? 'square' : 'mic'} label={isListening ? 'Stop voice input' : 'Start voice input'} onPress={() => { void toggleVoiceInput(); }} disabled={isStreaming} />
-            <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
+             <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
           </View>
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>
         </View>
@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   composerShell: { paddingHorizontal: 14, paddingTop: 8 },
   composer: { flexDirection: 'row', alignItems: 'flex-end', borderWidth: 1, borderRadius: 13, minHeight: 58, paddingHorizontal: 5, paddingVertical: 6 },
   composerInput: { flex: 1, minHeight: 40, maxHeight: 100, paddingHorizontal: 9, paddingVertical: 9, fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 20 },
-  send: { width: 36, height: 36, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  send: { width: 38, height: 38, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   composerNote: { fontFamily: 'Inter_400Regular', fontSize: 10, textAlign: 'center', marginTop: 8, marginBottom: 2 },
   languagePicker: { alignSelf: 'flex-start', minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, borderWidth: 1, borderRadius: 17, paddingHorizontal: 12, marginBottom: 7 },
   languagePickerText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },

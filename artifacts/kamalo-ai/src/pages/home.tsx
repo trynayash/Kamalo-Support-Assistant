@@ -15,6 +15,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from 'react-icons/hi2';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
+import { KamaloActionButton } from '@/components/kamalo-action-button';
 import { useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
 import { useSpeechInput } from '@/hooks/use-speech-input';
@@ -146,10 +147,12 @@ function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: str
         <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">{showQuickPrompts ? 'Choose a common question or type your own.' : 'Select a conversation from your history, or start a new one from the sidebar.'}</p>
         {showQuickPrompts && <div className="mt-7 grid gap-2 sm:grid-cols-3">
           {quickPrompts.map((prompt) => (
-            <button key={prompt.label} onClick={() => onPrompt(prompt.text)} className="rounded-lg border border-border/80 bg-card/60 px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-card" data-testid={`button-prompt-${prompt.label.toLowerCase()}`}>
-              <span className="block text-[11px] font-semibold text-foreground">{prompt.label}</span>
-              <span className="mt-1 block text-[10px] leading-4 text-muted-foreground">{prompt.text}</span>
-            </button>
+            <KamaloActionButton key={prompt.label} variant="outline" size="lg" onClick={() => onPrompt(prompt.text)} className="kamalo-prompt-card" data-testid={`button-prompt-${prompt.label.toLowerCase()}`}>
+              <span className="flex flex-col items-start">
+                <span className="text-[11px] font-semibold text-foreground">{prompt.label}</span>
+                <span className="mt-1 text-[10px] leading-4 text-muted-foreground">{prompt.text}</span>
+              </span>
+            </KamaloActionButton>
           ))}
         </div>}
       </div>
@@ -283,7 +286,7 @@ function ChatClosedState({ onNewConversation }: { onNewConversation: () => void 
       <SectionLabel>Conversation closed</SectionLabel>
       <h1 className="mt-4 max-w-md text-[clamp(1.7rem,4vw,2.5rem)] font-extrabold leading-[1.08] tracking-[-.045em] text-foreground">This chat was closed due to inactivity.</h1>
       <p className="mt-4 max-w-md text-[13px] leading-7 text-muted-foreground">Your conversation is saved in History. Start a new conversation when you are ready.</p>
-      <button onClick={onNewConversation} className="mt-7 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-3 text-[12px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid="button-closed-new-conversation"><HiOutlinePlus size={16} /> Start new conversation</button>
+      <KamaloActionButton onClick={onNewConversation} leftIcon={<HiOutlinePlus size={16} />} className="mt-7" data-testid="button-closed-new-conversation">Start new conversation</KamaloActionButton>
     </div>
   );
 }
@@ -296,7 +299,7 @@ function ReadOnlyHistoryBar({ onNewConversation }: { onNewConversation: () => vo
           <div className="font-mono text-[9px] uppercase tracking-[.16em] text-muted-foreground">Read-only history</div>
           <p className="mt-1 truncate text-[11px] text-muted-foreground">This conversation is closed. Start a new conversation to send a message.</p>
         </div>
-        <button type="button" onClick={onNewConversation} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-[10px] font-semibold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid="button-read-only-new-conversation"><HiOutlinePlus size={13} /> New conversation</button>
+         <KamaloActionButton type="button" size="sm" onClick={onNewConversation} leftIcon={<HiOutlinePlus size={13} />} data-testid="button-read-only-new-conversation">New conversation</KamaloActionButton>
       </div>
     </div>
   );
@@ -631,11 +634,11 @@ export function HomePage() {
        <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
          {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
              <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
-           <button onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} className="hidden items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-2 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-destructive/30 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40 sm:flex" data-testid="button-clear-conversation"><HiOutlineBackspace size={14} /> Clear</button>
+            <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} className="hidden sm:inline-flex" data-testid="button-clear-conversation">Clear</KamaloActionButton>
          </header>}
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
           <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
-             {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><button onClick={() => void conversationQuery.refetch()} className="mt-3 rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-primary hover:bg-muted" data-testid="button-retry-conversation-load">Try again</button></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 ? (
+              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><KamaloActionButton variant="outline" size="sm" onClick={() => void conversationQuery.refetch()} className="mt-3" data-testid="button-retry-conversation-load">Try again</KamaloActionButton></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                    <ChatWelcomeState
@@ -653,7 +656,7 @@ export function HomePage() {
             )}
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
-            {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><button onClick={markUserActivity} className="rounded-lg border border-primary/25 bg-background px-3 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10" data-testid="button-inactivity-continue">I’m here</button></div>}
+             {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><KamaloActionButton variant="outline" size="sm" onClick={markUserActivity} data-testid="button-inactivity-continue">I’m here</KamaloActionButton></div>}
             {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[980px]">
                  <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
@@ -687,11 +690,11 @@ export function HomePage() {
                             onChange={setPreferredLanguage}
                             disabled={isSending || speech.isListening}
                           />
-                          <button type="button" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${speech.isListening ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary'}`} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} title={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}<span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></button>
-                        <button type="button" onClick={() => fileInputRef.current?.click()} disabled={isSending} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-2 text-[10px] font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><HiOutlinePaperClip size={14} /> <span className="hidden sm:inline">Attach image</span></button>
+                         <KamaloActionButton type="button" variant={speech.isListening ? 'outline' : 'quiet'} size="icon" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} title={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}<span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></KamaloActionButton>
+                         <KamaloActionButton type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSending} leftIcon={<HiOutlinePaperClip size={14} />} className="kamalo-attach-button" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><span>Attach image</span></KamaloActionButton>
                          <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
-                      <button onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-35" aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></button>
+                       <KamaloActionButton size="icon" onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></KamaloActionButton>
                     </div>
                  </div>
                    {speech.error && <div className={`mt-2 flex items-center gap-3 rounded-lg border px-3.5 py-2.5 text-[11px] ${speech.isTranscribing ? 'border-primary/20 bg-primary/5 text-primary' : 'border-destructive/20 bg-destructive/5 text-destructive'}`} role="status" aria-live="polite" data-testid="status-voice-error"><span className="min-w-0 flex-1">{speech.error}</span>{speech.hasRetryableRecording && !speech.isTranscribing && <><button type="button" onClick={speech.retryTranscription} className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline" data-testid="button-retry-voice">Retry voice</button><button type="button" onClick={() => speech.dismissRetryableRecording()} className="shrink-0 rounded-md p-1 text-current/70 hover:bg-current/10 hover:text-current" aria-label="Dismiss recorded voice retry" data-testid="button-dismiss-voice-retry"><HiOutlineXMark size={14} /></button></>}</div>}

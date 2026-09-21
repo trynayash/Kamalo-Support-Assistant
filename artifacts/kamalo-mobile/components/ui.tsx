@@ -54,6 +54,7 @@ export function IconButton({ icon, label, onPress, disabled, tone = 'plain' }: {
       style={({ pressed }) => [
         styles.iconButton,
         tone === 'filled' && { backgroundColor: colors.primary },
+        tone === 'plain' && { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 },
         { opacity: disabled ? 0.35 : pressed ? 0.62 : 1 },
       ]}
     >
@@ -73,7 +74,11 @@ export function Button({ label, onPress, icon, loading, disabled, secondary }: {
       onPress={onPress}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: secondary ? colors.secondary : colors.primary, opacity: disabled ? 0.42 : pressed ? 0.78 : 1 },
+        {
+          backgroundColor: secondary ? colors.card : colors.primary,
+          borderColor: secondary ? colors.border : colors.primary,
+          opacity: disabled ? 0.42 : pressed ? 0.78 : 1,
+        },
       ]}
     >
       {loading ? <ActivityIndicator color={secondary ? colors.foreground : colors.primaryForeground} size="small" /> : icon ? <Feather name={icon} size={16} color={secondary ? colors.foreground : colors.primaryForeground} /> : null}
@@ -183,8 +188,8 @@ const styles = StyleSheet.create({
   headerAction: { paddingTop: 4, paddingLeft: 8 },
   headerActionText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   headerActions: { alignItems: 'flex-end', gap: 7, paddingTop: 1 },
-  iconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 20 },
-  button: { minHeight: 46, paddingHorizontal: 17, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  iconButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
+  button: { minHeight: 46, paddingHorizontal: 17, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
   buttonText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   card: { borderRadius: 12, borderWidth: 1, padding: 16 },
   badge: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 5 },

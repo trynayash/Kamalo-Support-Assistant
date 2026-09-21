@@ -1,6 +1,7 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { HiOutlineBars3, HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck, HiOutlineXMark } from 'react-icons/hi2';
+import { KamaloActionButton } from '@/components/kamalo-action-button';
 
 type KamaloShellProps = {
   children: ReactNode;
@@ -53,13 +54,14 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
         </div>
 
          <div className="mt-10">
-           {onNewConversation ? <button
+           {onNewConversation ? <KamaloActionButton
              onClick={() => onNewConversation()}
-             className="group flex h-11 w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 text-left text-[13px] font-semibold transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
+             leftIcon={<HiOutlinePlus size={16} />}
+             className="group h-11 w-full justify-start rounded-xl px-3.5 text-left text-[13px]"
              data-testid="button-new-conversation"
            >
-              <span className="flex items-center gap-2.5"><HiOutlinePlus size={16} className="text-[hsl(var(--accent))]" /> <span>New conversation</span></span>
-           </button> : <Link
+             New conversation
+           </KamaloActionButton> : <Link
              href="/"
              className="group flex h-11 w-full items-center justify-between rounded-xl border border-sidebar-foreground/15 bg-sidebar-foreground/[.06] px-3.5 text-left text-[13px] font-semibold transition-colors hover:border-[hsl(var(--accent)/.45)] hover:bg-sidebar-accent"
              data-testid="link-new-conversation"
@@ -102,7 +104,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
                <button type="button" onClick={() => setMobileMenuOpen(false)} className="icon-button rounded-lg p-2 text-muted-foreground" aria-label="Close navigation menu"><HiOutlineXMark size={17} /></button>
              </div>
              <nav className="space-y-1" aria-label="Mobile navigation">
-               {onNewConversation ? <button type="button" onClick={() => { onNewConversation(); setMobileMenuOpen(false); }} className="flex h-11 w-full items-center gap-3 rounded-xl bg-primary px-3 text-left text-[12px] font-bold text-primary-foreground" data-testid="button-mobile-new-conversation"><HiOutlinePlus size={17} /><span>New conversation</span></button> : <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex h-11 items-center gap-3 rounded-xl bg-primary px-3 text-[12px] font-bold text-primary-foreground" data-testid="link-mobile-new-conversation"><HiOutlinePlus size={17} /><span>New conversation</span></Link>}
+               {onNewConversation ? <KamaloActionButton type="button" onClick={() => { onNewConversation(); setMobileMenuOpen(false); }} leftIcon={<HiOutlinePlus size={17} />} className="h-11 w-full justify-start rounded-xl px-3 text-left text-[12px]" data-testid="button-mobile-new-conversation">New conversation</KamaloActionButton> : <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex h-11 items-center gap-3 rounded-xl bg-primary px-3 text-left text-[12px] font-bold text-primary-foreground" data-testid="link-mobile-new-conversation"><HiOutlinePlus size={17} /><span>New conversation</span></Link>}
                <Link href="/" onClick={() => setMobileMenuOpen(false)} className={`flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold ${isConversations ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`} data-testid="link-mobile-conversations"><HiOutlineChatBubbleLeftRight size={17} /><span>Conversations</span>{conversationCount > 0 && <span className="ml-auto rounded-full bg-muted px-2 py-0.5 font-mono text-[9px]">{conversationCount}</span>}</Link>
                <Link href="/history" onClick={() => setMobileMenuOpen(false)} className={`flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold ${location === '/history' ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`} data-testid="link-mobile-history"><HiOutlineClock size={17} /><span>History</span></Link>
                <Link href="/admin/knowledge" onClick={() => setMobileMenuOpen(false)} className={`flex h-10 items-center gap-3 rounded-xl px-3 text-[12px] font-semibold ${isKnowledge ? 'bg-primary/10 text-primary' : 'text-foreground hover:bg-muted'}`} data-testid="link-mobile-knowledge"><HiOutlineBookOpen size={17} /><span>Knowledge base</span></Link>
