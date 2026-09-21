@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { fetch } from 'expo/fetch';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import * as Haptics from 'expo-haptics';
 import {
   getListMySupportTicketsQueryKey,
@@ -156,13 +156,13 @@ export default function SupportScreen() {
               <View style={[styles.attachmentCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Image source={{ uri: attachment.previewUri }} style={styles.attachmentPreview} />
                 <View style={styles.attachmentCopy}><Text style={[styles.attachmentName, { color: colors.foreground }]} numberOfLines={1}>{attachment.item.filename}</Text><Text style={[styles.attachmentMeta, { color: colors.mutedForeground }]}>Attached to this ticket</Text></View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Remove reference image" onPress={() => setAttachment(null)} hitSlop={8}><Feather name="x" size={18} color={colors.mutedForeground} /></Pressable>
+                <Pressable accessibilityRole="button" accessibilityLabel="Remove reference image" onPress={() => setAttachment(null)} hitSlop={8}><KamaloIcon name="x" size={18} color={colors.mutedForeground} /></Pressable>
               </View>
             ) : (
               <Pressable accessibilityRole="button" onPress={chooseImage} disabled={uploading} style={({ pressed }) => [styles.uploadButton, { backgroundColor: colors.secondary, borderColor: colors.border, opacity: uploading ? 0.5 : pressed ? 0.68 : 1 }]}>
-                <Feather name={uploading ? 'loader' : 'image'} size={17} color={colors.primary} />
+                <KamaloIcon name={uploading ? 'loader' : 'image'} size={17} color={colors.primary} />
                 <View style={styles.uploadCopy}><Text style={[styles.uploadTitle, { color: colors.foreground }]}>{uploading ? 'Uploading image…' : 'Add a screenshot or reference'}</Text><Text style={[styles.uploadMeta, { color: colors.mutedForeground }]}>JPG or PNG, optional</Text></View>
-                <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+                <KamaloIcon name="chevron-right" size={16} color={colors.mutedForeground} />
               </Pressable>
             )}
           </View>
@@ -191,7 +191,7 @@ export default function SupportScreen() {
 
 function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
   const colors = useColors();
-  return <Card onPress={onPress} style={styles.ticketCard}><View style={styles.ticketHeader}><Text style={[styles.ticketNumber, { color: colors.primary }]}>{ticket.ticketNumber}</Text><Badge label={ticket.status.replace('_', ' ')} tone={statusTone(ticket.status)} /></View><Text style={[styles.ticketSummary, { color: colors.foreground }]} numberOfLines={2}>{ticket.summary}</Text><View style={styles.ticketMeta}><Text style={[styles.meta, { color: colors.mutedForeground }]}>{ticket.category}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{formatDate(ticket.updatedAt, true)}</Text><Feather name="chevron-right" size={15} color={colors.mutedForeground} /></View></Card>;
+  return <Card onPress={onPress} style={styles.ticketCard}><View style={styles.ticketHeader}><Text style={[styles.ticketNumber, { color: colors.primary }]}>{ticket.ticketNumber}</Text><Badge label={ticket.status.replace('_', ' ')} tone={statusTone(ticket.status)} /></View><Text style={[styles.ticketSummary, { color: colors.foreground }]} numberOfLines={2}>{ticket.summary}</Text><View style={styles.ticketMeta}><Text style={[styles.meta, { color: colors.mutedForeground }]}>{ticket.category}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{formatDate(ticket.updatedAt, true)}</Text><KamaloIcon name="chevron-right" size={15} color={colors.mutedForeground} /></View></Card>;
 }
 
 const styles = StyleSheet.create({

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { SupportTicket, SupportTicketUpdateStatus } from '@workspace/api-client-react';
 import { getListSupportTicketsQueryKey, useAnalyzeSupportTicket, useListSupportTickets, useRetrySupportTicketEmail, useUpdateSupportTicket } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineClock, HiOutlineCpuChip, HiOutlineEnvelope, HiOutlineHandRaised, HiOutlineInboxStack, HiOutlinePaperClip, HiOutlineSparkles } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineClock, HiOutlineCpuChip, HiOutlineEnvelope, HiOutlineHandRaised, HiOutlineInboxStack, HiOutlinePaperClip, HiOutlineSparkles } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { TicketLevelBadge } from '@/lib/ticket-levels';
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChatMessage } from '@workspace/api-client-react';
-import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineXMark } from '@/components/kamalo-icons';
 import { SectionLabel } from '@/components/kamalo-shell';
 import { ticketLevelMeta } from '@/lib/ticket-levels';
 

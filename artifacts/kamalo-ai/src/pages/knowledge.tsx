@@ -9,7 +9,7 @@ import {
   useUpdateKnowledgeArticle,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArchiveBox, HiOutlineCheck, HiOutlineChevronDown, HiOutlineDocumentPlus, HiOutlineFunnel, HiOutlineMagnifyingGlass, HiOutlinePencilSquare, HiOutlineArrowPath, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArchiveBox, HiOutlineCheck, HiOutlineChevronDown, HiOutlineDocumentPlus, HiOutlineFunnel, HiOutlineMagnifyingGlass, HiOutlinePencilSquare, HiOutlineArrowPath, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, KnowledgeIcon, SectionLabel } from '@/components/kamalo-shell';
 
 type ArticleStatus = 'all' | 'draft' | 'approved' | 'archived';

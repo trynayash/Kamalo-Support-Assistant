@@ -1,6 +1,6 @@
 import { type CSSProperties, type ReactNode, useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
-import { HiOutlineBars3, HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineBars3, HiOutlineBookOpen, HiOutlineChatBubbleLeftRight, HiOutlineClock, HiOutlineLifebuoy, HiOutlinePlus, HiOutlineShieldCheck, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
 
 type KamaloShellProps = {

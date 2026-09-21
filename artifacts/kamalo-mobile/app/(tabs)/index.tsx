@@ -5,7 +5,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { fetch } from 'expo/fetch';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import {
   ChatMessage,
   getGetConversationQueryKey,
@@ -339,9 +339,9 @@ export default function ChatScreen() {
           />
         )}
         <View style={[styles.composerShell, { backgroundColor: colors.background, paddingBottom: Math.max(insets.bottom, 10) }]}>
-          {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
-          {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><Feather name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
-          {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><Feather name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
+          {streamError ? <Pressable onPress={() => setStreamError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><KamaloIcon name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{streamError}</Text></Pressable> : null}
+          {voiceError ? <Pressable onPress={() => setVoiceError(null)} style={[styles.errorBanner, { backgroundColor: colors.destructive + '16' }]}><KamaloIcon name="alert-circle" size={14} color={colors.destructive} /><Text style={[styles.errorBannerText, { color: colors.destructive }]} numberOfLines={2}>{voiceError}</Text></Pressable> : null}
+          {attachment ? <View style={[styles.attachmentPill, { backgroundColor: colors.secondary }]}><KamaloIcon name="paperclip" size={14} color={colors.primary} /><Text style={[styles.attachmentText, { color: colors.foreground }]} numberOfLines={1}>{attachment.filename}</Text><IconButton icon="x" label="Remove attachment" onPress={() => setAttachment(null)} /></View> : null}
           <Pressable
             testID="language-picker"
             accessibilityRole="button"
@@ -355,11 +355,11 @@ export default function ChatScreen() {
               { backgroundColor: colors.secondary, borderColor: colors.border, opacity: isStreaming || isListening ? 0.48 : pressed ? 0.72 : 1 },
             ]}
           >
-            <Feather name="globe" size={15} color={colors.primary} />
+            <KamaloIcon name="globe" size={15} color={colors.primary} />
             <Text style={[styles.languagePickerText, { color: colors.foreground }]}>
               {chatLanguages.find((language) => language.value === selectedLanguage)?.label ?? 'English'}
             </Text>
-            <Feather name="chevron-down" size={15} color={colors.mutedForeground} />
+            <KamaloIcon name="chevron-down" size={15} color={colors.mutedForeground} />
           </Pressable>
           <View style={[styles.composer, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <IconButton icon="paperclip" label="Attach an image" onPress={chooseImage} disabled={isStreaming} />
@@ -377,7 +377,7 @@ export default function ChatScreen() {
               editable={!isStreaming}
             />
             <IconButton icon={isListening ? 'square' : 'mic'} label={isListening ? 'Stop voice input' : 'Start voice input'} onPress={() => { void toggleVoiceInput(); }} disabled={isStreaming} />
-             <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><Feather name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
+             <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><KamaloIcon name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
           </View>
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>
         </View>
@@ -416,7 +416,7 @@ export default function ChatScreen() {
                 hitSlop={10}
                 style={({ pressed }) => ({ opacity: pressed ? 0.58 : 1 })}
               >
-                <Feather name="x" size={21} color={colors.foreground} />
+                <KamaloIcon name="x" size={21} color={colors.foreground} />
               </Pressable>
             </View>
             <View style={styles.languageMenuOptions}>
@@ -444,7 +444,7 @@ export default function ChatScreen() {
                     <Text style={[styles.languageMenuOptionText, { color: selected ? colors.primary : colors.foreground }]}>
                       {language.label}
                     </Text>
-                    {selected ? <Feather name="check" size={18} color={colors.primary} /> : null}
+                    {selected ? <KamaloIcon name="check" size={18} color={colors.primary} /> : null}
                   </Pressable>
                 );
               })}
@@ -479,9 +479,9 @@ function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colo
       <View style={styles.bubbleColumn}>
         <View style={[styles.bubble, isUser ? { backgroundColor: colors.primary } : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
           <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>
-          {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><Feather name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
+          {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><KamaloIcon name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
         </View>
-        {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><Feather name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><Feather name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
+        {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><KamaloIcon name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><KamaloIcon name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
       </View>
     </View>
   );

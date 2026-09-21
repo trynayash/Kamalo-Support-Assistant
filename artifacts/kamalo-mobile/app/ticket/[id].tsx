@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import {
   getGetSupportTicketQueryKey,
   getListMySupportTicketsQueryKey,
@@ -26,7 +26,7 @@ export default function TicketDetailScreen() {
     <View style={[styles.divider, { backgroundColor: colors.border }]} />
     <Section label="Category" value={item.category} />
     <Section label="Details" value={item.details} />
-    {item.resolution ? <Section label="Resolution" value={item.resolution} /> : <View style={[styles.waiting, { backgroundColor: colors.secondary }]}><Feather name="clock" size={18} color={colors.primary} /><View style={styles.waitingCopy}><Text style={[styles.waitingTitle, { color: colors.foreground }]}>Still in progress</Text><Text style={[styles.waitingBody, { color: colors.mutedForeground }]}>The support team has this request and will update it here.</Text></View></View>}
+    {item.resolution ? <Section label="Resolution" value={item.resolution} /> : <View style={[styles.waiting, { backgroundColor: colors.secondary }]}><KamaloIcon name="clock" size={18} color={colors.primary} /><View style={styles.waitingCopy}><Text style={[styles.waitingTitle, { color: colors.foreground }]}>Still in progress</Text><Text style={[styles.waitingBody, { color: colors.mutedForeground }]}>The support team has this request and will update it here.</Text></View></View>}
     {item.contactEmail && item.emailStatus === 'failed' ? <View style={styles.retry}><Text style={[styles.retryText, { color: colors.destructive }]}>The follow-up email did not send.</Text><Button label="Retry email" icon="send" onPress={() => retryEmail.mutate({ ticketId: item.id }, { onSuccess: () => { void queryClient.invalidateQueries({ queryKey: getGetSupportTicketQueryKey(item.id) }); void queryClient.invalidateQueries({ queryKey: getListMySupportTicketsQueryKey() }); }, onError: () => Alert.alert('Could not retry', 'Please try again later.') })} loading={retryEmail.isPending} secondary /></View> : null}
   </ScrollView></Screen>;
 }

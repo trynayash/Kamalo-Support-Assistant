@@ -10,3 +10,4 @@
 - [KAMALO AI web voice fallback](kamalo-ai-web-voice.md) — hosted browser speech can fail independently of mic/internet; use compatible multilingual local Whisper fallback.
 - [KAMALO AI multilingual safety](kamalo-ai-multilingual-safety.md) — preserve approved numeric claims and treat Indic danda punctuation as a complete sentence.
 - [Replit Expo preview networking](replit-expo-preview-networking.md) — Expo Go previews must advertise a reachable LAN/managed host, not localhost; optional DevTools native-library warnings do not stop Metro.
+- [KAMALO icon system](kamalo-icon-system.md) — keep web icons on Tabler’s grid and use a local Tabler-style SVG set in native Expo because browser fonts do not run there.

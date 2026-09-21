@@ -10,7 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import { ChatMessageFeedback } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 
@@ -54,10 +54,10 @@ export function FeedbackOverlay({
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sheetHeader}>
             <View style={[styles.iconWrap, { backgroundColor: isHelpful ? colors.primary + '18' : colors.accent + '24' }]}>
-              <Feather name={isHelpful ? 'thumbs-up' : 'thumbs-down'} size={18} color={isHelpful ? colors.primary : colors.accentForeground} />
+              <KamaloIcon name={isHelpful ? 'thumbs-up' : 'thumbs-down'} size={18} color={isHelpful ? colors.primary : colors.accentForeground} />
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="Close feedback" onPress={onClose} hitSlop={10} style={styles.closeButton}>
-              <Feather name="x" size={20} color={colors.mutedForeground} />
+              <KamaloIcon name="x" size={20} color={colors.mutedForeground} />
             </Pressable>
           </View>
           <Text style={[styles.title, { color: colors.foreground }]}>{isHelpful ? 'Glad that helped' : 'Help us improve'}</Text>
@@ -78,7 +78,7 @@ export function FeedbackOverlay({
                   hitSlop={6}
                   style={styles.starButton}
                 >
-                  <Feather name={selected ? 'star' : 'star'} size={28} color={selected ? colors.accentForeground : colors.border} />
+                  <KamaloIcon name="star" size={28} color={selected ? colors.accentForeground : colors.border} />
                 </Pressable>
               );
             })}
@@ -106,7 +106,7 @@ export function FeedbackOverlay({
             onPress={() => onSubmit(score!, note.trim())}
             style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: !canSubmit || submitting ? 0.45 : pressed ? 0.78 : 1 }]}
           >
-            {submitting ? <ActivityIndicator color={colors.primaryForeground} /> : <Feather name="send" size={15} color={colors.primaryForeground} />}
+            {submitting ? <ActivityIndicator color={colors.primaryForeground} /> : <KamaloIcon name="send" size={15} color={colors.primaryForeground} />}
             <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Submit feedback</Text>
           </Pressable>
           {!isHelpful ? (
@@ -116,7 +116,7 @@ export function FeedbackOverlay({
               onPress={() => onRaiseTicket(score ?? 1, note.trim())}
               style={({ pressed }) => [styles.ticketButton, { borderColor: colors.border, opacity: submitting ? 0.45 : pressed ? 0.65 : 1 }]}
             >
-              <Feather name="life-buoy" size={15} color={colors.foreground} />
+              <KamaloIcon name="life-buoy" size={15} color={colors.foreground} />
               <Text style={[styles.ticketButtonText, { color: colors.foreground }]}>Raise a ticket instead</Text>
             </Pressable>
           ) : null}

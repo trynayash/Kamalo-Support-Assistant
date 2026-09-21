@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon, type KamaloIconName } from '@/components/kamalo-icon';
 import { useColors } from '@/hooks/useColors';
 
 const items = [
-  { label: 'Home', icon: 'home' as const, href: '/(tabs)' },
-  { label: 'History', icon: 'clock' as const, href: '/(tabs)/history' },
-  { label: 'Support', icon: 'message-circle' as const, href: '/(tabs)/support' },
-  { label: 'Guide', icon: 'book-open' as const, href: '/(tabs)/knowledge' },
+  { label: 'Home', icon: 'home' as KamaloIconName, href: '/(tabs)' },
+  { label: 'History', icon: 'clock' as KamaloIconName, href: '/(tabs)/history' },
+  { label: 'Support', icon: 'message-circle' as KamaloIconName, href: '/(tabs)/support' },
+  { label: 'Guide', icon: 'book-open' as KamaloIconName, href: '/(tabs)/knowledge' },
 ];
 
 export function NavigationMenu() {
@@ -35,7 +35,7 @@ export function NavigationMenu() {
           { backgroundColor: colors.secondary, opacity: pressed ? 0.62 : 1 },
         ]}
       >
-        <Feather name="menu" size={20} color={colors.foreground} />
+        <KamaloIcon name="menu" size={20} color={colors.foreground} />
       </Pressable>
       <Modal
         visible={open}
@@ -72,7 +72,7 @@ export function NavigationMenu() {
                 hitSlop={8}
                 style={({ pressed }) => ({ opacity: pressed ? 0.58 : 1 })}
               >
-                <Feather name="x" size={22} color={colors.foreground} />
+                <KamaloIcon name="x" size={22} color={colors.foreground} />
               </Pressable>
             </View>
             <View style={styles.itemList}>
@@ -95,7 +95,7 @@ export function NavigationMenu() {
                       },
                     ]}
                   >
-                    <Feather
+                    <KamaloIcon
                       name={item.icon}
                       size={19}
                       color={active ? colors.primary : colors.mutedForeground}

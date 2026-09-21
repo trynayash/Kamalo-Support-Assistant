@@ -1,7 +1,7 @@
 import { Link } from 'wouter';
 import type { SupportTicket } from '@workspace/api-client-react';
 import { getListMySupportTicketsQueryKey, useListMySupportTickets } from '@workspace/api-client-react';
-import { HiOutlineArrowUpRight, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlineLifebuoy } from 'react-icons/hi2';
+import { HiOutlineArrowUpRight, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlineLifebuoy } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { TicketLevelBadge } from '@/lib/ticket-levels';
 

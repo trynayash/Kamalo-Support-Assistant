@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link } from 'wouter';
-import { HiOutlineArrowLeft, HiOutlineChatBubbleLeftRight, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineArrowLeft, HiOutlineChatBubbleLeftRight, HiOutlineTrash } from '@/components/kamalo-icons';
 import type { ConversationSummary } from '@workspace/api-client-react';
 import {
   getListConversationsQueryKey,

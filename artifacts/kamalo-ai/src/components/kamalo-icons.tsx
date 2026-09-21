@@ -31,6 +31,7 @@ export type KamaloIconName =
   | 'lifebuoy'
   | 'loader-2'
   | 'mail'
+  | 'messages'
   | 'menu-2'
   | 'microphone'
   | 'minus'

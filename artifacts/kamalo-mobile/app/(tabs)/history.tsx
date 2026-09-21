@@ -2,7 +2,7 @@ import React from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { router } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import * as Haptics from 'expo-haptics';
 import { getListConversationsQueryKey, useDeleteConversation, useListConversations, ConversationSummary } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -34,7 +34,7 @@ export default function HistoryScreen() {
               <Card style={styles.card}>
                 <View style={styles.cardTop}>
                   <Pressable onPress={() => router.push({ pathname: '/', params: { conversationId: item.id } })} style={({ pressed }) => [styles.cardPress, { opacity: pressed ? 0.68 : 1 }]}>
-                    <View style={[styles.conversationIcon, { backgroundColor: colors.secondary }]}><Feather name="message-square" size={17} color={colors.primary} /></View>
+                    <View style={[styles.conversationIcon, { backgroundColor: colors.secondary }]}><KamaloIcon name="message-square" size={17} color={colors.primary} /></View>
                     <View style={styles.cardCopy}><Text style={[styles.title, { color: colors.foreground }]} numberOfLines={2}>{item.title || 'Untitled conversation'}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{item.messageCount} {item.messageCount === 1 ? 'message' : 'messages'} · {formatDate(item.updatedAt, true)}</Text></View>
                   </Pressable>
                   <IconButton icon="trash-2" label={`Delete ${item.title}`} onPress={() => { void Haptics.selectionAsync(); confirmDelete(item); }} />

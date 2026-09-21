@@ -1,6 +1,6 @@
 import React, { ReactNode } from 'react';
 import { ActivityIndicator, Animated, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon, type KamaloIconName } from '@/components/kamalo-icon';
 import { useColors } from '@/hooks/useColors';
 import { NavigationMenu } from '@/components/NavigationMenu';
 
@@ -42,7 +42,7 @@ export function PageHeader({
   );
 }
 
-export function IconButton({ icon, label, onPress, disabled, tone = 'plain' }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void; disabled?: boolean; tone?: 'plain' | 'filled' }) {
+export function IconButton({ icon, label, onPress, disabled, tone = 'plain' }: { icon: KamaloIconName; label: string; onPress: () => void; disabled?: boolean; tone?: 'plain' | 'filled' }) {
   const colors = useColors();
   return (
     <Pressable
@@ -58,12 +58,12 @@ export function IconButton({ icon, label, onPress, disabled, tone = 'plain' }: {
         { opacity: disabled ? 0.35 : pressed ? 0.62 : 1 },
       ]}
     >
-      <Feather name={icon} size={18} color={tone === 'filled' ? colors.primaryForeground : colors.foreground} />
+      <KamaloIcon name={icon} size={18} color={tone === 'filled' ? colors.primaryForeground : colors.foreground} />
     </Pressable>
   );
 }
 
-export function Button({ label, onPress, icon, loading, disabled, secondary }: { label: string; onPress: () => void; icon?: keyof typeof Feather.glyphMap; loading?: boolean; disabled?: boolean; secondary?: boolean }) {
+export function Button({ label, onPress, icon, loading, disabled, secondary }: { label: string; onPress: () => void; icon?: KamaloIconName; loading?: boolean; disabled?: boolean; secondary?: boolean }) {
   const colors = useColors();
   return (
     <Pressable
@@ -81,7 +81,7 @@ export function Button({ label, onPress, icon, loading, disabled, secondary }: {
         },
       ]}
     >
-      {loading ? <ActivityIndicator color={secondary ? colors.foreground : colors.primaryForeground} size="small" /> : icon ? <Feather name={icon} size={16} color={secondary ? colors.foreground : colors.primaryForeground} /> : null}
+      {loading ? <ActivityIndicator color={secondary ? colors.foreground : colors.primaryForeground} size="small" /> : icon ? <KamaloIcon name={icon} size={16} color={secondary ? colors.foreground : colors.primaryForeground} /> : null}
       <Text style={[styles.buttonText, { color: secondary ? colors.foreground : colors.primaryForeground }]}>{label}</Text>
     </Pressable>
   );
@@ -128,7 +128,7 @@ export function LoadingState({ label = 'Loading your workspace' }: { label?: str
 
 export function ErrorState({ onRetry, label = 'Something went wrong' }: { onRetry: () => void; label?: string }) {
   const colors = useColors();
-  return <View style={styles.state}><View style={[styles.stateIcon, { backgroundColor: colors.destructive + '18' }]}><Feather name="alert-circle" size={20} color={colors.destructive} /></View><Text style={[styles.stateTitle, { color: colors.foreground }]}>{label}</Text><Button label="Try again" icon="refresh-cw" onPress={onRetry} secondary /></View>;
+  return <View style={styles.state}><View style={[styles.stateIcon, { backgroundColor: colors.destructive + '18' }]}><KamaloIcon name="alert-circle" size={20} color={colors.destructive} /></View><Text style={[styles.stateTitle, { color: colors.foreground }]}>{label}</Text><Button label="Try again" icon="refresh-cw" onPress={onRetry} secondary /></View>;
 }
 
 export function ToastNotification({ title, message, topOffset = 12, onDismiss }: { title: string; message: string; topOffset?: number; onDismiss?: () => void }) {
@@ -148,21 +148,21 @@ export function ToastNotification({ title, message, topOffset = 12, onDismiss }:
         style={({ pressed }) => [styles.toast, { backgroundColor: colors.foreground, borderColor: colors.primary + '70', opacity: pressed ? 0.88 : 1 }]}
       >
         <View style={[styles.toastIcon, { backgroundColor: colors.primary }]}>
-          <Feather name="check" size={15} color={colors.primaryForeground} />
+          <KamaloIcon name="check" size={15} color={colors.primaryForeground} />
         </View>
         <View style={styles.toastCopy}>
           <Text style={[styles.toastTitle, { color: colors.primaryForeground }]}>{title}</Text>
           <Text style={[styles.toastMessage, { color: colors.secondary }]} numberOfLines={2}>{message}</Text>
         </View>
-        <Feather name="x" size={16} color={colors.secondary} />
+        <KamaloIcon name="x" size={16} color={colors.secondary} />
       </Pressable>
     </Animated.View>
   );
 }
 
-export function EmptyState({ icon, title, body, action }: { icon: keyof typeof Feather.glyphMap; title: string; body: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, body, action }: { icon: KamaloIconName; title: string; body: string; action?: ReactNode }) {
   const colors = useColors();
-  return <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}><Feather name={icon} size={22} color={colors.primary} /></View><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>{action}</View>;
+  return <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}><KamaloIcon name={icon} size={22} color={colors.primary} /></View><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>{action}</View>;
 }
 
 export function formatDate(date: string, withTime = false) {

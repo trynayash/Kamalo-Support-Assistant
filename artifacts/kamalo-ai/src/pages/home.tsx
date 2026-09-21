@@ -12,7 +12,7 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from 'react-icons/hi2';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';

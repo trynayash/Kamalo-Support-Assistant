@@ -1,5 +1,5 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { HiOutlineExclamationCircle } from 'react-icons/hi2';
+import { HiOutlineExclamationCircle } from '@/components/kamalo-icons';
 
 export default function NotFound() {
   return (

@@ -8,7 +8,7 @@ import {
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
-} from 'lucide-react';
+} from './icons';
 
 function Calendar({
   className,

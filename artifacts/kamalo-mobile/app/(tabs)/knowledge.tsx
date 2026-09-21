@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
+import { KamaloIcon } from '@/components/kamalo-icon';
 import { getListKnowledgeArticlesQueryKey, useListKnowledgeArticles, KnowledgeArticle } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { Badge, Card, EmptyState, ErrorState, IconButton, LoadingState, PageHeader, Screen } from '@/components/ui';
@@ -15,7 +15,7 @@ export default function KnowledgeScreen() {
   return (
     <Screen>
       <PageHeader eyebrow="The KAMALO guide" title="Knowledge" subtitle="Approved answers, kept clear and current." action="Test admin" onAction={() => router.push('/admin')} />
-      <View style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border }]}><Feather name="search" size={17} color={colors.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder="Search the guide" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" /><IconButton icon="x" label="Clear search" onPress={() => setSearch('')} /></View>
+      <View style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border }]}><KamaloIcon name="search" size={17} color={colors.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder="Search the guide" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" /><IconButton icon="x" label="Clear search" onPress={() => setSearch('')} /></View>
       {articles.isLoading ? <LoadingState label="Loading approved knowledge" /> : articles.isError ? <ErrorState onRetry={() => articles.refetch()} /> : !articles.data?.length ? <EmptyState icon="book-open" title="No matching articles" body={search ? 'Try a different phrase or browse the full guide.' : 'Approved KAMALO knowledge will appear here.'} /> : <FlatList data={articles.data} keyExtractor={(item) => item.id} refreshControl={<RefreshControl refreshing={articles.isRefetching} onRefresh={() => articles.refetch()} tintColor={colors.primary} />} contentContainerStyle={styles.list} renderItem={({ item }) => <ArticleCard article={item} open={openId === item.id} onToggle={() => setOpenId(openId === item.id ? null : item.id)} />} />}
     </Screen>
   );
@@ -23,7 +23,7 @@ export default function KnowledgeScreen() {
 
 function ArticleCard({ article, open, onToggle }: { article: KnowledgeArticle; open: boolean; onToggle: () => void }) {
   const colors = useColors();
-  return <Card onPress={onToggle} style={styles.article}><View style={styles.articleTop}><View style={styles.articleCopy}><View style={styles.articleMeta}><Badge label={article.category} tone="amber" /><Text style={[styles.version, { color: colors.mutedForeground }]}>v{article.version}</Text></View><Text style={[styles.articleTitle, { color: colors.foreground }]}>{article.title}</Text></View><Feather name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} /></View>{open ? <Text style={[styles.articleContent, { color: colors.foreground, borderTopColor: colors.border }]}>{article.content}</Text> : null}</Card>;
+  return <Card onPress={onToggle} style={styles.article}><View style={styles.articleTop}><View style={styles.articleCopy}><View style={styles.articleMeta}><Badge label={article.category} tone="amber" /><Text style={[styles.version, { color: colors.mutedForeground }]}>v{article.version}</Text></View><Text style={[styles.articleTitle, { color: colors.foreground }]}>{article.title}</Text></View><KamaloIcon name={open ? 'chevron-up' : 'chevron-down'} size={18} color={colors.mutedForeground} /></View>{open ? <Text style={[styles.articleContent, { color: colors.foreground, borderTopColor: colors.border }]}>{article.content}</Text> : null}</Card>;
 }
 
 const styles = StyleSheet.create({

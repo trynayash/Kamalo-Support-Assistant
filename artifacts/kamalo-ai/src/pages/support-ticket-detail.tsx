@@ -1,6 +1,6 @@
 import { Link, useRoute } from 'wouter';
 import { getGetSupportTicketQueryKey, useGetSupportTicket } from '@workspace/api-client-react';
-import { HiOutlineArrowLeft, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlinePaperClip } from 'react-icons/hi2';
+import { HiOutlineArrowLeft, HiOutlineCheckCircle, HiOutlineClock, HiOutlineEnvelope, HiOutlinePaperClip } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { TicketLevelBadge, getTicketLevelMeta } from '@/lib/ticket-levels';
 
