@@ -1,18 +1,18 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChatMessage, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
+import type { ChatMessage, ImageAttachment } from '@workspace/api-client-react';
 import {
   useCreateSupportTicket,
   getGetConversationQueryKey,
   getListConversationsQueryKey,
   useCreateConversation,
   useCreateMessageFeedback,
-  useDeleteConversation,
   useGetConversation,
   useListConversations,
+  useUpdateConversation,
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMagnifyingGlass, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
+import { HiOutlineArrowPath, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineShare, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
@@ -316,48 +316,6 @@ function ReadOnlyHistoryBar({ onNewConversation }: { onNewConversation: () => vo
   );
 }
 
-function RecentConversationsRail({ conversations, selectedId, onSelect }: { conversations: ConversationSummary[]; selectedId: string | null; onSelect: (conversationId: string) => void }) {
-  const [search, setSearch] = useState('');
-  const filtered = conversations.filter((conversation) => conversation.title.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 6);
-  return (
-    <aside className="hidden min-h-0 border-l border-border/70 bg-card/35 lg:block" aria-label="Recent conversations" data-testid="recent-conversations-rail">
-      <div className="sticky top-0 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="text-[16px] font-bold tracking-[-.02em] text-foreground">History</h3>
-          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[9px] text-muted-foreground">{conversations.length}</span>
-        </div>
-        <label className="mt-4 flex h-9 items-center gap-2 rounded-lg border border-border bg-card px-3 text-muted-foreground focus-within:border-primary/45 focus-within:ring-4 focus-within:ring-primary/5">
-          <HiOutlineMagnifyingGlass size={14} className="shrink-0" />
-          <span className="sr-only">Search conversations</span>
-          <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search conversations..." className="min-w-0 flex-1 bg-transparent text-[10px] text-foreground outline-none placeholder:text-muted-foreground/70" data-testid="input-search-recent-conversations" />
-        </label>
-        <div className="mt-3 space-y-1.5">
-          {filtered.length > 0 ? filtered.map((conversation) => (
-            <button
-              key={conversation.id}
-              type="button"
-              onClick={() => onSelect(conversation.id)}
-              className={`group w-full rounded-xl border px-3 py-3 text-left transition-colors ${selectedId === conversation.id ? 'border-primary/10 bg-primary/[.09]' : 'border-transparent hover:border-border hover:bg-card'}`}
-              data-testid={`button-recent-conversation-${conversation.id}`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <span className="min-w-0 truncate text-[11px] font-semibold text-foreground">{conversation.title || 'Untitled conversation'}</span>
-                <span className="text-[13px] leading-none text-muted-foreground/65" aria-hidden="true">⋮</span>
-              </div>
-              <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
-                <span>{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'}</span>
-                <span>{new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(conversation.updatedAt))}</span>
-              </div>
-            </button>
-          )) : (
-            <p className="rounded-xl border border-dashed border-border px-3 py-4 text-[11px] leading-5 text-muted-foreground">No conversations match your search.</p>
-          )}
-        </div>
-      </div>
-    </aside>
-  );
-}
-
 export function HomePage() {
   const queryClient = useQueryClient();
   const [location] = useLocation();
@@ -375,6 +333,7 @@ export function HomePage() {
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
   const [preferredLanguage, setPreferredLanguage] = useState<ChatLanguage>(initialChatLanguage);
   const inputModeRef = useRef<'text' | 'voice'>('text');
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -386,7 +345,7 @@ export function HomePage() {
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
   const createConversation = useCreateConversation();
-  const deleteConversation = useDeleteConversation();
+  const updateConversation = useUpdateConversation();
   const createFeedback = useCreateMessageFeedback();
   const createSupportTicket = useCreateSupportTicket();
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
@@ -634,52 +593,46 @@ export function HomePage() {
     window.setTimeout(() => setNotice(''), 2200);
   };
 
-  const deleteConversationItem = async (conversation: ConversationSummary) => {
-    if (!window.confirm(`Remove “${conversation.title || 'Untitled conversation'}” from your chat history?\n\nThe visible chat and its messages will be removed and cannot be undone. KAMALO will retain an internal record for system and support continuity.`)) return;
+  const renameCurrent = async () => {
+    if (!selectedId || !activeConversation || updateConversation.isPending) return;
+    setIsRenaming(true);
+    const nextTitle = window.prompt('Rename conversation', activeConversation.title || 'Untitled conversation')?.trim();
+    if (!nextTitle || nextTitle === activeConversation.title) {
+      setIsRenaming(false);
+      return;
+    }
     try {
-      await deleteConversation.mutateAsync({ conversationId: conversation.id });
+      await updateConversation.mutateAsync({ conversationId: selectedId, data: { title: nextTitle.slice(0, 120) } });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      if (selectedId === conversation.id) {
-        setSelectedId(null);
-        setConversationMode('new');
-        setLocalMessages(null);
-        setRetryContent(null);
-        setInactivityState('active');
-        setNotice('Conversation removed from history.');
-        window.setTimeout(() => setNotice(''), 2600);
+      await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(selectedId) });
+      setIsRenaming(false);
+      setNotice('Conversation renamed.');
+      window.setTimeout(() => setNotice(''), 2200);
+    } catch {
+      setErrorMessage('This conversation could not be renamed right now. Please try again.');
+    } finally {
+      setIsRenaming(false);
+    }
+  };
+
+  const shareCurrent = async () => {
+    if (!selectedId) return;
+    const shareUrl = `${window.location.origin}/?conversation=${encodeURIComponent(selectedId)}`;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: activeConversation?.title || 'KAMALO conversation', url: shareUrl });
+      } else if (navigator.clipboard) {
+        await navigator.clipboard.writeText(shareUrl);
+        setNotice('Conversation link copied.');
+        window.setTimeout(() => setNotice(''), 2200);
+      } else {
+        throw new Error('Sharing unavailable');
       }
-    } catch {
-      setErrorMessage('This chat could not be removed right now. Please try again.');
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return;
+      setNotice('Sharing is not available right now.');
+      window.setTimeout(() => setNotice(''), 2200);
     }
-  };
-
-  const clearCurrent = async () => {
-    if (!selectedId || !activeConversation) return startNewConversation();
-    if (!window.confirm('Clear this chat?\n\nEverything in this visible chat will be deleted and cannot be undone. KAMALO will retain an internal record for system and support continuity. Continue?')) return;
-    try {
-      await deleteConversation.mutateAsync({ conversationId: activeConversation.id });
-      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-      setSelectedId(null);
-      setConversationMode('new');
-      setLocalMessages(null);
-      setRetryContent(null);
-      setInactivityState('active');
-      setNotice('Conversation removed from history.');
-      window.setTimeout(() => setNotice(''), 2600);
-    } catch {
-      setErrorMessage('This chat could not be cleared right now. Please try again.');
-    }
-  };
-
-  const openRecentConversation = (conversationId: string) => {
-    if (conversationId === selectedId) return;
-    setSelectedId(conversationId);
-    setConversationMode('readonly');
-    setLocalMessages(null);
-    setInput('');
-    setRetryContent(null);
-    setErrorMessage('');
-    setInactivityState('active');
   };
 
   const canRetryMessage = (message: ChatMessage) => {
@@ -692,12 +645,15 @@ export function HomePage() {
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
        <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full flex-1 flex-col pb-40 sm:pb-36" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-        <div className="grid min-h-0 w-full min-w-0 flex-1 lg:grid-cols-[minmax(0,1fr)_260px]">
+         <div className="flex min-h-0 w-full min-w-0 flex-1">
           <section className="flex min-h-0 min-w-0 flex-col">
          {selectedId && <header className="conversation-header sticky top-0 z-20 flex min-h-[88px] items-center justify-between border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6 md:px-8" data-testid="conversation-header">
              <div className="min-w-0">
                <div className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-muted-foreground">Conversation</div>
-               <h2 className="mt-1 truncate text-[16px] font-bold tracking-[-.02em] text-foreground md:text-[21px]">{activeConversation?.title || 'Untitled conversation'}</h2>
+                <div className="mt-1 flex min-w-0 items-center gap-2">
+                  <h2 className="min-w-0 truncate text-[16px] font-bold tracking-[-.02em] text-foreground md:text-[21px]">{activeConversation?.title || 'Untitled conversation'}</h2>
+                  <button type="button" onClick={() => void renameCurrent()} disabled={isRenaming || updateConversation.isPending} className="icon-button shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50" aria-label="Rename conversation" title="Rename conversation" data-testid="button-rename-conversation"><HiOutlinePencilSquare size={14} /></button>
+                </div>
                <div className="mt-1 text-[10px] text-muted-foreground">
                  {conversationMode === 'readonly'
                    ? 'Read-only history'
@@ -706,9 +662,9 @@ export function HomePage() {
                      : 'Active conversation'}
                </div>
              </div>
-             <div className="flex shrink-0 items-center gap-3">
+              <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                {messages.length > 0 && <span className="hidden text-[10px] text-muted-foreground md:inline">{messages.length} {messages.length === 1 ? 'message' : 'messages'}</span>}
-               <KamaloActionButton variant="outline" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} data-testid="button-clear-conversation">Clear</KamaloActionButton>
+                <KamaloActionButton variant="outline" size="sm" onClick={() => void shareCurrent()} disabled={!selectedId} leftIcon={<HiOutlineShare size={14} />} data-testid="button-share-conversation">Share</KamaloActionButton>
              </div>
          </header>}
           <div className="flex min-h-0 flex-1 flex-col px-4 pt-5 sm:px-6 md:px-8 md:pt-7">
@@ -765,8 +721,8 @@ export function HomePage() {
                             disabled={isSending || speech.isListening}
                           />
                          <KamaloActionButton type="button" variant={speech.isListening ? 'outline' : 'quiet'} size="icon" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} title={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}<span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></KamaloActionButton>
-                         <KamaloActionButton type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={isSending} leftIcon={<HiOutlinePaperClip size={14} />} className="kamalo-attach-button" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><span>Attach image</span></KamaloActionButton>
-                         <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
+                        <KamaloActionButton type="button" variant="quiet" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSending} leftIcon={<HiOutlinePaperClip size={15} />} className="kamalo-attach-button" aria-label="Attach a JPG or PNG image" aria-describedby="attachment-help" data-testid="button-attach-image"><span className="sr-only">Attach image</span></KamaloActionButton>
+                          <span id="attachment-help" className="sr-only">JPG or PNG, maximum 5 MB. Stored with the conversation but not interpreted.</span>
                       </div>
                        <KamaloActionButton size="icon" onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></KamaloActionButton>
                     </div>
@@ -779,7 +735,6 @@ export function HomePage() {
           </div>
           </section>
 
-          <RecentConversationsRail conversations={conversations} selectedId={selectedId} onSelect={openRecentConversation} />
         </div>
       </div>
       {feedbackDialog && (() => {

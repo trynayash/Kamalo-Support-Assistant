@@ -365,15 +365,8 @@
 }
 .kamalo-attach-button {
   width: 2.75rem;
+  min-width: 2.75rem;
   padding: 0;
-}
-.kamalo-attach-button > .relative > span:last-child { display: none; }
-@media (min-width: 640px) {
-  .kamalo-attach-button {
-    width: auto;
-    padding: .55rem .75rem;
-  }
-  .kamalo-attach-button > .relative > span:last-child { display: inline; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; transition-duration: .01ms !important; }

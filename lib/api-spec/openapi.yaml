@@ -81,6 +81,27 @@ paths:
                 $ref: "#/components/schemas/ConversationDetail"
         "404":
           description: Conversation not found
+    patch:
+      operationId: updateConversation
+      tags: [conversations]
+      summary: Update a conversation
+      parameters:
+        - $ref: "#/components/parameters/ConversationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConversationInput"
+      responses:
+        "200":
+          description: Updated conversation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Conversation"
+        "404":
+          description: Conversation not found
     delete:
       operationId: deleteConversation
       tags: [conversations]
@@ -535,11 +556,11 @@ components:
           enum: [text, voice]
           default: text
           description: Indicates whether the customer typed the message or dictated it.
-         language:
-           type: string
-           enum: [en, hi, mr]
-           default: en
-           description: Preferred language for voice recognition and the assistant response.
+        language:
+          type: string
+          enum: [en, hi, mr]
+          default: en
+          description: Preferred language for voice recognition and the assistant response.
     ImageUploadInput:
       type: object
       required: [file]

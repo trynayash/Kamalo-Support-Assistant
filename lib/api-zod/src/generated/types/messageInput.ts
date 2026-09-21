@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { MessageInputInputMode } from './messageInputInputMode';
+import type { MessageInputLanguage } from './messageInputLanguage';
 
 export interface MessageInput {
   /** @maxLength 4000 */
@@ -17,4 +18,6 @@ export interface MessageInput {
   attachmentId?: string | null;
   /** Indicates whether the customer typed the message or dictated it. */
   inputMode?: MessageInputInputMode;
+  /** Preferred language for voice recognition and the assistant response. */
+  language?: MessageInputLanguage;
 }

@@ -79,6 +79,7 @@ export const HiOutlinePaperAirplane = createKamaloIcon('send-2', 'HiOutlinePaper
 export const HiOutlinePaperClip = createKamaloIcon('paperclip', 'HiOutlinePaperClip');
 export const HiOutlinePencilSquare = createKamaloIcon('edit', 'HiOutlinePencilSquare');
 export const HiOutlinePlus = createKamaloIcon('plus', 'HiOutlinePlus');
+export const HiOutlineShare = createKamaloIcon('share', 'HiOutlineShare');
 export const HiOutlineShieldCheck = createKamaloIcon('shield-check', 'HiOutlineShieldCheck');
 export const HiOutlineSparkles = createKamaloIcon('sparkles', 'HiOutlineSparkles');
 export const HiOutlineStop = createKamaloIcon('player-stop', 'HiOutlineStop');
