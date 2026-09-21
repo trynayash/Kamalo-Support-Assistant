@@ -9,8 +9,6 @@ import {
   ListConversationsResponse,
   StreamAssistantMessageBody,
   StreamAssistantMessageParams,
-  UpdateConversationBody,
-  UpdateConversationParams,
   UploadConversationImageResponse,
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
@@ -99,16 +97,6 @@ router.get("/conversations", async (req, res): Promise<void> => {
   }))));
 });
 
-router.delete("/conversations", async (req, res): Promise<void> => {
-  const clearedAt = new Date();
-  const cleared = await db.update(conversationsTable)
-    .set({ clearedAt, updatedAt: clearedAt })
-    .where(and(eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
-    .returning({ id: conversationsTable.id });
-  req.log.info({ count: cleared.length, clearedAt: clearedAt.toISOString() }, "All conversations removed from user history");
-  res.sendStatus(204);
-});
-
 router.post("/conversations", async (req, res): Promise<void> => {
   const parsed = CreateConversationBody.safeParse(req.body ?? {});
   if (!parsed.success) {
@@ -166,30 +154,6 @@ router.get("/conversations/:conversationId", async (req, res): Promise<void> => 
       attachments: attachmentsByMessage.get(message.id) || [],
     })),
   }));
-});
-
-router.patch("/conversations/:conversationId", async (req, res): Promise<void> => {
-  const params = UpdateConversationParams.safeParse(req.params);
-  const parsed = UpdateConversationBody.safeParse(req.body ?? {});
-  if (!params.success || !parsed.success || !parsed.data.title?.trim()) {
-    res.status(400).json({ error: "A conversation title is required." });
-    return;
-  }
-  const title = parsed.data.title.trim();
-  const updated = await db.update(conversationsTable)
-    .set({ title, updatedAt: new Date() })
-    .where(and(eq(conversationsTable.id, params.data.conversationId), eq(conversationsTable.userId, DEMO_USER_ID), isNull(conversationsTable.clearedAt)))
-    .returning();
-  if (updated.length === 0) {
-    res.status(404).json({ error: "Conversation not found." });
-    return;
-  }
-  res.json({
-    id: updated[0].id,
-    title: updated[0].title,
-    createdAt: dateString(updated[0].createdAt),
-    updatedAt: dateString(updated[0].updatedAt),
-  });
 });
 
 router.delete("/conversations/:conversationId", async (req, res): Promise<void> => {
@@ -397,9 +361,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   }
 
   const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
-  const preferredResponse = isPromptExtractionAttempt(content)
-    ? PROMPT_EXTRACTION_RESPONSE
-    : containsProviderDrafting(fullResponse)
+  const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
     : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));

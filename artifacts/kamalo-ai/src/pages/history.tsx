@@ -5,12 +5,10 @@ import { HiOutlineArrowLeft, HiOutlineChatBubbleLeftRight, HiOutlineTrash } from
 import type { ConversationSummary } from '@workspace/api-client-react';
 import {
   getListConversationsQueryKey,
-  useDeleteAllConversations,
   useDeleteConversation,
   useListConversations,
 } from '@workspace/api-client-react';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
-import { KamaloActionButton } from '@/components/kamalo-action-button';
 
 const compactDate = (value: string) => new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value));
 
@@ -18,7 +16,6 @@ export function HistoryPage() {
   const queryClient = useQueryClient();
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const deleteConversation = useDeleteConversation();
-  const deleteAllConversations = useDeleteAllConversations();
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
 
   const removeConversation = async (conversation: ConversationSummary) => {
@@ -28,17 +25,6 @@ export function HistoryPage() {
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
       // The list query remains visible; the user can retry from the page.
-    }
-  };
-
-  const removeAllConversations = async () => {
-    if (!conversations.length || deleteAllConversations.isPending) return;
-    if (!window.confirm(`Delete all ${conversations.length} conversations from History?\n\nThis cannot be undone.`)) return;
-    try {
-      await deleteAllConversations.mutateAsync();
-      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
-    } catch {
-      // Keep the list visible so the user can retry.
     }
   };
 
@@ -54,10 +40,7 @@ export function HistoryPage() {
              <h1 className="page-title">History</h1>
              <p className="page-description">Open an earlier conversation or remove it from your visible history.</p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="font-mono text-[10px] text-muted-foreground">{conversations.length} conversations</span>
-            {conversations.length > 0 && <KamaloActionButton type="button" variant="outline" size="sm" onClick={() => void removeAllConversations()} disabled={deleteAllConversations.isPending} leftIcon={<HiOutlineTrash size={14} />} data-testid="button-history-delete-all">Delete all</KamaloActionButton>}
-          </div>
+          <span className="font-mono text-[10px] text-muted-foreground">{conversations.length} conversations</span>
         </div>
 
         {conversationsQuery.isLoading ? (

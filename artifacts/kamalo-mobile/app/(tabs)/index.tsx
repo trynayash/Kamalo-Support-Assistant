@@ -298,7 +298,6 @@ export default function ChatScreen() {
   }
 
   const visibleMessages = [...messages].reverse();
-  const activeConversation = conversations?.find((conversation) => conversation.id === conversationId);
 
   return (
     <Screen>
@@ -313,13 +312,6 @@ export default function ChatScreen() {
         </View>
       </View>
       <KeyboardAvoidingView style={styles.chat} behavior="padding" keyboardVerticalOffset={0}>
-        {conversationId ? <View style={[styles.conversationHeader, { borderBottomColor: colors.border }]}>
-          <View style={styles.conversationHeaderCopy}>
-            <Text style={[styles.conversationEyebrow, { color: colors.mutedForeground }]}>CONVERSATION</Text>
-            <Text style={[styles.conversationTitle, { color: colors.foreground }]} numberOfLines={1}>{activeConversation?.title || 'Untitled conversation'}</Text>
-          </View>
-          {messages.length > 0 ? <Text style={[styles.conversationCount, { color: colors.mutedForeground }]}>{messages.length} {messages.length === 1 ? 'message' : 'messages'}</Text> : null}
-        </View> : null}
         {conversationsLoading && !conversationId ? <LoadingState label="Preparing your assistant" /> : messages.length === 0 && !isStreaming ? (
           <FlatList
             data={[]}
@@ -483,19 +475,13 @@ function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colo
   const isUser = message.role === 'user';
   return (
     <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
+      {!isUser ? <View style={[styles.assistantDot, { backgroundColor: colors.accent }]} /> : null}
       <View style={styles.bubbleColumn}>
-        <View style={[styles.messageIdentity, isUser ? styles.userIdentity : styles.assistantIdentity]}>
-          {!isUser ? <View style={[styles.assistantDot, { backgroundColor: colors.accent }]} /> : null}
-          <Text style={[styles.identityLabel, { color: isUser ? colors.primary : colors.mutedForeground }]}>{isUser ? 'You' : 'KAMALO'}</Text>
-        </View>
         <View style={[styles.bubble, isUser ? { backgroundColor: colors.primary } : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
           <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>
           {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><KamaloIcon name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
         </View>
-        <View style={[styles.messageFooter, isUser ? styles.userFooter : styles.assistantFooter]}>
-          <Text style={[styles.timestamp, { color: colors.mutedForeground }]}>{new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(message.createdAt))}</Text>
-          {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><KamaloIcon name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><KamaloIcon name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
-        </View>
+        {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><KamaloIcon name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><KamaloIcon name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
       </View>
     </View>
   );
@@ -509,32 +495,19 @@ const styles = StyleSheet.create({
   brandMeta: { fontFamily: 'Inter_400Regular', fontSize: 10, marginTop: 2 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   chat: { flex: 1 },
-  conversationHeader: { minHeight: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 18, borderBottomWidth: 1 },
-  conversationHeaderCopy: { minWidth: 0, flex: 1, marginRight: 14 },
-  conversationEyebrow: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.5 },
-  conversationTitle: { fontFamily: 'Inter_700Bold', fontSize: 17, letterSpacing: -0.2, marginTop: 4 },
-  conversationCount: { fontFamily: 'Inter_400Regular', fontSize: 10 },
   listViewport: { flex: 1 },
   emptyList: { flex: 1, justifyContent: 'center' },
-  messageList: { paddingHorizontal: 18, paddingTop: 24, paddingBottom: 18 },
-  messageRow: { flexDirection: 'row', marginBottom: 21, maxWidth: '94%' },
+  messageList: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 18 },
+  messageRow: { flexDirection: 'row', marginBottom: 17, maxWidth: '92%' },
   userRow: { alignSelf: 'flex-end' },
   assistantRow: { alignSelf: 'flex-start' },
-  messageIdentity: { flexDirection: 'row', alignItems: 'center', minHeight: 16, marginBottom: 5, paddingHorizontal: 4 },
-  assistantIdentity: { justifyContent: 'flex-start' },
-  userIdentity: { justifyContent: 'flex-end' },
-  assistantDot: { width: 7, height: 7, borderRadius: 4, marginRight: 7 },
-  identityLabel: { fontFamily: 'Inter_700Bold', fontSize: 9, letterSpacing: 1.4, textTransform: 'uppercase' },
+  assistantDot: { width: 7, height: 7, borderRadius: 4, marginTop: 10, marginRight: 8 },
   bubbleColumn: { flexShrink: 1 },
-  bubble: { paddingHorizontal: 15, paddingVertical: 13, borderRadius: 16 },
+  bubble: { paddingHorizontal: 14, paddingVertical: 12, borderRadius: 12 },
   messageText: { fontFamily: 'Inter_400Regular', fontSize: 15, lineHeight: 22 },
   attachmentMessage: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 9 },
   attachmentMessageText: { fontFamily: 'Inter_500Medium', fontSize: 11 },
-  messageFooter: { flexDirection: 'row', alignItems: 'center', marginTop: 6, minHeight: 20, paddingHorizontal: 4 },
-  assistantFooter: { justifyContent: 'flex-start' },
-  userFooter: { justifyContent: 'flex-end' },
-  timestamp: { fontFamily: 'Inter_400Regular', fontSize: 10 },
-  feedbackRow: { flexDirection: 'row', gap: 12, alignItems: 'center', marginLeft: 10 },
+  feedbackRow: { flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 7, paddingLeft: 4 },
   feedbackHint: { fontFamily: 'Inter_400Regular', fontSize: 10, marginRight: 2 },
   typing: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, borderWidth: 1, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9, marginHorizontal: 25, marginBottom: 10 },
   dot: { width: 6, height: 6, borderRadius: 3 },

@@ -30,7 +30,6 @@ export * from './messageFeedback';
 export * from './messageFeedbackRating';
 export * from './messageInput';
 export * from './messageInputInputMode';
-export * from './messageInputLanguage';
 export * from './supportTicket';
 export * from './supportTicketAnalysis';
 export * from './supportTicketAnalysisInput';

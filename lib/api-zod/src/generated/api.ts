@@ -50,12 +50,6 @@ export const CreateConversationResponse = zod.object({
 
 
 /**
- * @summary Delete all visible conversations
- */
-export const DeleteAllConversationsResponse = zod.void()
-
-
-/**
  * @summary Get a conversation with messages
  */
 export const GetConversationParams = zod.object({
@@ -95,29 +89,6 @@ export const GetConversationResponse = zod.object({
 
 
 /**
- * @summary Update a conversation
- */
-export const UpdateConversationParams = zod.object({
-  "conversationId": zod.coerce.string()
-})
-
-export const updateConversationBodyTitleMax = 120;
-
-
-
-export const UpdateConversationBody = zod.object({
-  "title": zod.string().max(updateConversationBodyTitleMax).optional()
-})
-
-export const UpdateConversationResponse = zod.object({
-  "id": zod.string(),
-  "title": zod.string(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-
-
-/**
  * @summary Delete a conversation
  */
 export const DeleteConversationParams = zod.object({
@@ -139,6 +110,7 @@ export const streamAssistantMessageBodyContentMax = 4000;
 export const streamAssistantMessageBodyAttachmentIdMax = 120;
 
 export const streamAssistantMessageBodyInputModeDefault = `text`;
+
 export const streamAssistantMessageBodyLanguageDefault = `en`;
 
 export const StreamAssistantMessageBody = zod.object({

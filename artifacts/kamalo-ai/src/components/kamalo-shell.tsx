@@ -26,12 +26,12 @@ export function KamaloMark({ small = false, onLight = false }: { small?: boolean
 export function KamaloShell({ children, conversationCount = 0, onNewConversation, lockChrome = false }: KamaloShellProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isConversations = location === '/';
+  const isConversations = location === '/' || location === '/history';
   const isKnowledge = location.startsWith('/admin/knowledge');
   const isSupport = location.startsWith('/support');
   const isTickets = location.startsWith('/admin/tickets');
 
-  const shellStyle = { '--kamalo-sidebar-width': '236px' } as CSSProperties;
+  const shellStyle = { '--kamalo-sidebar-width': '276px' } as CSSProperties;
 
   useEffect(() => {
     setMobileMenuOpen(false);
@@ -48,12 +48,12 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
 
   return (
     <div className={`flex w-full max-w-full overflow-x-clip bg-background ${lockChrome ? 'app-shell-locked' : 'min-h-[100dvh]'}`} style={shellStyle}>
-      <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden w-[236px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-4 text-sidebar-foreground lg:static lg:flex ${lockChrome ? 'h-full overflow-hidden' : ''}`}>
+      <aside id="workspace-navigation" aria-label="Workspace navigation" className={`relative fixed inset-y-0 left-0 z-40 hidden w-[276px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-5 py-6 text-sidebar-foreground lg:static lg:flex ${lockChrome ? 'h-full overflow-hidden' : ''}`}>
         <div className="flex items-start">
           <Link href="/" className="block" data-testid="link-kamalo-home"><KamaloMark /></Link>
         </div>
 
-         <div className="mt-6">
+         <div className="mt-10">
            {onNewConversation ? <KamaloActionButton
              onClick={() => onNewConversation()}
              leftIcon={<HiOutlinePlus size={16} />}
@@ -70,15 +70,11 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
            </Link>}
         </div>
 
-         <nav className="mt-5 space-y-1.5" aria-label="Primary navigation">
+         <nav className="mt-8 space-y-1.5" aria-label="Primary navigation">
             <Link href="/" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isConversations ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-conversations">
              <HiOutlineChatBubbleLeftRight size={16} className={isConversations ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
-            <Link href="/history" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${location === '/history' ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-history">
-             <HiOutlineClock size={16} className={location === '/history' ? 'text-[hsl(var(--accent))]' : ''} /> <span>History</span>
-             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
-           </Link>
             <Link href="/admin/knowledge" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
              <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Knowledge base</span>
            </Link>
@@ -90,18 +86,10 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
            </Link>
         </nav>
 
-        <div className="mt-auto border-t border-sidebar-border pt-4">
-          <div className="flex items-center gap-3 rounded-xl px-2 py-2">
-            <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-sidebar-accent text-[12px] font-bold text-sidebar-foreground">K</div>
-            <div className="min-w-0">
-              <div className="truncate text-[11px] font-semibold text-sidebar-foreground">KAMALO workspace</div>
-              <div className="mt-0.5 font-mono text-[8px] uppercase tracking-[.1em] text-sidebar-foreground/50">Admin · Test</div>
-            </div>
-          </div>
-        </div>
+        <div className="mt-auto" />
       </aside>
       <main className={`w-0 min-w-0 max-w-full flex-1 overflow-x-clip ${lockChrome ? 'app-main-locked flex flex-col' : ''}`}>
-         <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between bg-background/82 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
+         <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
           <Link href="/" aria-label="Open KAMALO home" className="mobile-kamalo-brand min-w-0 shrink" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
            <div className="mobile-nav-actions flex shrink-0 items-center gap-1.5">
              <Link href="/history" className={`icon-button inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 text-[10px] font-semibold sm:h-10 sm:px-3 ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={17} /><span>History</span>{conversationCount > 0 && <span className="font-mono text-[9px] opacity-70">({conversationCount})</span>}</Link>
@@ -125,7 +113,8 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
              </nav>
            </div>
          </div>}
-          <div className="hidden shrink-0 items-center justify-end gap-3 bg-background/82 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
+         <div className="hidden shrink-0 items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
+          <Link href="/history" className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[10px] font-semibold transition-colors ${location === '/history' ? 'border-primary/25 bg-primary/5 text-primary' : 'border-transparent text-muted-foreground hover:border-border hover:bg-card hover:text-primary'}`} data-testid="link-topbar-history"><HiOutlineClock size={13} /> History{conversationCount > 0 && <span className="font-mono text-[9px] opacity-70">({conversationCount})</span>}</Link>
           <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
            <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>

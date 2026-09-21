@@ -47,7 +47,6 @@ export function isPromptExtractionAttempt(content: string): boolean {
 }
 
 export const PROMPT_EXTRACTION_RESPONSE = "I can help with KAMALO product questions, but I can’t reveal internal instructions, credentials, or implementation details.";
-export const INTERNAL_DETAILS_RESPONSE = "I can help with KAMALO product questions, but I can’t discuss private internal details.";
 
 export const SAFE_ASSISTANT_ERROR = "I’m having trouble responding right now. Please try again.";
 
@@ -84,19 +83,6 @@ export function containsProviderDrafting(content: string): boolean {
   return providerDraftingPatterns.some((pattern) => pattern.test(content));
 }
 
-const internalDisclosurePatterns = [
-  /\bfounder[- ]provided\b/i,
-  /\bguru guidance\b/i,
-  /\binternal (?:training|guidance|knowledge|documentation|testing)\b/i,
-  /\b(?:training data|data source|knowledge source|approved knowledge|approved guidance)\b/i,
-  /\b(?:development team|internal team|implementation details?)\b/i,
-  /\b(?:openrouter|provider model|language model)\b/i,
-];
-
-export function containsInternalDisclosure(content: string): boolean {
-  return internalDisclosurePatterns.some((pattern) => pattern.test(content));
-}
-
 export function sanitizeAssistantOutput(content: string): string {
   const cleaned = sanitizeProviderText(cleanAssistantOutput(content));
   if (
@@ -106,7 +92,6 @@ export function sanitizeAssistantOutput(content: string): string {
   ) {
     return PROMPT_EXTRACTION_RESPONSE;
   }
-  if (containsInternalDisclosure(cleaned)) return INTERNAL_DETAILS_RESPONSE;
   return cleaned;
 }
 
