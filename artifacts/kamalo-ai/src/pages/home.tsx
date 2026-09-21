@@ -181,7 +181,7 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
   const assistant = message.role === 'assistant';
   const displayContent = assistant ? cleanDisplayedAssistantContent(message.content) : message.content;
   return (
-    <div className={`animate-rise flex gap-3 ${assistant ? 'items-start' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
+    <div className={`animate-rise flex gap-3 ${assistant ? 'items-start justify-center' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
       <div className={`min-w-0 max-w-[min(680px,87%)] ${assistant ? '' : 'order-first'}`}>
         <div className={`max-w-full rounded-xl px-4 py-3.5 text-[13px] leading-[1.75] [overflow-wrap:anywhere] ${assistant ? 'rounded-tl-sm border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-sm bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
           {(message.attachments?.length || 0) > 0 && <div className="mb-3 space-y-2">
@@ -223,7 +223,7 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
 
 function StreamingBubble({ content }: { content: string }) {
   return (
-    <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming">
+    <div className="flex items-start justify-center gap-3 animate-rise" data-testid="status-streaming">
       <div className="min-w-0 w-fit max-w-full rounded-xl rounded-tl-sm border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
         {content && <div className="mb-3 min-w-0 whitespace-pre-wrap text-[13px] leading-[1.75] text-card-foreground [overflow-wrap:anywhere]"><FormattedMessage content={content} /></div>}
         <div className="flex items-center gap-1.5 py-1" role="status" aria-label="KAMALO is responding">
@@ -665,14 +665,15 @@ export function HomePage() {
   };
 
   return (
-    <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
-       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-         {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
-             <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
+     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
+        <div className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 sm:px-6 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+          {selectedId && <header className="mx-auto flex w-full max-w-[980px] shrink-0 items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
+              <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
             <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} className="hidden sm:inline-flex" data-testid="button-clear-conversation">Clear</KamaloActionButton>
          </header>}
-        <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
-          <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
+         <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+           <section className="mx-auto flex min-h-0 min-w-0 w-full max-w-[980px] flex-1 flex-col pt-4 md:pt-8">
+             <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-message-viewport min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
               {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><KamaloActionButton variant="outline" size="sm" onClick={() => void conversationQuery.refetch()} className="mt-3" data-testid="button-retry-conversation-load">Try again</KamaloActionButton></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 && !isSending ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
@@ -689,6 +690,7 @@ export function HomePage() {
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
               </div>
             )}
+             </div>
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
              {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><KamaloActionButton variant="outline" size="sm" onClick={markUserActivity} data-testid="button-inactivity-continue">I’m here</KamaloActionButton></div>}
@@ -713,7 +715,7 @@ export function HomePage() {
                       placeholder="Ask about KAMALO..."
                       rows={1}
                       maxLength={4000}
-                       className="h-11 max-h-24 min-h-11 w-full resize-none overflow-y-auto bg-transparent px-3 py-2 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70"
+                       className="chat-textarea h-11 max-h-11 min-h-11 w-full resize-none overflow-hidden bg-transparent px-3 py-2 text-[14px] leading-6 outline-none placeholder:text-muted-foreground/70"
                       data-testid="input-chat-message"
                     />
                     <div className="flex items-center justify-between gap-2 px-2 pb-0.5">

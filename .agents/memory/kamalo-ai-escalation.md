@@ -20,3 +20,9 @@ Assistant streams may classify the final response as `unknown` only when orchest
 **Why:** A ticket CTA is a controlled handoff for missing approved knowledge, not a substitute for retrying a broken provider or hiding a safety fallback.
 
 **How to apply:** Preserve the response outcome through the SSE done event and keep web/mobile escalation buttons gated on the unknown classification.
+
+Retrieved knowledge can contain internal guardrail wording used to guide the provider; it is reference data, not customer-facing copy. Provider output that repeats guardrails or tool-instruction language must be rejected or replaced before persistence and streaming.
+
+**Why:** A response can be factually cautious but still damage trust by exposing implementation language such as “verified server-side tool” or “Stage 1 guardrail.”
+
+**How to apply:** Keep internal-guidance detection in the shared assistant-output safety gate and add regression coverage for representative leaked phrases.

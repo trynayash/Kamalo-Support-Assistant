@@ -348,6 +348,9 @@ test("selects unknown-question fallback and prompt-extraction decisions", async 
 
   const greeting = await prepareSupportRequest(testContext(), "hello", false);
   assert.equal(greeting.decision, "greeting");
+
+  const conversationalGreeting = await prepareSupportRequest(testContext(), "how are you", false);
+  assert.equal(conversationalGreeting.decision, "greeting");
 });
 
 test("does not retrieve an article from a weak body-only match", async () => {

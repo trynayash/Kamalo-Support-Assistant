@@ -53,7 +53,7 @@ function responseLanguageInstruction(language: SupportedResponseLanguage): strin
 }
 
 function isGreeting(content: string): boolean {
-  return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening|नमस्ते|नमस्कार|हाय|धन्यवाद|शुभ\s+(?:प्रभात|संध्या)|नमस्कार)[!. ।]*$/i.test(content.trim());
+  return /^(hi|hello|hey|thanks|thank you|good morning|good afternoon|good evening|how are you|what can you do|what do you do|who are you|नमस्ते|नमस्कार|हाय|धन्यवाद|शुभ\s+(?:प्रभात|संध्या)|नमस्कार)[?! .।]*$/i.test(content.trim());
 }
 
 function isFollowUpReference(content: string): boolean {

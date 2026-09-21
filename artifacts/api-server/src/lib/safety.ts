@@ -76,6 +76,7 @@ export function containsInstructionInjection(content: string): boolean {
 const providerDraftingPatterns = [
   /^\s*(?:here(?:'s| is) (?:a )?thinking process|analysis|reasoning|chain of thought)\s*:/i,
   /\b(?:analyze user input|analysis of the user|chain of thought|draft response|internal reasoning|thinking process)\b/i,
+  /\b(?:stage\s*1\s+guardrail|until a verified server-side tool returns|approved product guidance,\s*not evidence)\b/i,
   /^\s*(?:step\s*\d+\s*[:.)]|final answer\s*:)/im,
 ];
 
