@@ -75,6 +75,10 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
              <HiOutlineChatBubbleLeftRight size={16} className={isConversations ? 'text-[hsl(var(--accent))]' : ''} /> <span>Conversations</span>
             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
           </Link>
+            <Link href="/history" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${location === '/history' ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-history">
+             <HiOutlineClock size={16} className={location === '/history' ? 'text-[hsl(var(--accent))]' : ''} /> <span>History</span>
+             {conversationCount > 0 && <span className="ml-auto rounded-full bg-sidebar-foreground/10 px-2 py-0.5 font-mono text-[10px]">{conversationCount}</span>}
+           </Link>
             <Link href="/admin/knowledge" className={`flex h-10 items-center gap-3 rounded-lg px-3 text-[13px] transition-colors ${isKnowledge ? 'bg-sidebar-accent text-sidebar-foreground' : 'text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`} data-testid="link-knowledge">
              <HiOutlineBookOpen size={16} className={isKnowledge ? 'text-[hsl(var(--accent))]' : ''} /> <span>Knowledge base</span>
            </Link>
