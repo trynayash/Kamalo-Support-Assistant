@@ -142,9 +142,9 @@ function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: str
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
       <div className="max-w-md">
         <div className="kamalo-welcome-art" aria-hidden="true">
-          <img src="/kamalo-assistant-illustration.png" alt="" />
+          <img src="/kamalo-welcome-illustration.svg" alt="" />
         </div>
-        <h1 className="text-[clamp(1.9rem,7vw,3.1rem)] font-extrabold leading-[1.04] tracking-[-.06em] text-foreground">
+        <h1 className="text-[clamp(1.65rem,4.4vw,2.5rem)] font-extrabold leading-[1.08] tracking-[-.055em] text-foreground">
           <>How can I help you today?</>
         </h1>
         <p className="mx-auto mt-4 max-w-sm text-[13px] leading-7 text-muted-foreground">{showQuickPrompts ? 'Choose a common question or type your own.' : 'Select a conversation from your history, or start a new one from the sidebar.'}</p>

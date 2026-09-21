@@ -319,7 +319,7 @@ export default function ChatScreen() {
             scrollEnabled={false}
             style={styles.listViewport}
             ListEmptyComponent={
-              <EmptyState icon="message-square" illustration={require('../../assets/kamalo-assistant-illustration.png')} title="How can I help you today?" body="Ask a question. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
+              <EmptyState icon="message-square" illustration={require('../../assets/kamalo-welcome-illustration.png')} title="How can I help you today?" body="Ask a question. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
             }
             contentContainerStyle={styles.emptyList}
           />
