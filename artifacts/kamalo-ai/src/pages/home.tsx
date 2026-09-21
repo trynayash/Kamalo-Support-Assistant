@@ -182,7 +182,7 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
   const assistant = message.role === 'assistant';
   const displayContent = assistant ? cleanDisplayedAssistantContent(message.content) : message.content;
   return (
-    <div className={`animate-rise flex gap-3 ${assistant ? 'items-start justify-center' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
+    <div className={`animate-rise flex gap-3 ${assistant ? 'items-start justify-start' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
       <div className={`min-w-0 max-w-[min(680px,87%)] ${assistant ? '' : 'order-first'}`}>
         <div className={`max-w-full rounded-xl px-4 py-3.5 text-[13px] leading-[1.75] [overflow-wrap:anywhere] ${assistant ? 'rounded-tl-sm border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-sm bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
           {(message.attachments?.length || 0) > 0 && <div className="mb-3 space-y-2">
@@ -224,7 +224,7 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
 
 function StreamingBubble({ content }: { content: string }) {
   return (
-    <div className="flex items-start justify-center gap-3 animate-rise" data-testid="status-streaming">
+    <div className="flex items-start justify-start gap-3 animate-rise" data-testid="status-streaming">
       <div className="min-w-0 w-fit max-w-full rounded-xl rounded-tl-sm border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
         {content && <div className="mb-3 min-w-0 whitespace-pre-wrap text-[13px] leading-[1.75] text-card-foreground [overflow-wrap:anywhere]"><FormattedMessage content={content} /></div>}
         <div className="flex items-center gap-1.5 py-1" role="status" aria-label="KAMALO is responding">
