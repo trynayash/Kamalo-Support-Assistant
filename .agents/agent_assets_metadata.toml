@@ -70,3 +70,17 @@ mtime_ms = 1789722992687
 storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:4b2b5002-86b1-4a08-9167-e2a03d7ae7f0/7eb61591-0d7a-49a4-98d9-094cfedea154/218183f2-a53f-4ad2-b3a9-3c3d15c8c43d"
 storage_version_token = "1789723012257965"
 content_type = "application/octet-stream"
+
+[[outputs]]
+id = "VRSG87ciGgJoUNaufZSFX"
+uri = "file://exports/kamalo-development-db-20260921T104147Z.zip"
+type = "unspecified"
+title = "KAMALO AI Development Database Export"
+description = "Complete development PostgreSQL export ZIP containing full SQL, portable SQL, schema-only, data-only, native pg_restore archive, and restore instructions."
+logical_id = "5ad57572-c7e2-4e32-a220-1511828f489e"
+content_hash = "sha256:cadcaeec35f2c891b305e8e4716ad710b104f16f077fdc3117dc96194a34d1f8"
+size = 343646
+mtime_ms = 1789987308279
+storage_uri = "gcs://replit-rams-assets-sisko/rams/assets/repl:4b2b5002-86b1-4a08-9167-e2a03d7ae7f0/5ad57572-c7e2-4e32-a220-1511828f489e/dcf20298-5f8c-4756-be3a-5d78fef465bf"
+storage_version_token = "1789987314297045"
+content_type = "application/octet-stream"
