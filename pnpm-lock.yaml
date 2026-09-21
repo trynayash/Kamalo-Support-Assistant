@@ -207,6 +207,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.3.0
         version: 4.3.0(@types/node@25.9.6)
+      '@workspace/kamalo-icons':
+        specifier: workspace:*
+        version: link:../../lib/kamalo-icons
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -532,6 +535,10 @@ importers:
         version: 3.5.4(zod@3.25.76)
 
   artifacts/mockup-sandbox:
+    dependencies:
+      '@workspace/kamalo-icons':
+        specifier: workspace:*
+        version: link:../../lib/kamalo-icons
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
@@ -750,6 +757,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+
+  lib/kamalo-icons: {}
 
   scripts:
     devDependencies:
@@ -1392,7 +1401,7 @@ packages:
     resolution: {integrity: sha512-LidMHe1FpcSYH4vcSjXooda34pC0M8m1gmDOv7SQi6Iv+ib1zX7J3sHBCC9/3FPCkn2k1b55FneVqMRxrr99pg==}
 
   '@huggingface/transformers@4.3.0':
-    resolution: {integrity: sha512-fL1A/WUZwouPrOlYxU5dzIwD2T5J781JiB2jDR8bFe5DwCj0Gfudq+NEXCMno49kQgajHA7xQkrRLJlqG1veEA==}
+    resolution: {integrity: sha512-fL1A/WUZwouPrOlYxU5dzIwD2T5J781JiB2jDR8bFe5DwCj0Gfudq+NEXCMno49kQgajHA7xQkrRLJlqG1veEA==, tarball: https://registry.npmjs.org/@huggingface/transformers/-/transformers-4.3.0.tgz}
 
   '@img/colour@1.1.0':
     resolution: {integrity: sha512-Td76q7j57o/tLVdgS746cYARfSyxk8iEfRxewL9h4OMzYhbW4TAcppl0mT4eyqXddh6L/jwoM75mo7ixa/pCeQ==}

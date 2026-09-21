@@ -68,5 +68,8 @@
     "vaul": "^1.1.2",
     "vite": "catalog:",
     "zod": "catalog:"
+  },
+  "dependencies": {
+    "@workspace/kamalo-icons": "workspace:*"
   }
 }
