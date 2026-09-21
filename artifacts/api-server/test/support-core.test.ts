@@ -6,7 +6,7 @@ import { and, eq, inArray, like, or } from "drizzle-orm";
 import app from "../src/app";
 import { createSupportRequestContext, DEMO_USER_ID, type SupportRequestContext } from "../src/lib/context";
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
-import { rankKnowledgeArticles, retrieveKnowledge } from "../src/lib/knowledge";
+import { assertNoDuplicateActiveApprovedTopics, findDuplicateActiveApprovedTopics, rankKnowledgeArticles, retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
 import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
 import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
@@ -460,6 +460,43 @@ test("keeps database-backed retrieval aligned with the representative knowledge 
       `${representativeFixtureCategoryPrefix}%`,
     ));
   }
+});
+
+test("flags duplicate active approved topics while allowing non-overlapping versions", () => {
+  const now = new Date("2026-09-21T12:00:00.000Z");
+  const topic = (overrides: Partial<Parameters<typeof findDuplicateActiveApprovedTopics>[0][number]> = {}) => ({
+    id: crypto.randomUUID(),
+    title: "Coin expiry",
+    category: "Coins",
+    version: 1,
+    status: "approved",
+    effectiveFrom: new Date("2026-01-01T00:00:00.000Z"),
+    effectiveUntil: null,
+    ...overrides,
+  });
+
+  const versioned = [
+    topic({ version: 1, effectiveUntil: new Date("2026-06-30T23:59:59.999Z") }),
+    topic({ version: 2 }),
+    topic({ version: 3, status: "draft" }),
+    topic({ version: 4, effectiveFrom: new Date("2026-10-01T00:00:00.000Z") }),
+    topic({ version: 5, category: "Rewards" }),
+  ];
+  assert.deepEqual(findDuplicateActiveApprovedTopics(versioned, now), []);
+  assert.doesNotThrow(() => assertNoDuplicateActiveApprovedTopics(versioned, now));
+
+  const duplicate = [
+    topic({ id: "duplicate-one", version: 2 }),
+    topic({ id: "duplicate-two", version: 2, title: " coin expiry ", category: " coins " }),
+  ];
+  const duplicates = findDuplicateActiveApprovedTopics(duplicate, now);
+  assert.equal(duplicates.length, 1);
+  assert.equal(duplicates[0]?.title, "Coin expiry");
+  assert.equal(duplicates[0]?.category, "Coins");
+  assert.throws(
+    () => assertNoDuplicateActiveApprovedTopics(duplicate, now),
+    /"Coin expiry" \[Coins\].*versions: 2/s,
+  );
 });
 
 test("keeps draft and expired knowledge out of evidence", async () => {

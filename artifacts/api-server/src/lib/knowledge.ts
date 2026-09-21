@@ -249,6 +249,81 @@ async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
   });
 }
 
+export type KnowledgeTopicRow = {
+  id: string;
+  title: string;
+  category: string;
+  version: number;
+  status: string;
+  effectiveFrom: Date | null;
+  effectiveUntil: Date | null;
+};
+
+export type DuplicateActiveApprovedTopic = {
+  title: string;
+  category: string;
+  articles: KnowledgeTopicRow[];
+};
+
+function topicKey(title: string, category: string): string {
+  return `${title.trim().toLowerCase()}\u0000${category.trim().toLowerCase()}`;
+}
+
+function isActiveApprovedArticle(article: KnowledgeTopicRow, now: Date): boolean {
+  return article.status === "approved"
+    && (!article.effectiveFrom || article.effectiveFrom <= now)
+    && (!article.effectiveUntil || article.effectiveUntil > now);
+}
+
+/**
+ * Find maintained topics with more than one article that can be retrieved now.
+ *
+ * Versioned content is allowed when older versions are outside their effective
+ * window. Two active versions of the same topic are still ambiguous because
+ * retrieval would send both to ranking and provider context.
+ */
+export function findDuplicateActiveApprovedTopics(
+  articles: KnowledgeTopicRow[],
+  now = new Date(),
+): DuplicateActiveApprovedTopic[] {
+  const topics = new Map<string, DuplicateActiveApprovedTopic>();
+
+  for (const article of articles) {
+    if (!isActiveApprovedArticle(article, now)) continue;
+    const key = topicKey(article.title, article.category);
+    const topic = topics.get(key);
+    if (topic) {
+      topic.articles.push(article);
+      continue;
+    }
+    topics.set(key, {
+      title: article.title.trim(),
+      category: article.category.trim(),
+      articles: [article],
+    });
+  }
+
+  return [...topics.values()].filter((topic) => topic.articles.length > 1);
+}
+
+export function assertNoDuplicateActiveApprovedTopics(
+  articles: KnowledgeTopicRow[],
+  now = new Date(),
+): void {
+  const duplicates = findDuplicateActiveApprovedTopics(articles, now);
+  if (duplicates.length === 0) return;
+
+  const details = duplicates.map((topic) => {
+    const versions = [...new Set(topic.articles.map((article) => article.version))].sort((a, b) => a - b);
+    return `- "${topic.title}" [${topic.category}] has ${topic.articles.length} active approved articles (versions: ${versions.join(", ")})`;
+  });
+  throw new Error([
+    "Duplicate active approved knowledge topics detected.",
+    ...details,
+    "Keep only one active approved article per topic; intentional versions must use non-overlapping effective windows.",
+  ].join("\n"));
+}
+
 async function readKnowledgeSource(filename: string): Promise<string> {
   const sourcePaths = [
     path.resolve(process.cwd(), "attached_assets", filename),
@@ -306,6 +381,19 @@ async function setupKnowledge(): Promise<void> {
       console.warn(`KAMALO Guru knowledge file was not imported.`, error);
     }
   }
+
+  const knowledgeRows = await db
+    .select({
+      id: knowledgeArticlesTable.id,
+      title: knowledgeArticlesTable.title,
+      category: knowledgeArticlesTable.category,
+      version: knowledgeArticlesTable.version,
+      status: knowledgeArticlesTable.status,
+      effectiveFrom: knowledgeArticlesTable.effectiveFrom,
+      effectiveUntil: knowledgeArticlesTable.effectiveUntil,
+    })
+    .from(knowledgeArticlesTable);
+  assertNoDuplicateActiveApprovedTopics(knowledgeRows);
 }
 
 export async function ensureSeedKnowledge(): Promise<void> {
