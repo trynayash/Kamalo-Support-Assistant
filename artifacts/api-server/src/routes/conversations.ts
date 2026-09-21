@@ -25,7 +25,7 @@ import { recordSupportEvent } from "../lib/observability";
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
-type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
+type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -334,6 +334,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     event: "knowledge_retrieved",
     context: supportContext,
     evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
     decision: prepared.decision,
   });
 
@@ -370,6 +371,9 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else if (prepared.decision === "greeting") {
       fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
       responseOutcome = "greeting";
+    } else if (prepared.decision === "retrieval_error") {
+      fullResponse = SAFE_ASSISTANT_ERROR;
+      responseOutcome = "knowledge_error";
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
       responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
@@ -394,6 +398,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       event: "provider_failure",
       context: supportContext,
       evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
       outcome: "safe_fallback",
     });
     req.log.error({
@@ -507,7 +512,7 @@ import { recordSupportEvent } from "../lib/observability";
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
-type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
+type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -816,6 +821,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     event: "knowledge_retrieved",
     context: supportContext,
     evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
     decision: prepared.decision,
   });
 
@@ -852,6 +858,9 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else if (prepared.decision === "greeting") {
       fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
       responseOutcome = "greeting";
+    } else if (prepared.decision === "retrieval_error") {
+      fullResponse = SAFE_ASSISTANT_ERROR;
+      responseOutcome = "knowledge_error";
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
       responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
@@ -876,6 +885,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       event: "provider_failure",
       context: supportContext,
       evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
       outcome: "safe_fallback",
     });
     req.log.error({
@@ -989,7 +999,7 @@ import { recordSupportEvent } from "../lib/observability";
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
-type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
+type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -1298,6 +1308,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     event: "knowledge_retrieved",
     context: supportContext,
     evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
     decision: prepared.decision,
   });
 
@@ -1334,6 +1345,9 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else if (prepared.decision === "greeting") {
       fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
       responseOutcome = "greeting";
+    } else if (prepared.decision === "retrieval_error") {
+      fullResponse = SAFE_ASSISTANT_ERROR;
+      responseOutcome = "knowledge_error";
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
       responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
@@ -1358,6 +1372,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       event: "provider_failure",
       context: supportContext,
       evidenceCount: prepared.evidence.length,
+    retrievalFailures: prepared.retrievalFailures,
       outcome: "safe_fallback",
     });
     req.log.error({

@@ -9,7 +9,7 @@ import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { assertNoDuplicateActiveApprovedTopics, findDuplicateActiveApprovedTopics, rankKnowledgeArticles, retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
 import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
-import { ToolGateway, actionRegistry, listToolDefinitions } from "../src/lib/tool-registry";
+import { ToolGateway, actionRegistry, listToolDefinitions, toolGateway } from "../src/lib/tool-registry";
 import { representativeKnowledgeFixtures, representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
   conversationsTable,
@@ -670,6 +670,34 @@ test("returns a safe error when a local provider response has no body", async ()
   );
 });
 
+test("does not retry a provider stream after content has already been emitted", async () => {
+  const provider = new OpenRouterProvider();
+  const contentFrame = (content: string) => `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`;
+  const partialResponse = syntheticSseResponse([
+    contentFrame("partial content"),
+  ]);
+  const recoveryResponse = syntheticSseResponse([
+    contentFrame("replacement content"),
+    "data: [DONE]\n\n",
+  ]);
+
+  let calls = 0;
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls === 1 ? partialResponse : recoveryResponse;
+  };
+  try {
+    await assert.rejects(
+      () => collectProviderStream(provider),
+      /stream ended before completion/,
+    );
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
 test("sanitizes and caps content produced by a streamed provider", async () => {
   const conversation = await createConversation(`${testPrefix} streamed safety`);
   const originalStream = llmProvider.stream;
@@ -1318,6 +1346,26 @@ test("selects unknown-question fallback and prompt-extraction decisions", async 
 
   const conversationalGreeting = await prepareSupportRequest(testContext(), "how are you", false);
   assert.equal(conversationalGreeting.decision, "greeting");
+});
+
+test("distinguishes retrieval outages from genuine unknown questions", async () => {
+  const originalExecute = toolGateway.execute;
+  toolGateway.execute = async (name) => ({
+    ok: false,
+    toolName: name,
+    sourceType: "none",
+    synthetic: false,
+    data: null,
+    errorCode: "failed",
+  });
+  try {
+    const prepared = await prepareSupportRequest(testContext(), "temporarily unavailable query", false);
+    assert.equal(prepared.retrievalFailures, 1);
+    assert.equal(prepared.decision, "retrieval_error");
+    assert.deepEqual(prepared.retrieved, []);
+  } finally {
+    toolGateway.execute = originalExecute;
+  }
 });
 
 test("does not retrieve an article from a weak body-only match", async () => {

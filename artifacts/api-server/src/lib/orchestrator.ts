@@ -31,7 +31,8 @@ export type PreparedSupportRequest = {
   evidence: Array<{ id: string; title: string; category: string; version: number; sourceType: "approved_knowledge" }>;
   llmMessages: LLMMessage[];
   groundedFact: string | null;
-  decision: "greeting" | "image_only" | "prompt_extraction" | "fallback" | "knowledge_answer";
+  retrievalFailures: number;
+  decision: "greeting" | "image_only" | "prompt_extraction" | "fallback" | "retrieval_error" | "knowledge_answer";
 };
 
 export type ConversationHistoryMessage = {
@@ -168,6 +169,7 @@ export async function prepareSupportRequest(
   const retrievalResults = await Promise.all(
     retrievalQueries.map((query) => toolGateway.execute("knowledge.retrieve", { query }, context) as Promise<KnowledgeToolResult>),
   );
+  const retrievalFailures = retrievalResults.filter((result) => !result.ok).length;
   const allRetrieved = retrievalResults
     .flatMap((result) => result.ok && result.data?.articles ? result.data.articles : [])
     .filter((article, index, articles) => articles.findIndex((candidate) => candidate.id === article.id) === index)
@@ -199,6 +201,8 @@ export async function prepareSupportRequest(
     ? "image_only"
     : isGreeting(content)
       ? "greeting"
+      : retrievalFailures === retrievalResults.length
+        ? "retrieval_error"
       : retrieved.length === 0
         ? "fallback"
         : "knowledge_answer";
@@ -208,6 +212,7 @@ export async function prepareSupportRequest(
     retrieved,
     evidence,
     groundedFact,
+    retrievalFailures,
     decision,
     llmMessages: [
       { role: "system", content: SYSTEM_PROMPT },

@@ -6,6 +6,7 @@ export type SupportEvent = {
   context: SupportRequestContext;
   latencyMs?: number;
   evidenceCount?: number;
+  retrievalFailures?: number;
   toolName?: string;
   decision?: string;
   outcome?: string;
@@ -24,6 +25,7 @@ export function recordSupportEvent(logger: Logger, event: SupportEvent): void {
     authenticated: event.context.identity.authenticated,
     latencyMs: event.latencyMs,
     evidenceCount: event.evidenceCount,
+    retrievalFailures: event.retrievalFailures,
     toolName: event.toolName,
     decision: event.decision,
     outcome: event.outcome,

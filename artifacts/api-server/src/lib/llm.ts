@@ -82,6 +82,11 @@ function requestSignal(externalSignal?: AbortSignal): AbortSignal {
   return externalSignal ? AbortSignal.any([externalSignal, timeoutSignal]) : timeoutSignal;
 }
 
+function isAbortLikeError(error: unknown): boolean {
+  return error instanceof DOMException
+    && (error.name === "AbortError" || error.name === "TimeoutError");
+}
+
 async function fetchWithRetry(request: LLMRequest, stream: boolean): Promise<Response> {
   const key = getOpenRouterKey();
   let lastError: unknown;
@@ -116,7 +121,7 @@ async function fetchWithRetry(request: LLMRequest, stream: boolean): Promise<Res
       if (error instanceof OpenRouterError) {
         if (!error.retryable || attempt === MAX_RETRIES) throw error;
         lastError = error;
-      } else if (error instanceof DOMException && error.name === "AbortError") {
+      } else if (isAbortLikeError(error)) {
         const cancelled = request.signal?.aborted;
         throw new OpenRouterError(
           cancelled ? "OpenRouter request was cancelled" : "OpenRouter request timed out",
@@ -241,11 +246,25 @@ export class OpenRouterProvider implements LLMProvider {
 
   async *stream(request: LLMRequest): AsyncIterable<string> {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let emittedContent = false;
       try {
-        yield* this.streamOnce(request);
+        for await (const chunk of this.streamOnce(request)) {
+          emittedContent = true;
+          yield chunk;
+        }
         return;
       } catch (error) {
-        if (!(error instanceof OpenRouterError) || !error.retryable || attempt === MAX_RETRIES) throw error;
+        // Once content has reached the caller, restarting the provider would
+        // duplicate that content in the browser and could create a misleading
+        // transcript. Let the route apply its normal safe fallback instead.
+        if (
+          emittedContent
+          || !(error instanceof OpenRouterError)
+          || !error.retryable
+          || attempt === MAX_RETRIES
+        ) {
+          throw error;
+        }
         await new Promise((resolve) => setTimeout(resolve, Math.min(250 * (2 ** attempt), 4_000)));
       }
     }
