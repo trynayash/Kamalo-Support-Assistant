@@ -381,7 +381,7 @@
 @media (min-width: 1024px) {
   .chat-composer {
     left: var(--kamalo-sidebar-width);
-    width: calc(100% - var(--kamalo-sidebar-width));
+    width: calc(100% - var(--kamalo-sidebar-width) - 260px);
   }
 }
 @media (max-width: 360px) {
@@ -780,7 +780,7 @@
 @media (min-width: 1024px) {
   .chat-composer {
     left: var(--kamalo-sidebar-width);
-    width: calc(100% - var(--kamalo-sidebar-width));
+    width: calc(100% - var(--kamalo-sidebar-width) - 260px);
   }
 }
 @media (max-width: 360px) {
