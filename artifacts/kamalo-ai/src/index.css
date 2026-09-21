@@ -355,8 +355,8 @@
 }
 .kamalo-welcome-art {
   width: min(22rem, 82vw);
-  height: 12rem;
-  margin: -.5rem auto .85rem;
+  height: 13rem;
+  margin: -1rem auto .75rem;
   display: block;
   object-fit: contain;
 }
@@ -386,9 +386,9 @@
 }
 @media (max-width: 639px) {
   .kamalo-welcome-art {
-    width: min(19rem, 92vw);
-    height: 10rem;
-    margin-top: -.35rem;
+    width: min(20rem, 94vw);
+    height: 11rem;
+    margin-top: -.75rem;
     margin-bottom: .65rem;
   }
 }

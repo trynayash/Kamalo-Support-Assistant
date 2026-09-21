@@ -312,7 +312,7 @@ export default function ChatScreen() {
         </View>
       </View>
       <KeyboardAvoidingView style={styles.chat} behavior="padding" keyboardVerticalOffset={0}>
-        {conversationsLoading && !conversationId ? <LoadingState label="Preparing your assistant" /> : messages.length === 0 ? (
+        {conversationsLoading && !conversationId ? <LoadingState label="Preparing your assistant" /> : messages.length === 0 && !isStreaming ? (
           <FlatList
             data={[]}
             renderItem={() => null}
