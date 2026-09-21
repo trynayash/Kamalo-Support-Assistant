@@ -65,6 +65,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Conversation"
+    delete:
+      operationId: deleteAllConversations
+      tags: [conversations]
+      summary: Delete all visible conversations
+      responses:
+        "204":
+          description: Conversations deleted
   /conversations/{conversationId}:
     get:
       operationId: getConversation

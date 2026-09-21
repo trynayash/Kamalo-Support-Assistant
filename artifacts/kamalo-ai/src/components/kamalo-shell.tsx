@@ -26,7 +26,7 @@ export function KamaloMark({ small = false, onLight = false }: { small?: boolean
 export function KamaloShell({ children, conversationCount = 0, onNewConversation, lockChrome = false }: KamaloShellProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const isConversations = location === '/' || location === '/history';
+  const isConversations = location === '/';
   const isKnowledge = location.startsWith('/admin/knowledge');
   const isSupport = location.startsWith('/support');
   const isTickets = location.startsWith('/admin/tickets');

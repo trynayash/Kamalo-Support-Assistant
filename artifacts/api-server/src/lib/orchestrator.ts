@@ -2,7 +2,7 @@ import type { LLMMessage } from "./llm";
 import type { SupportRequestContext } from "./context";
 import { toolGateway, type KnowledgeToolResult } from "./tool-registry";
 import type { RetrievedArticle } from "./knowledge";
-import { condenseAssistantOutput, containsProviderDrafting, sanitizeProviderText } from "./safety";
+import { condenseAssistantOutput, containsInternalDisclosure, containsProviderDrafting, sanitizeProviderText } from "./safety";
 
 export const SYSTEM_PROMPT = `You are KAMALO AI, the official KAMALO customer support assistant.
 
@@ -111,7 +111,19 @@ function isPersonalizedKnowledge(article: RetrievedArticle): boolean {
   return /\b(?:my coins|your coins|you currently|your next expiry|x coins|how many coins expire|when will my coins expire)\b/i.test(`${article.title}\n${article.content}`);
 }
 
+function brandOrLegalFact(content: string): string | null {
+  if (/\b(?:legal|terms(?: and conditions)?|privacy|compliance|policy)\b/i.test(content)) {
+    return "For legal information, please refer to https://kamalo.app/legal.";
+  }
+  if (/\b(?:who\s+(?:built|builds?|created|made)|built by|made by|created by|founder|owner|company behind)\b/i.test(content)) {
+    return "KAMALO is built by Kamal Intellect PVT LTD.";
+  }
+  return null;
+}
+
 function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string | null {
+  const brandFact = brandOrLegalFact(content);
+  if (brandFact) return brandFact;
   const terms = factTerms(content);
   if (!terms.length) return null;
   const accountSpecific = isAccountSpecificQuestion(content);
@@ -146,7 +158,7 @@ function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string
 export function preferGroundedFact(content: string, groundedFact: string | null): string {
   if (
     groundedFact
-    && (containsProviderDrafting(content) || /\b(?:i (?:do not|don't) have confirmed|approved guidance only covers|we need to answer|the primary article|use approved knowledge|final response contract)\b/i.test(content))
+    && (containsProviderDrafting(content) || containsInternalDisclosure(content) || /\b(?:i (?:do not|don't) have confirmed|approved guidance only covers|we need to answer|the primary article|use approved knowledge|final response contract)\b/i.test(content))
   ) {
     return groundedFact;
   }

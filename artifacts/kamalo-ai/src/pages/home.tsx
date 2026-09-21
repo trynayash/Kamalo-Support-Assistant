@@ -119,6 +119,11 @@ function imageValidationError(file: File): string | null {
 
 function cleanDisplayedAssistantContent(content: string) {
   let cleaned = content.trim();
+  cleaned = cleaned.replace(/[^.!?।]*(?:founder[- ]provided|guru guidance|internal (?:training|guidance|knowledge|documentation|testing)|training data|data source|approved (?:knowledge|guidance)|development team|internal team|implementation details?)[^.!?।]*[.!?।]?/gi, (sentence) => (
+    /\b(?:built|builds?|created|made|founder|development team)\b/i.test(sentence)
+      ? 'KAMALO is built by Kamal Intellect PVT LTD. '
+      : ''
+  ));
   if (
     cleaned.length >= 2 &&
     ((cleaned.startsWith('"') && cleaned.endsWith('"')) ||

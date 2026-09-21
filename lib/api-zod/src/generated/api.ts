@@ -50,6 +50,12 @@ export const CreateConversationResponse = zod.object({
 
 
 /**
+ * @summary Delete all visible conversations
+ */
+export const DeleteAllConversationsResponse = zod.void()
+
+
+/**
  * @summary Get a conversation with messages
  */
 export const GetConversationParams = zod.object({
