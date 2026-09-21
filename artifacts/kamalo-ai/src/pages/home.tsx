@@ -649,10 +649,10 @@ export function HomePage() {
 
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
-       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full flex-1 flex-col pb-40 sm:pb-36" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-         <div className="flex min-h-0 w-full min-w-0 flex-1">
+       <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full flex-1 flex-col" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
+         <div className="chat-surface flex min-h-0 w-full min-w-0 flex-1">
            <section className="flex min-h-0 min-w-0 flex-1 w-full flex-col">
-         {selectedId && <header className="conversation-header sticky top-0 z-20 flex min-h-[88px] items-center justify-between border-b border-border/70 bg-background/95 px-4 py-4 backdrop-blur-sm sm:px-6 md:px-8" data-testid="conversation-header">
+          {selectedId && <header className="conversation-header sticky top-0 z-20 flex min-h-[88px] items-center justify-between px-4 py-4 sm:px-6 md:px-8" data-testid="conversation-header">
              <div className="min-w-0">
                <div className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-muted-foreground">Conversation</div>
                 <div className="mt-1 flex min-w-0 items-center gap-2">
@@ -692,9 +692,9 @@ export function HomePage() {
             {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
              {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
              {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><KamaloActionButton variant="outline" size="sm" onClick={markUserActivity} data-testid="button-inactivity-continue">I’m here</KamaloActionButton></div>}
-            {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
-               <div className="mx-auto max-w-[980px]">
-                 <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
+             {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom pt-2">
+                <div className="mx-auto w-full max-w-[1120px]">
+                  <div className="chat-composer-card relative border-t border-border/55 bg-transparent pt-3 focus-within:border-primary/50">
                     {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
                       <img src={pendingImage.previewUrl} alt={`Preview of ${pendingImage.file.name}`} className="h-12 w-12 shrink-0 rounded-md object-cover" />
                        <div className="min-w-0 flex-1"><div className="truncate text-[11px] font-semibold">{pendingImage.file.name}</div><div className="mt-0.5 text-[9px] leading-4 text-muted-foreground">Stored with this conversation; the current text provider does not interpret image contents.</div></div>

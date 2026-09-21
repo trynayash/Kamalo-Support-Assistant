@@ -101,7 +101,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
         </div>
       </aside>
       <main className={`w-0 min-w-0 max-w-full flex-1 overflow-x-clip ${lockChrome ? 'app-main-locked flex flex-col' : ''}`}>
-         <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between border-b border-border/70 bg-background/95 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
+         <div className={`safe-top sticky top-0 z-30 flex shrink-0 items-center justify-between bg-background/82 px-3 pb-3 pt-3 backdrop-blur-sm sm:px-5 lg:hidden ${lockChrome ? 'sticky' : ''}`}>
           <Link href="/" aria-label="Open KAMALO home" className="mobile-kamalo-brand min-w-0 shrink" data-testid="mobile-brand-link"><KamaloMark onLight /></Link>
            <div className="mobile-nav-actions flex shrink-0 items-center gap-1.5">
              <Link href="/history" className={`icon-button inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-card px-2.5 text-[10px] font-semibold sm:h-10 sm:px-3 ${location === '/history' ? 'text-primary' : 'text-foreground'}`} aria-label="Open conversation history" data-testid="button-mobile-history"><HiOutlineClock size={17} /><span>History</span>{conversationCount > 0 && <span className="font-mono text-[9px] opacity-70">({conversationCount})</span>}</Link>
@@ -125,7 +125,7 @@ export function KamaloShell({ children, conversationCount = 0, onNewConversation
              </nav>
            </div>
          </div>}
-         <div className="hidden shrink-0 items-center justify-end gap-3 border-b border-border/60 bg-background/95 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
+          <div className="hidden shrink-0 items-center justify-end gap-3 bg-background/82 px-8 py-2.5 backdrop-blur-sm lg:flex lg:px-12">
           <Link href="/support" className="text-[10px] font-semibold text-muted-foreground hover:text-primary" data-testid="link-topbar-support">Help &amp; Support</Link>
            <Link href="/admin/tickets" className="inline-flex items-center gap-1.5 rounded-md border border-[hsl(var(--accent)/.45)] bg-[hsl(var(--accent)/.12)] px-2.5 py-1.5 font-mono text-[9px] uppercase tracking-[.1em] text-[hsl(31_60%_35%)] hover:bg-[hsl(var(--accent)/.2)]" data-testid="link-topbar-admin"><HiOutlineShieldCheck size={12} /> Admin access · test</Link>
         </div>
