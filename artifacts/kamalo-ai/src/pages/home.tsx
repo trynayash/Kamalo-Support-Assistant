@@ -180,8 +180,12 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
   const displayContent = assistant ? cleanDisplayedAssistantContent(message.content) : message.content;
   return (
     <div className={`animate-rise flex gap-3 ${assistant ? 'items-start' : 'items-start justify-end'}`} data-testid={`message-${message.id}`}>
-      <div className={`min-w-0 max-w-[min(680px,87%)] ${assistant ? '' : 'order-first'}`}>
-        <div className={`max-w-full rounded-xl px-4 py-3.5 text-[13px] leading-[1.75] [overflow-wrap:anywhere] ${assistant ? 'rounded-tl-sm border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-sm bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
+      <div className={`min-w-0 max-w-[min(720px,92%)] ${assistant ? '' : 'order-first'}`}>
+        <div className={`mb-1.5 flex items-center gap-2 px-1 text-[9px] font-bold uppercase tracking-[.16em] ${assistant ? 'text-muted-foreground' : 'justify-end text-primary'}`}>
+          <span>{assistant ? 'KAMALO' : 'You'}</span>
+          {assistant && <span className="h-1 w-1 rounded-full bg-primary/60" aria-hidden="true" />}
+        </div>
+        <div className={`max-w-full rounded-2xl px-4 py-3.5 text-[13px] leading-[1.75] [overflow-wrap:anywhere] ${assistant ? 'rounded-tl-md border border-border/80 bg-card text-card-foreground shadow-[var(--shadow-sm)]' : 'rounded-tr-md bg-primary text-primary-foreground shadow-[0_7px_18px_hsl(var(--primary)/.16)]'}`}>
           {(message.attachments?.length || 0) > 0 && <div className="mb-3 space-y-2">
             {(message.attachments || []).map((attachment) => <div key={attachment.id} className="max-w-full overflow-hidden rounded-lg border border-current/15 bg-black/10">
               <img src={attachment.url} alt={`Attached image: ${attachment.filename}`} loading="lazy" referrerPolicy="no-referrer" className="max-h-64 w-full max-w-[min(360px,100%)] object-contain" />
@@ -212,13 +216,16 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
 function StreamingBubble({ content }: { content: string }) {
   return (
     <div className="flex items-start gap-3 animate-rise" data-testid="status-streaming">
-      <div className="min-w-0 w-fit max-w-full rounded-xl rounded-tl-sm border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
+      <div className="min-w-0 w-fit max-w-[min(720px,92%)]">
+        <div className="mb-1.5 flex items-center gap-2 px-1 text-[9px] font-bold uppercase tracking-[.16em] text-muted-foreground"><span>KAMALO</span><span className="h-1 w-1 rounded-full bg-primary/60" aria-hidden="true" /></div>
+        <div className="rounded-2xl rounded-tl-md border border-border/80 bg-card px-4 py-3.5 shadow-[var(--shadow-sm)]">
         {content && <div className="mb-3 min-w-0 whitespace-pre-wrap text-[13px] leading-[1.75] text-card-foreground [overflow-wrap:anywhere]"><FormattedMessage content={content} /></div>}
         <div className="flex items-center gap-1.5 py-1" role="status" aria-label="KAMALO is responding">
           <span className="sr-only">KAMALO is responding</span>
           <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '0ms' }} />
           <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '140ms' }} />
           <span className="typing-dot h-1.5 w-1.5 rounded-full bg-primary" style={{ animationDelay: '280ms' }} />
+        </div>
         </div>
       </div>
     </div>
@@ -303,6 +310,46 @@ function ReadOnlyHistoryBar({ onNewConversation }: { onNewConversation: () => vo
          <KamaloActionButton type="button" size="sm" onClick={onNewConversation} leftIcon={<HiOutlinePlus size={13} />} data-testid="button-read-only-new-conversation">New conversation</KamaloActionButton>
       </div>
     </div>
+  );
+}
+
+function RecentConversationsRail({ conversations, selectedId, onSelect }: { conversations: ConversationSummary[]; selectedId: string | null; onSelect: (conversationId: string) => void }) {
+  const recent = conversations.slice(0, 4);
+  return (
+    <aside className="hidden min-h-0 border-l border-border/60 pl-6 xl:block" aria-label="Recent conversations" data-testid="recent-conversations-rail">
+      <div className="sticky top-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-muted-foreground">History</div>
+            <h3 className="mt-1 text-[13px] font-bold tracking-[-.01em] text-foreground">Recent conversations</h3>
+          </div>
+          <span className="rounded-full bg-muted px-2 py-1 font-mono text-[9px] text-muted-foreground">{conversations.length}</span>
+        </div>
+        <div className="mt-4 space-y-1.5">
+          {recent.length > 0 ? recent.map((conversation) => (
+            <button
+              key={conversation.id}
+              type="button"
+              onClick={() => onSelect(conversation.id)}
+              className={`group w-full rounded-xl border px-3 py-3 text-left transition-colors ${selectedId === conversation.id ? 'border-primary/25 bg-primary/[.07]' : 'border-transparent hover:border-border hover:bg-card'}`}
+              data-testid={`button-recent-conversation-${conversation.id}`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className="min-w-0 truncate text-[11px] font-semibold text-foreground">{conversation.title || 'Untitled conversation'}</span>
+                {selectedId === conversation.id && <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" aria-label="Current conversation" />}
+              </div>
+              <div className="mt-1.5 flex items-center justify-between gap-2 text-[9px] text-muted-foreground">
+                <span>{conversation.messageCount} {conversation.messageCount === 1 ? 'message' : 'messages'}</span>
+                <span>{new Intl.DateTimeFormat('en', { month: 'short', day: 'numeric' }).format(new Date(conversation.updatedAt))}</span>
+              </div>
+            </button>
+          )) : (
+            <p className="rounded-xl border border-dashed border-border px-3 py-4 text-[11px] leading-5 text-muted-foreground">Your earlier chats will appear here.</p>
+          )}
+        </div>
+        <p className="mt-5 text-[10px] leading-5 text-muted-foreground">Open History for the complete conversation list.</p>
+      </div>
+    </aside>
   );
 }
 
@@ -623,6 +670,17 @@ export function HomePage() {
     }
   };
 
+  const openRecentConversation = (conversationId: string) => {
+    if (conversationId === selectedId) return;
+    setSelectedId(conversationId);
+    setConversationMode('readonly');
+    setLocalMessages(null);
+    setInput('');
+    setRetryContent(null);
+    setErrorMessage('');
+    setInactivityState('active');
+  };
+
   const canRetryMessage = (message: ChatMessage) => {
     if (message.role !== 'assistant') return false;
     const messageIndex = messages.findIndex((item) => item.id === message.id);
@@ -633,12 +691,19 @@ export function HomePage() {
   return (
     <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
        <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 pb-40 sm:px-6 sm:pb-36 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-         {selectedId && <header className="flex items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
-             <div className="min-w-0"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || 'Support workspace'}</h2>{conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}</div>
-            <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} className="hidden sm:inline-flex" data-testid="button-clear-conversation">Clear</KamaloActionButton>
+         {selectedId && <header className="conversation-header flex items-center justify-between border-b border-border/70 py-4 md:py-3" data-testid="conversation-header">
+             <div className="min-w-0">
+               <div className="font-mono text-[9px] font-semibold uppercase tracking-[.18em] text-muted-foreground">Conversation</div>
+               <h2 className="mt-1 truncate text-[16px] font-bold tracking-[-.02em] text-foreground md:text-[21px]">{activeConversation?.title || 'Untitled conversation'}</h2>
+               {conversationMode === 'readonly' && <div className="mt-1 text-[10px] text-muted-foreground">Read-only history</div>}
+             </div>
+             <div className="flex shrink-0 items-center gap-3">
+               {messages.length > 0 && <span className="hidden text-[10px] text-muted-foreground sm:inline">{messages.length} {messages.length === 1 ? 'message' : 'messages'}</span>}
+               <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} data-testid="button-clear-conversation">Clear</KamaloActionButton>
+             </div>
          </header>}
         <div className="grid min-h-0 w-full min-w-0 flex-1 gap-8 xl:grid-cols-[minmax(0,1fr)_248px] xl:gap-12">
-          <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-12">
+          <section className="flex min-h-0 min-w-0 flex-col pt-5 md:pt-7">
               {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><KamaloActionButton variant="outline" size="sm" onClick={() => void conversationQuery.refetch()} className="mt-3" data-testid="button-retry-conversation-load">Try again</KamaloActionButton></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 && !isSending ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
@@ -649,7 +714,7 @@ export function HomePage() {
                  </div>
               </div>
             ) : (
-                 <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
+                 <div className="mx-auto min-w-0 w-full max-w-[860px] space-y-7 overflow-x-hidden pb-7 pr-1 md:space-y-8" data-testid="conversation-messages">
                 {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
@@ -705,6 +770,7 @@ export function HomePage() {
             </div>}
           </section>
 
+          <RecentConversationsRail conversations={conversations} selectedId={selectedId} onSelect={openRecentConversation} />
         </div>
       </div>
       {feedbackDialog && (() => {
