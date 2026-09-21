@@ -798,6 +798,33 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
   }
 });
 
+test("returns a knowledge error instead of an unknown answer when retrieval is unavailable", async () => {
+  const conversation = await createConversation(`${testPrefix} retrieval outage`);
+  const originalExecute = toolGateway.execute;
+  toolGateway.execute = async (name) => ({
+    ok: false,
+    toolName: name,
+    sourceType: "none",
+    synthetic: false,
+    data: null,
+    errorCode: "failed",
+  });
+
+  try {
+    const response = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: "What is KAMALO cashback?" }),
+    });
+    assert.equal(response.status, 200);
+    const result = await streamResult(response);
+    assert.equal(result.content, "I’m having trouble responding right now. Please try again.");
+    assert.equal(result.outcome, "knowledge_error");
+    assert.doesNotMatch(result.content, /confirmed information|cashback rules|KAMALO Coins/i);
+  } finally {
+    toolGateway.execute = originalExecute;
+  }
+});
+
 test("rejects unsupported live and numeric provider claims at the route boundary", async () => {
   const conversation = await createConversation(`${testPrefix} unsupported claim`);
   const originalStream = llmProvider.stream;
