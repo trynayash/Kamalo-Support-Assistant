@@ -199,7 +199,7 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
               <HiOutlineLifebuoy size={16} className="mt-0.5 shrink-0 text-primary" />
               <div className="min-w-0">
                  <p className="text-[11px] font-bold text-foreground">I don’t have confirmed knowledge for this yet.</p>
-                 <p className="mt-1 text-[11px] leading-5 text-muted-foreground">If you want, I can raise a ticket so a specialist can review the question and any reference image.</p>
+                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Raise a ticket and our support team will review your query and get back to you with a resolution.</p>
                 <button type="button" onClick={onRaiseTicket} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid={`button-raise-ticket-${message.id}`}><HiOutlineLifebuoy size={13} />Raise a ticket</button>
               </div>
             </div>

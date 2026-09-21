@@ -429,6 +429,7 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
   const retrievalQuery = expandMultilingualQuery(query);
   const terms = expandedTerms(retrievalQuery);
   const primaryTerms = new Set(tokenize(retrievalQuery));
+  const primaryTopicTerms = [...primaryTerms].filter((term) => !retrievalBrandTerms.has(term));
   const normalizedQuery = tokenize(retrievalQuery).join(" ");
 
   return articles
@@ -444,8 +445,9 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         titleTerms.has(term) || categoryTerms.has(term) || contentTerms.has(term),
       );
       const titleCategoryMatches = [...terms].filter((term) =>
-        titleTerms.has(term) || categoryTerms.has(term),
+        !retrievalBrandTerms.has(term) && (titleTerms.has(term) || categoryTerms.has(term)),
       );
+      const primaryTopicMatches = primaryMatches.filter((term) => !retrievalBrandTerms.has(term));
       const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
         ? 12
         : 0;
@@ -459,13 +461,17 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         + numericLevelBoost
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
-      return { article, score, primaryMatches, titleCategoryMatches };
+      const brandOverviewMatch = primaryTopicTerms.length === 0
+        && /\bwhat\s+is\s+kamalo\b/i.test(article.title);
+      return { article, score, primaryTopicMatches, titleCategoryMatches, brandOverviewMatch };
     })
     // A single common word in an article body is not enough evidence. Require
-    // either a title/category match or two independent query terms so generic
-    // questions do not accidentally receive an unrelated article.
-    .filter(({ score, primaryMatches, titleCategoryMatches }) =>
-      score >= 4 && (titleCategoryMatches.length > 0 || primaryMatches.length >= 2),
+    // a meaningful title/category match or two independent query terms. The
+    // product name appears in almost every seeded article, so it is explicitly
+    // excluded from relevance matching; otherwise "What is KAMALO's [unknown
+    // topic]?" would retrieve an unrelated KAMALO article and invite guessing.
+    .filter(({ score, primaryTopicMatches, titleCategoryMatches, brandOverviewMatch }) =>
+      score >= 4 && (brandOverviewMatch || titleCategoryMatches.length > 0 || primaryTopicMatches.length >= 2),
     )
     .sort((a, b) => b.score - a.score || b.article.version - a.article.version || a.article.title.localeCompare(b.article.title))
     .slice(0, 6)
@@ -516,6 +522,8 @@ const retrievalStopWords = new Set([
   "with",
   "would",
 ]);
+
+const retrievalBrandTerms = new Set(["kamalo"]);
 
 const retrievalAliases: Record<string, string[]> = {
   account: ["account", "profile", "register", "registration", "login", "locked", "signup"],
