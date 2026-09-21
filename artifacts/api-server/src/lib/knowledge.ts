@@ -1,4 +1,4 @@
-import { and, asc, eq, gt, isNull, lte, or } from "drizzle-orm";
+import { and, asc, eq, gt, isNull, lte, like, or } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
@@ -521,7 +521,23 @@ function expandedTerms(query: string): string[] {
   return [...terms];
 }
 
-export async function retrieveKnowledge(query: string): Promise<RetrievedArticle[]> {
+export type KnowledgeRetrievalOptions = {
+  categoryPrefix?: string;
+};
+
+export async function retrieveKnowledge(
+  query: string,
+  options: KnowledgeRetrievalOptions = {},
+): Promise<RetrievedArticle[]> {
+  const filters = [
+    eq(knowledgeArticlesTable.status, "approved"),
+    or(isNull(knowledgeArticlesTable.effectiveFrom), lte(knowledgeArticlesTable.effectiveFrom, new Date())),
+    or(isNull(knowledgeArticlesTable.effectiveUntil), gt(knowledgeArticlesTable.effectiveUntil, new Date())),
+  ];
+  if (options.categoryPrefix) {
+    filters.push(like(knowledgeArticlesTable.category, `${options.categoryPrefix}%`));
+  }
+
   const articles = await db
     .select({
       id: knowledgeArticlesTable.id,
@@ -531,11 +547,7 @@ export async function retrieveKnowledge(query: string): Promise<RetrievedArticle
       version: knowledgeArticlesTable.version,
     })
     .from(knowledgeArticlesTable)
-    .where(and(
-      eq(knowledgeArticlesTable.status, "approved"),
-      or(isNull(knowledgeArticlesTable.effectiveFrom), lte(knowledgeArticlesTable.effectiveFrom, new Date())),
-      or(isNull(knowledgeArticlesTable.effectiveUntil), gt(knowledgeArticlesTable.effectiveUntil, new Date())),
-    ))
+    .where(and(...filters))
     .orderBy(asc(knowledgeArticlesTable.category));
 
   return rankKnowledgeArticles(query, articles);

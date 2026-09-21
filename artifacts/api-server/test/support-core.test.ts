@@ -25,6 +25,7 @@ import {
 const testPrefix = `support-core-regression-${crypto.randomUUID()}`;
 const evidenceToken = `zxq${crypto.randomUUID().replaceAll("-", "")}`;
 const unknownToken = `zyq${crypto.randomUUID().replaceAll("-", "")}`;
+const representativeFixtureCategoryPrefix = `${testPrefix} representative-catalog`;
 const articleIds: string[] = [];
 const conversationIds: string[] = [];
 const ticketIds: string[] = [];
@@ -403,6 +404,62 @@ test("evaluates representative customer questions by approved knowledge topic", 
     0,
     `Knowledge evaluation failures (topic, query, expected, retrieved):\n${[...seededFailures, ...reseededFailures].join("\n")}`,
   );
+});
+
+test("keeps database-backed retrieval aligned with the representative knowledge catalog", async () => {
+  const now = new Date();
+  const fixtureArticles = representativeKnowledgeFixtures.map((fixture) => ({
+    id: crypto.randomUUID(),
+    title: fixture.title,
+    category: `${representativeFixtureCategoryPrefix} / ${fixture.category}`,
+    content: `${fixture.content} ${representativeFixtureCategoryPrefix}`,
+    version: fixture.version,
+    status: "approved" as const,
+    effectiveFrom: now,
+    effectiveUntil: null,
+    createdAt: now,
+    updatedAt: now,
+  }));
+
+  try {
+    await db.insert(knowledgeArticlesTable).values(fixtureArticles);
+    const failures: string[] = [];
+
+    for (const evaluationCase of representativeKnowledgeQuestions) {
+      const historyContext = evaluationCase.history
+        ?.map((message) => `${message.role}: ${message.content}`)
+        .join("\n");
+      const query = historyContext
+        ? `${evaluationCase.query}\nRelevant recent conversation:\n${historyContext}`
+        : evaluationCase.query;
+      const retrieved = await retrieveKnowledge(query, {
+        categoryPrefix: representativeFixtureCategoryPrefix,
+      });
+      const matchedFixture = retrieved.find((article) =>
+        article.category.startsWith(representativeFixtureCategoryPrefix)
+        && article.title === evaluationCase.expectedTitle,
+      );
+      if (!matchedFixture) {
+        failures.push([
+          evaluationCase.topic,
+          `query=${JSON.stringify(evaluationCase.query)}`,
+          `expected=${JSON.stringify(evaluationCase.expectedTitle)}`,
+          `retrieved=${retrieved.map((article) => article.title).join(" | ") || "none"}`,
+        ].join(" "));
+      }
+    }
+
+    assert.equal(
+      failures.length,
+      0,
+      `Database-backed knowledge evaluation failures (topic, query, expected, retrieved):\n${failures.join("\n")}`,
+    );
+  } finally {
+    await db.delete(knowledgeArticlesTable).where(like(
+      knowledgeArticlesTable.category,
+      `${representativeFixtureCategoryPrefix}%`,
+    ));
+  }
 });
 
 test("keeps draft and expired knowledge out of evidence", async () => {
