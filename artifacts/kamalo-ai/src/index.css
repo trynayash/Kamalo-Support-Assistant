@@ -354,11 +354,14 @@
   line-height: 1.25;
 }
 .kamalo-welcome-art {
-  width: min(22rem, 82vw);
-  height: 13rem;
-  margin: -1rem auto .75rem;
+  width: min(25rem, 90vw);
+  height: 14.5rem;
+  margin: -1rem auto .6rem;
   display: block;
   object-fit: contain;
+}
+.kamalo-welcome-content {
+  transform: translateY(-3rem);
 }
 .kamalo-attach-button {
   width: 2.75rem;
@@ -386,9 +389,12 @@
 }
 @media (max-width: 639px) {
   .kamalo-welcome-art {
-    width: min(20rem, 94vw);
-    height: 11rem;
+    width: min(22rem, 96vw);
+    height: 12.5rem;
     margin-top: -.75rem;
-    margin-bottom: .65rem;
+    margin-bottom: .5rem;
+  }
+  .kamalo-welcome-content {
+    transform: translateY(-1.75rem);
   }
 }

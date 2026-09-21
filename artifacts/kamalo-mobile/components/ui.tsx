@@ -209,7 +209,7 @@ const styles = StyleSheet.create({
   stateTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, textAlign: 'center' },
   stateText: { fontFamily: 'Inter_400Regular', fontSize: 14 },
   empty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 44 },
-  emptyIllustration: { width: 210, height: 172, marginTop: -20, marginBottom: 5 },
+  emptyIllustration: { width: 230, height: 188, marginTop: -28, marginBottom: 2 },
   emptyIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   emptyTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, textAlign: 'center' },
   emptyBody: { fontFamily: 'Inter_400Regular', fontSize: 13.5, lineHeight: 19, textAlign: 'center', marginTop: 7, marginBottom: 18 },

@@ -140,7 +140,7 @@ function cleanDisplayedAssistantContent(content: string) {
 function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: string) => void; showQuickPrompts: boolean }) {
   return (
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
-      <div className="max-w-md">
+      <div className="kamalo-welcome-content max-w-md">
         <img className="kamalo-welcome-art" src="/kamalo-welcome-illustration.svg" alt="" aria-hidden="true" />
         <h1 className="text-[clamp(1.65rem,4.4vw,2.5rem)] font-extrabold leading-[1.08] tracking-[-.055em] text-foreground">
           <>How can I help you today?</>
