@@ -1,5 +1,5 @@
 import React, { ReactNode } from 'react';
-import { ActivityIndicator, Animated, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Animated, Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
 import { KamaloIcon, type KamaloIconName } from '@/components/kamalo-icon';
 import { useColors } from '@/hooks/useColors';
 import { NavigationMenu } from '@/components/NavigationMenu';
@@ -160,9 +160,9 @@ export function ToastNotification({ title, message, topOffset = 12, onDismiss }:
   );
 }
 
-export function EmptyState({ icon, title, body, action }: { icon: KamaloIconName; title: string; body: string; action?: ReactNode }) {
+export function EmptyState({ icon, title, body, action, illustration }: { icon: KamaloIconName; title: string; body: string; action?: ReactNode; illustration?: ImageSourcePropType }) {
   const colors = useColors();
-  return <View style={styles.empty}><View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}><KamaloIcon name={icon} size={22} color={colors.primary} /></View><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>{action}</View>;
+  return <View style={styles.empty}>{illustration ? <Image source={illustration} style={styles.emptyIllustration} accessibilityLabel="KAMALO assistant illustration" /> : <View style={[styles.emptyIcon, { backgroundColor: colors.secondary }]}><KamaloIcon name={icon} size={22} color={colors.primary} /></View>}<Text style={[styles.emptyTitle, { color: colors.foreground }]}>{title}</Text><Text style={[styles.emptyBody, { color: colors.mutedForeground }]}>{body}</Text>{action}</View>;
 }
 
 export function formatDate(date: string, withTime = false) {
@@ -209,6 +209,7 @@ const styles = StyleSheet.create({
   stateTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 16, textAlign: 'center' },
   stateText: { fontFamily: 'Inter_400Regular', fontSize: 14 },
   empty: { alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, paddingVertical: 44 },
+  emptyIllustration: { width: 132, height: 132, borderRadius: 28, marginBottom: 12 },
   emptyIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 15 },
   emptyTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 17, textAlign: 'center' },
   emptyBody: { fontFamily: 'Inter_400Regular', fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 7, marginBottom: 18 },

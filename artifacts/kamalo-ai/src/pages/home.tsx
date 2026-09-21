@@ -141,6 +141,9 @@ function ChatWelcomeState({ onPrompt, showQuickPrompts }: { onPrompt: (text: str
   return (
     <div className="flex min-h-[min(440px,calc(100dvh-330px))] items-center justify-center px-4 py-8 text-center animate-rise" role="region" aria-live="polite" aria-label="Conversation start" data-testid="chat-welcome">
       <div className="max-w-md">
+        <div className="kamalo-welcome-art" aria-hidden="true">
+          <img src="/kamalo-assistant-illustration.png" alt="" />
+        </div>
         <h1 className="text-[clamp(1.9rem,7vw,3.1rem)] font-extrabold leading-[1.04] tracking-[-.06em] text-foreground">
           <>How can I help you today?</>
         </h1>
