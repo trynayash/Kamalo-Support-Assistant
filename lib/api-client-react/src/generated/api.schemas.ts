@@ -94,7 +94,11 @@ export const MessageInputInputMode = {
   voice: 'voice',
 } as const;
 
+/**
+ * Preferred language for voice recognition and the assistant response.
+ */
 export type MessageInputLanguage = typeof MessageInputLanguage[keyof typeof MessageInputLanguage];
+
 
 export const MessageInputLanguage = {
   en: 'en',

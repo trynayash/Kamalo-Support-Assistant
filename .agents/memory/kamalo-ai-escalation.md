@@ -14,3 +14,9 @@ Ticket seriousness is represented by five server-owned levels: informational, st
 **Why:** Escalation must be consistent across customer and admin views, while the current assistant provider is text-only and cannot truthfully interpret voice.
 
 **How to apply:** Calculate levels from validated ticket content and evidence on the server, expose the level in every ticket response, and derive language from the request locale rather than trusting the browser form.
+
+Assistant streams may classify the final response as `unknown` only when orchestration explicitly chooses the fallback decision. Provider outages and safety/grounding fallbacks must remain separate so customers are not sent to support for a transient failure.
+
+**Why:** A ticket CTA is a controlled handoff for missing approved knowledge, not a substitute for retrying a broken provider or hiding a safety fallback.
+
+**How to apply:** Preserve the response outcome through the SSE done event and keep web/mobile escalation buttons gated on the unknown classification.

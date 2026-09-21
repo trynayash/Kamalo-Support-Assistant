@@ -22,6 +22,7 @@ import { recordSupportEvent } from "../lib/observability";
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
+type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -316,16 +317,21 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
 
   let fullResponse = "";
   let providerAnswerGenerated = false;
+  let responseOutcome: AssistantResponseOutcome = "complete";
 
   try {
     if (attachment && !content) {
       fullResponse = IMAGE_NOT_SUPPORTED_RESPONSE;
+      responseOutcome = "image_only";
     } else if (isPromptExtractionAttempt(content)) {
       fullResponse = PROMPT_EXTRACTION_RESPONSE;
+      responseOutcome = "prompt_extraction";
     } else if (prepared.decision === "greeting") {
       fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
+      responseOutcome = "greeting";
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
+      responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
     } else {
       for await (const chunk of llmProvider.stream({
         messages: prepared.llmMessages,
@@ -358,6 +364,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       retrievedArticleIds: prepared.retrieved.map((article) => article.id),
     }, "LLM request failed");
     fullResponse = SAFE_ASSISTANT_ERROR;
+    responseOutcome = "provider_error";
   }
 
   const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
@@ -376,6 +383,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const usedGroundingFallback = providerAnswerGenerated
     && prepared.decision === "knowledge_answer"
     && !outputIsGrounded;
+  if (usedGroundingFallback) responseOutcome = "grounding_fallback";
   fullResponse = outputIsGrounded
     ? candidateResponse
     : keepCompleteAssistantOutput(prepared.groundedFact || STAGE_ONE_FALLBACK);
@@ -425,7 +433,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     groundingValidated: !providerAnswerGenerated || prepared.decision !== "knowledge_answer" || !usedGroundingFallback,
     responseStatus: "complete",
   }, "KAMALO AI response generated");
-  await writeSse(res, { done: true, messageId: assistantMessage.id, finalContent: fullResponse });
+  await writeSse(res, { done: true, messageId: assistantMessage.id, finalContent: fullResponse, outcome: responseOutcome });
   res.end();
   req.removeListener("aborted", onClientClosed);
   res.removeListener("close", onClientClosed);

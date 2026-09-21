@@ -18,7 +18,7 @@ import {
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useColors } from '@/hooks/useColors';
-import { streamConversationMessage } from '@/lib/stream';
+import { AssistantResponseOutcome, streamConversationMessage } from '@/lib/stream';
 import {
   getSpeechRecognitionModule,
   useOptionalSpeechRecognitionEvent,
@@ -35,6 +35,7 @@ const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: st
   { value: 'hi', label: 'हिन्दी', voiceLocale: 'hi-IN' },
   { value: 'mr', label: 'मराठी', voiceLocale: 'mr-IN' },
 ];
+const UNKNOWN_RESPONSE = "I don't have confirmed information about that in the KAMALO information available to me.";
 
 function localMessage(role: ChatMessage['role'], content: string, conversationId: string, attachment?: ChatMessage['attachments']): ChatMessage {
   messageCounter += 1;
@@ -60,6 +61,7 @@ export default function ChatScreen() {
   const feedback = useCreateMessageFeedback();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [responseOutcomes, setResponseOutcomes] = useState<Record<string, AssistantResponseOutcome>>({});
   const [draft, setDraft] = useState('');
   const [attachment, setAttachment] = useState<ChatMessage['attachments'][number] | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
@@ -227,15 +229,19 @@ export default function ChatScreen() {
       setIsStreaming(true);
       let answer = '';
       let assistantAdded = false;
-      await streamConversationMessage(activeId, text, attachment?.id ?? null, (chunk) => {
+      let assistantMessageId: string | null = null;
+      const response = await streamConversationMessage(activeId, text, attachment?.id ?? null, (chunk) => {
         answer += chunk;
         if (!assistantAdded) {
           assistantAdded = true;
-          setMessages((previous) => [...previous, localMessage('assistant', answer, activeId!)]);
+          const message = localMessage('assistant', answer, activeId!);
+          assistantMessageId = message.id;
+          setMessages((previous) => [...previous, message]);
         } else {
-          setMessages((previous) => previous.map((message, index) => index === previous.length - 1 ? { ...message, content: answer } : message));
+          setMessages((previous) => previous.map((message) => message.id === assistantMessageId ? { ...message, content: answer } : message));
         }
       }, voiceInputMode.current, selectedLanguage);
+      if (assistantMessageId && response.outcome) setResponseOutcomes((current) => ({ ...current, [assistantMessageId as string]: response.outcome as AssistantResponseOutcome }));
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(activeId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch (error) {
@@ -249,6 +255,19 @@ export default function ChatScreen() {
   function openFeedback(message: ChatMessage, rating: 'helpful' | 'not_helpful') {
     setFeedbackError(null);
     setActiveFeedback({ message, rating });
+  }
+
+  function raiseTicketFromUnknown(message: ChatMessage) {
+    router.push({
+      pathname: '/(tabs)/support',
+      params: {
+        conversationId: message.conversationId,
+        messageId: message.id,
+        feedbackRating: 'not_helpful',
+        feedbackSummary: 'KAMALO could not confirm an answer',
+        feedbackNote: `Question needs specialist review.\n\nAssistant response:\n${message.content}`,
+      },
+    });
   }
 
   async function submitFeedback(score: number, note: string) {
@@ -334,7 +353,7 @@ export default function ChatScreen() {
             contentContainerStyle={styles.messageList}
             ListHeaderComponent={isStreaming ? <TypingIndicator /> : null}
             renderItem={({ item }) => (
-              <MessageBubble message={item} colors={colors} onRate={(rating) => openFeedback(item, rating)} />
+              <MessageBubble message={item} colors={colors} onRate={(rating) => openFeedback(item, rating)} onRaiseTicket={responseOutcomes[item.id] === 'unknown' || item.content === UNKNOWN_RESPONSE ? () => raiseTicketFromUnknown(item) : undefined} />
             )}
           />
         )}
@@ -471,7 +490,7 @@ function TypingIndicator() {
   return <View style={[styles.typing, { backgroundColor: colors.card, borderColor: colors.border }]}><View style={[styles.dot, { backgroundColor: colors.accent }]} /><Text style={[styles.typingText, { color: colors.mutedForeground }]}>KAMALO is thinking</Text></View>;
 }
 
-function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colors: ReturnType<typeof useColors>; onRate: (rating: 'helpful' | 'not_helpful') => void }) {
+function MessageBubble({ message, colors, onRate, onRaiseTicket }: { message: ChatMessage; colors: ReturnType<typeof useColors>; onRate: (rating: 'helpful' | 'not_helpful') => void; onRaiseTicket?: () => void }) {
   const isUser = message.role === 'user';
   return (
     <View style={[styles.messageRow, isUser ? styles.userRow : styles.assistantRow]}>
@@ -480,6 +499,10 @@ function MessageBubble({ message, colors, onRate }: { message: ChatMessage; colo
         <View style={[styles.bubble, isUser ? { backgroundColor: colors.primary } : { backgroundColor: colors.card, borderColor: colors.border, borderWidth: 1 }]}>
           <Text style={[styles.messageText, { color: isUser ? colors.primaryForeground : colors.foreground }]}>{message.content}</Text>
           {message.attachments.length > 0 ? <View style={styles.attachmentMessage}><KamaloIcon name="paperclip" size={12} color={isUser ? colors.primaryForeground : colors.primary} /><Text style={[styles.attachmentMessageText, { color: isUser ? colors.primaryForeground : colors.mutedForeground }]}>{message.attachments[0].filename}</Text></View> : null}
+          {!isUser && onRaiseTicket ? <View style={[styles.escalationCard, { backgroundColor: colors.primary + '10', borderColor: colors.primary + '35' }]}>
+            <View style={styles.escalationCopy}><KamaloIcon name="life-buoy" size={15} color={colors.primary} /><View style={styles.escalationText}><Text style={[styles.escalationTitle, { color: colors.foreground }]}>Need a confirmed answer?</Text><Text style={[styles.escalationBody, { color: colors.mutedForeground }]}>A specialist can review this question.</Text></View></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Raise a support ticket" onPress={onRaiseTicket} style={({ pressed }) => [styles.escalationButton, { backgroundColor: colors.primary, opacity: pressed ? 0.78 : 1 }]}><KamaloIcon name="life-buoy" size={13} color={colors.primaryForeground} /><Text style={[styles.escalationButtonText, { color: colors.primaryForeground }]}>Raise a ticket</Text></Pressable>
+          </View> : null}
         </View>
         {!isUser ? <View style={styles.feedbackRow}><Text style={[styles.feedbackHint, { color: colors.mutedForeground }]}>Was this useful?</Text><Pressable accessibilityRole="button" accessibilityLabel="Helpful answer" onPress={() => onRate('helpful')} hitSlop={7}><KamaloIcon name="thumbs-up" size={14} color={message.feedback === 'helpful' ? colors.primary : colors.mutedForeground} /></Pressable><Pressable accessibilityRole="button" accessibilityLabel="Not helpful answer" onPress={() => onRate('not_helpful')} hitSlop={7}><KamaloIcon name="thumbs-down" size={14} color={message.feedback === 'not_helpful' ? colors.destructive : colors.mutedForeground} /></Pressable></View> : null}
       </View>
@@ -509,6 +532,13 @@ const styles = StyleSheet.create({
   attachmentMessageText: { fontFamily: 'Inter_500Medium', fontSize: 11 },
   feedbackRow: { flexDirection: 'row', gap: 12, alignItems: 'center', marginTop: 7, paddingLeft: 4 },
   feedbackHint: { fontFamily: 'Inter_400Regular', fontSize: 10, marginRight: 2 },
+  escalationCard: { borderWidth: 1, borderRadius: 9, padding: 10, marginTop: 11, gap: 9 },
+  escalationCopy: { flexDirection: 'row', alignItems: 'flex-start', gap: 7 },
+  escalationText: { flex: 1 },
+  escalationTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
+  escalationBody: { fontFamily: 'Inter_400Regular', fontSize: 10, lineHeight: 15, marginTop: 2 },
+  escalationButton: { minHeight: 32, borderRadius: 7, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, alignSelf: 'flex-start' },
+  escalationButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 11 },
   typing: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', gap: 7, borderWidth: 1, borderRadius: 11, paddingHorizontal: 12, paddingVertical: 9, marginHorizontal: 25, marginBottom: 10 },
   dot: { width: 6, height: 6, borderRadius: 3 },
   typingText: { fontFamily: 'Inter_500Medium', fontSize: 12 },

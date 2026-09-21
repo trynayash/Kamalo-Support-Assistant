@@ -12,7 +12,7 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
@@ -22,6 +22,7 @@ import { useSpeechInput } from '@/hooks/use-speech-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
+const UNKNOWN_RESPONSE = "I don't have confirmed information about that in the KAMALO information available to me.";
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const quickPrompts = [
@@ -31,6 +32,7 @@ const quickPrompts = [
 ];
 
 type ChatLanguage = 'en' | 'hi' | 'mr';
+type AssistantResponseOutcome = 'complete' | 'unknown' | 'provider_error' | 'grounding_fallback' | 'image_only' | 'prompt_extraction' | 'greeting';
 
 const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: string }> = [
   { value: 'en', label: 'English', voiceLocale: 'en-IN' },
@@ -175,7 +177,7 @@ function FormattedMessage({ content }: { content: string }) {
   );
 }
 
-function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: ChatMessage; onFeedback: (message: ChatMessage, rating: 'helpful' | 'not_helpful') => void; onCopy: (content: string) => void; onRetry?: () => void }) {
+function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: { message: ChatMessage; onFeedback: (message: ChatMessage, rating: 'helpful' | 'not_helpful') => void; onCopy: (content: string) => void; onRetry?: () => void; onRaiseTicket?: () => void }) {
   const assistant = message.role === 'assistant';
   const displayContent = assistant ? cleanDisplayedAssistantContent(message.content) : message.content;
   return (
@@ -191,6 +193,16 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry }: { message: Chat
             </div>)}
           </div>}
           <div className="min-w-0 whitespace-pre-wrap text-[14px] leading-[1.8] [overflow-wrap:anywhere]"><FormattedMessage content={displayContent} /></div>
+          {assistant && onRaiseTicket && <div className="mt-4 rounded-lg border border-primary/20 bg-primary/[.06] px-3.5 py-3" data-testid={`card-unknown-escalation-${message.id}`}>
+            <div className="flex items-start gap-2.5">
+              <HiOutlineLifebuoy size={16} className="mt-0.5 shrink-0 text-primary" />
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-foreground">Need a confirmed answer?</p>
+                <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Raise a support ticket and a specialist can review this question.</p>
+                <button type="button" onClick={onRaiseTicket} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid={`button-raise-ticket-${message.id}`}><HiOutlineLifebuoy size={13} />Raise a ticket</button>
+              </div>
+            </div>
+          </div>}
         </div>
         <div className={`mt-2 flex items-center gap-1.5 text-[10px] text-muted-foreground ${assistant ? '' : 'justify-end'}`}>
           <span className="font-mono">{new Intl.DateTimeFormat('en', { hour: 'numeric', minute: '2-digit' }).format(new Date(message.createdAt))}</span>
@@ -225,7 +237,7 @@ function StreamingBubble({ content }: { content: string }) {
   );
 }
 
-async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null, inputMode: 'text' | 'voice' = 'text', language: ChatLanguage = 'en'): Promise<{ content: string; messageId: string | null }> {
+async function streamAssistantResponse(conversationId: string, content: string, onChunk: (chunk: string) => void, attachmentId?: string | null, inputMode: 'text' | 'voice' = 'text', language: ChatLanguage = 'en'): Promise<{ content: string; messageId: string | null; outcome: AssistantResponseOutcome | null }> {
   const response = await fetch(`/api/conversations/${conversationId}/messages`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream', 'Accept-Language': language },
@@ -246,7 +258,7 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   }
   if (!response.body) {
     await response.text();
-    return { content: CLIENT_SAFE_RESPONSE_ERROR, messageId: null };
+    return { content: CLIENT_SAFE_RESPONSE_ERROR, messageId: null, outcome: 'provider_error' };
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -254,11 +266,12 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   let fullResponse = '';
   let messageId: string | null = null;
   let finalContent: string | null = null;
+  let outcome: AssistantResponseOutcome | null = null;
   let sawDone = false;
   const consume = (event: string) => {
     const line = event.split('\n').find((item) => item.startsWith('data:'));
     if (!line) return;
-    const payload = JSON.parse(line.slice(5).trim()) as { content?: unknown; done?: boolean; messageId?: unknown; finalContent?: unknown; error?: unknown };
+    const payload = JSON.parse(line.slice(5).trim()) as { content?: unknown; done?: boolean; messageId?: unknown; finalContent?: unknown; outcome?: unknown; error?: unknown };
     if (typeof payload.error === 'string') throw new Error(payload.error);
     if (typeof payload.content === 'string' && payload.content) {
       fullResponse += payload.content;
@@ -266,6 +279,7 @@ async function streamAssistantResponse(conversationId: string, content: string, 
     }
     if (typeof payload.messageId === 'string') messageId = payload.messageId;
     if (typeof payload.finalContent === 'string') finalContent = payload.finalContent;
+    if (typeof payload.outcome === 'string') outcome = payload.outcome as AssistantResponseOutcome;
     if (payload.done === true) sawDone = true;
   };
   while (true) {
@@ -278,7 +292,7 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   }
   if (buffer.trim()) consume(buffer);
   if (!sawDone) throw new Error('The assistant response ended before completion.');
-  return { content: finalContent || fullResponse, messageId };
+  return { content: finalContent || fullResponse, messageId, outcome };
 }
 
 function ChatClosedState({ onNewConversation }: { onNewConversation: () => void }) {
@@ -311,6 +325,7 @@ export function HomePage() {
   const [location] = useLocation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [localMessages, setLocalMessages] = useState<ChatMessage[] | null>(null);
+  const [responseOutcomes, setResponseOutcomes] = useState<Record<string, AssistantResponseOutcome>>({});
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
@@ -319,7 +334,7 @@ export function HomePage() {
   const [conversationMode, setConversationMode] = useState<'new' | 'active' | 'readonly'>('new');
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
-  const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful' } | null>(null);
+  const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful'; defaults?: { category?: string; summary?: string; details?: string } } | null>(null);
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
   const [attachmentError, setAttachmentError] = useState('');
   const [retryContent, setRetryContent] = useState<string | null>(null);
@@ -499,6 +514,7 @@ export function HomePage() {
       const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id, mode, preferredLanguage);
       const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
       setLocalMessages((current) => [...(current ?? []), assistantMessage]);
+      if (response.outcome) setResponseOutcomes((current) => ({ ...current, [assistantMessage.id]: response.outcome as AssistantResponseOutcome }));
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
@@ -525,6 +541,24 @@ export function HomePage() {
 
   const handleFeedback = (message: ChatMessage, rating: 'helpful' | 'not_helpful') => {
     setFeedbackDialog({ message, reaction: rating });
+  };
+
+  const openEscalation = (message: ChatMessage) => {
+    const messageIndex = messages.findIndex((item) => item.id === message.id);
+    const relatedUserMessage = [...messages.slice(0, messageIndex)].reverse().find((item) => item.role === 'user');
+    const details = [
+      relatedUserMessage ? `Question:\n${relatedUserMessage.content}` : '',
+      `Assistant response:\n${message.content}`,
+    ].filter(Boolean).join('\n\n').slice(0, 1900);
+    setFeedbackDialog({
+      message,
+      reaction: 'not_helpful',
+      defaults: {
+        category: 'Product question',
+        summary: 'KAMALO could not confirm an answer',
+        details,
+      },
+    });
   };
 
   const submitFeedback = async (submission: FeedbackDialogSubmission) => {
@@ -650,7 +684,7 @@ export function HomePage() {
               </div>
             ) : (
                  <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
-                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} />)}
+                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} onRaiseTicket={message.role === 'assistant' && (responseOutcomes[message.id] === 'unknown' || message.content === UNKNOWN_RESPONSE) ? () => openEscalation(message) : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
               </div>
@@ -710,7 +744,7 @@ export function HomePage() {
       {feedbackDialog && (() => {
         const index = messages.findIndex((item) => item.id === feedbackDialog.message.id);
         const relatedUserMessage = [...messages.slice(0, index)].reverse().find((item) => item.role === 'user');
-        return <FeedbackDialog message={feedbackDialog.message} reaction={feedbackDialog.reaction} imageCount={relatedUserMessage?.attachments?.length || 0} saving={createFeedback.isPending || createSupportTicket.isPending} onClose={() => setFeedbackDialog(null)} onSubmit={(submission) => void submitFeedback(submission)} />;
+        return <FeedbackDialog message={feedbackDialog.message} reaction={feedbackDialog.reaction} defaults={feedbackDialog.defaults} imageCount={relatedUserMessage?.attachments?.length || 0} saving={createFeedback.isPending || createSupportTicket.isPending} onClose={() => setFeedbackDialog(null)} onSubmit={(submission) => void submitFeedback(submission)} />;
       })()}
     </KamaloShell>
   );

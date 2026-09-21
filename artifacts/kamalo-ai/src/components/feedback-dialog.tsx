@@ -18,19 +18,24 @@ type FeedbackDialogProps = {
   message: ChatMessage;
   reaction: 'helpful' | 'not_helpful';
   imageCount: number;
+  defaults?: {
+    category?: string;
+    summary?: string;
+    details?: string;
+  };
   saving: boolean;
   onClose: () => void;
   onSubmit: (submission: FeedbackDialogSubmission) => void;
 };
 
-export function FeedbackDialog({ message, reaction, imageCount, saving, onClose, onSubmit }: FeedbackDialogProps) {
+export function FeedbackDialog({ message, reaction, imageCount, defaults, saving, onClose, onSubmit }: FeedbackDialogProps) {
   const [score, setScore] = useState(reaction === 'helpful' ? 5 : 1);
   const [feedback, setFeedback] = useState('');
   const [escalate, setEscalate] = useState(reaction === 'not_helpful');
   const [contactEmail, setContactEmail] = useState('');
-  const [category, setCategory] = useState('Answer quality');
-  const [summary, setSummary] = useState('I need help with this answer');
-  const [details, setDetails] = useState('');
+  const [category, setCategory] = useState(defaults?.category || 'Answer quality');
+  const [summary, setSummary] = useState(defaults?.summary || 'I need help with this answer');
+  const [details, setDetails] = useState(defaults?.details || '');
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);

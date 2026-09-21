@@ -66,7 +66,7 @@ async function json<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-async function streamResult(response: Response): Promise<{ content: string; done: boolean; messageId: string }> {
+async function streamResult(response: Response): Promise<{ content: string; done: boolean; messageId: string; outcome?: string }> {
   const body = await response.text();
   const events = body
     .trim()
@@ -82,6 +82,7 @@ async function streamResult(response: Response): Promise<{ content: string; done
     content: finalEvent.finalContent as string,
     done: finalEvent.done as boolean,
     messageId: finalEvent.messageId as string,
+    outcome: typeof finalEvent.outcome === "string" ? finalEvent.outcome : undefined,
   };
 }
 
@@ -714,6 +715,7 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
   assert.equal(unknownResponse.status, 200);
   const unknownResult = await streamResult(unknownResponse);
   assert.equal(unknownResult.content, "I don't have confirmed information about that in the KAMALO information available to me.");
+  assert.equal(unknownResult.outcome, "unknown");
 
   const providerConversation = await createConversation(`${testPrefix} provider`);
   const originalStream = llmProvider.stream;
@@ -728,6 +730,7 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
     assert.equal(providerResponse.status, 200);
     const providerResult = await streamResult(providerResponse);
     assert.equal(providerResult.content, "I’m having trouble responding right now. Please try again.");
+    assert.equal(providerResult.outcome, "provider_error");
   } finally {
     llmProvider.stream = originalStream;
   }

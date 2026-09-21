@@ -110,7 +110,6 @@ export const streamAssistantMessageBodyContentMax = 4000;
 export const streamAssistantMessageBodyAttachmentIdMax = 120;
 
 export const streamAssistantMessageBodyInputModeDefault = `text`;
-
 export const streamAssistantMessageBodyLanguageDefault = `en`;
 
 export const StreamAssistantMessageBody = zod.object({

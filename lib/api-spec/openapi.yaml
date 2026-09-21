@@ -107,9 +107,17 @@ paths:
               $ref: "#/components/schemas/MessageInput"
       responses:
         "200":
-          description: Server-sent events containing response chunks
+          description: |
+            Server-sent events containing response chunks. The final event
+            contains done=true, messageId, finalContent, and outcome.
+            outcome is one of complete, unknown, provider_error,
+            grounding_fallback, image_only, prompt_extraction, or greeting.
           content:
             text/event-stream:
+              schema:
+                type: string
+          headers:
+            X-Request-ID:
               schema:
                 type: string
         "400":
@@ -535,11 +543,11 @@ components:
           enum: [text, voice]
           default: text
           description: Indicates whether the customer typed the message or dictated it.
-         language:
-           type: string
-           enum: [en, hi, mr]
-           default: en
-           description: Preferred language for voice recognition and the assistant response.
+        language:
+          type: string
+          enum: [en, hi, mr]
+          default: en
+          description: Preferred language for voice recognition and the assistant response.
     ImageUploadInput:
       type: object
       required: [file]
