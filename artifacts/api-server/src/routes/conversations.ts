@@ -24,8 +24,9 @@ import { recordSupportEvent } from "../lib/observability";
 
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
+const OUT_OF_SCOPE_RESPONSE = "Sorry, please email info@kamalo.app.";
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
-type AssistantResponseOutcome = "complete" | "unknown" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
+type AssistantResponseOutcome = "complete" | "unknown" | "out_of_scope" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
   return value.toISOString();
 }
@@ -374,6 +375,9 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else if (prepared.decision === "retrieval_error") {
       fullResponse = SAFE_ASSISTANT_ERROR;
       responseOutcome = "knowledge_error";
+    } else if (prepared.decision === "out_of_scope") {
+      fullResponse = OUT_OF_SCOPE_RESPONSE;
+      responseOutcome = "out_of_scope";
     } else if (prepared.retrieved.length === 0) {
       fullResponse = STAGE_ONE_FALLBACK;
       responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
@@ -430,9 +434,11 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     && prepared.decision === "knowledge_answer"
     && !outputIsGrounded;
   if (usedGroundingFallback) responseOutcome = "grounding_fallback";
-  fullResponse = outputIsGrounded
-    ? candidateResponse
-    : keepCompleteAssistantOutput(prepared.groundedFact || STAGE_ONE_FALLBACK);
+  fullResponse = prepared.decision === "out_of_scope"
+    ? OUT_OF_SCOPE_RESPONSE
+    : outputIsGrounded
+      ? candidateResponse
+      : keepCompleteAssistantOutput(prepared.groundedFact || STAGE_ONE_FALLBACK);
   if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);

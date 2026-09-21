@@ -340,11 +340,16 @@ test("prefers an approved fact when the provider returns uncertainty for a suppo
   assert.equal(preferGroundedFact("Coins are the reward units used inside KAMALO.", prepared.groundedFact), "Coins are the reward units used inside KAMALO.");
 });
 
-test("selects unknown-question fallback and prompt-extraction decisions", async () => {
-  const unknown = await prepareSupportRequest(testContext(), unknownToken, false);
-  assert.equal(unknown.decision, "fallback");
-  assert.deepEqual(unknown.retrieved, []);
-  assert.match(unknown.llmMessages[2]?.content || "", /No approved KAMALO knowledge matched/);
+test("separates unrelated questions from Kamalo-adjacent unknowns", async () => {
+  const unrelated = await prepareSupportRequest(testContext(), unknownToken, false);
+  assert.equal(unrelated.decision, "out_of_scope");
+  assert.deepEqual(unrelated.retrieved, []);
+  assert.match(unrelated.llmMessages[2]?.content || "", /No approved KAMALO knowledge matched/);
+
+  const adjacent = await prepareSupportRequest(testContext(), `${unknownToken} KAMALO cashback`, false);
+  assert.equal(adjacent.decision, "fallback");
+  assert.deepEqual(adjacent.retrieved, []);
+  assert.match(adjacent.llmMessages[2]?.content || "", /No approved KAMALO knowledge matched/);
 
   const greeting = await prepareSupportRequest(testContext(), "hello", false);
   assert.equal(greeting.decision, "greeting");
@@ -761,8 +766,18 @@ test("returns safe fallbacks for prompt extraction, unknown questions, and provi
   });
   assert.equal(unknownResponse.status, 200);
   const unknownResult = await streamResult(unknownResponse);
-  assert.equal(unknownResult.content, "I don't have confirmed information about that in the KAMALO information available to me.");
-  assert.equal(unknownResult.outcome, "unknown");
+  assert.equal(unknownResult.content, "Sorry, please email info@kamalo.app.");
+  assert.equal(unknownResult.outcome, "out_of_scope");
+
+  const adjacentConversation = await createConversation(`${testPrefix} adjacent unknown`);
+  const adjacentResponse = await request(`/api/conversations/${adjacentConversation.id}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ content: `${unknownToken} KAMALO cashback` }),
+  });
+  assert.equal(adjacentResponse.status, 200);
+  const adjacentResult = await streamResult(adjacentResponse);
+  assert.equal(adjacentResult.content, "I don't have confirmed information about that in the KAMALO information available to me.");
+  assert.equal(adjacentResult.outcome, "unknown");
 
   const providerConversation = await createConversation(`${testPrefix} provider`);
   const originalStream = llmProvider.stream;

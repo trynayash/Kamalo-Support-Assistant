@@ -32,7 +32,7 @@ export type PreparedSupportRequest = {
   llmMessages: LLMMessage[];
   groundedFact: string | null;
   retrievalFailures: number;
-  decision: "greeting" | "image_only" | "prompt_extraction" | "fallback" | "retrieval_error" | "knowledge_answer";
+  decision: "greeting" | "image_only" | "prompt_extraction" | "fallback" | "out_of_scope" | "retrieval_error" | "knowledge_answer";
 };
 
 export type ConversationHistoryMessage = {
@@ -110,6 +110,21 @@ function isAccountSpecificQuestion(content: string): boolean {
 
 function isPersonalizedKnowledge(article: RetrievedArticle): boolean {
   return /\b(?:my coins|your coins|you currently|your next expiry|x coins|how many coins expire|when will my coins expire)\b/i.test(`${article.title}\n${article.content}`);
+}
+
+const kamaloAdjacentPatterns = [
+  /\bkamalo\b/i,
+  /\b(?:coin|coins|reward|rewards|silver|gold|fincado|booster|referral|referrals|commission|transaction|transactions|payment|payments|refund|refunds|wallet|prepaid|merchant|merchants|notification|notifications|otp|cashback|coupon|coupons|offer|offers|deal|deals|gift\s*cards?|redemption|redeem|expiry|expire|expired|reversal|reversed|settlement|dispatch|delivery|milestone|streak|mandate)\b/i,
+  /\b(?:auto\s+kamalo|prepaid\s+card|gift\s+card|reward\s+card|merchant\s+offer|account\s+balance|transaction\s+status|payment\s+status)\b/i,
+];
+
+function isKamaloAdjacentQuestion(content: string, history: ConversationHistoryMessage[]): boolean {
+  const recentUserContext = history
+    .filter((message) => message.role === "user")
+    .slice(-2)
+    .map((message) => message.content)
+    .join("\n");
+  return kamaloAdjacentPatterns.some((pattern) => pattern.test(`${content}\n${recentUserContext}`));
 }
 
 function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string | null {
@@ -204,7 +219,7 @@ export async function prepareSupportRequest(
       : retrievalFailures === retrievalResults.length
         ? "retrieval_error"
       : retrieved.length === 0
-        ? "fallback"
+        ? isKamaloAdjacentQuestion(content, history) ? "fallback" : "out_of_scope"
         : "knowledge_answer";
 
   return {

@@ -33,7 +33,7 @@ const quickPrompts = [
 ];
 
 type ChatLanguage = 'en' | 'hi' | 'mr';
-type AssistantResponseOutcome = 'complete' | 'unknown' | 'provider_error' | 'grounding_fallback' | 'image_only' | 'prompt_extraction' | 'greeting';
+type AssistantResponseOutcome = 'complete' | 'unknown' | 'out_of_scope' | 'provider_error' | 'grounding_fallback' | 'image_only' | 'prompt_extraction' | 'greeting';
 
 const chatLanguages: Array<{ value: ChatLanguage; label: string; voiceLocale: string }> = [
   { value: 'en', label: 'English', voiceLocale: 'en-IN' },

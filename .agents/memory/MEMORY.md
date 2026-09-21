@@ -9,6 +9,7 @@
 - [KAMALO AI follow-up grounding](kamalo-ai-follow-up-grounding.md) — rank the new follow-up intent first and exclude personalized placeholder articles from generic answers.
 - [KAMALO AI web voice fallback](kamalo-ai-web-voice.md) — hosted browser speech can fail independently of mic/internet; use compatible multilingual local Whisper fallback.
 - [KAMALO AI multilingual safety](kamalo-ai-multilingual-safety.md) — preserve approved numeric claims and treat Indic danda punctuation as a complete sentence.
+- [KAMALO AI scope routing](kamalo-ai-scope-routing.md) — unrelated input gets concise email guidance; adjacent unknown product topics retain ticket escalation.
 - [Replit Expo preview networking](replit-expo-preview-networking.md) — Expo Go previews must advertise a reachable LAN/managed host, not localhost; optional DevTools native-library warnings do not stop Metro.
 - [KAMALO icon system](kamalo-icon-system.md) — keep web icons on Tabler’s grid and use a local Tabler-style SVG set in native Expo because browser fonts do not run there.
 - [Deployment health probes](deployment-health-probes.md) — API publication may probe `/` even when an explicit health path is configured.
