@@ -48,6 +48,10 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get("/", (_req, res) => {
+  res.json({ status: "ok" });
+});
+
 app.use("/api", router);
 
 app.use("/api", (_req, res) => {

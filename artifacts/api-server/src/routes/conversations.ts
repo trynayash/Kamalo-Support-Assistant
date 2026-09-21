@@ -480,7 +480,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   res.removeListener("close", onClientClosed);
 });
 
-export default router;import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
+export default router;/*import { and, count, desc, eq, gt, isNull } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateConversationBody,
@@ -1926,4 +1926,4 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   res.removeListener("close", onClientClosed);
 });
 
-export default router;
+export default router;*/

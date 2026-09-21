@@ -43,7 +43,7 @@ export function KamaloSelect({
       </SelectContent>
     </Select>
   );
-}import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+}/*import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 
 type KamaloSelectOption = {
@@ -88,4 +88,4 @@ export function KamaloSelect({
       </SelectContent>
     </Select>
   );
-}
+}*/
