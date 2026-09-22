@@ -408,14 +408,16 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       let draftAnswer = await llmProvider.generate({
         messages: prepared.llmMessages,
         model: prepared.answerModel,
+        maxTokens: prepared.questionShape.isCompound ? 520 : undefined,
         requestId: supportContext.requestId,
         signal: abortController.signal,
       });
       providerAnswerGenerated = true;
 
-      draftAnswer = preferGroundedFact(draftAnswer, prepared.groundedFact, content);
+      draftAnswer = preferGroundedFact(draftAnswer, prepared.groundedFact, content, prepared.questionShape.isCompound);
       if (
-        prepared.decision === "knowledge_answer"
+        !prepared.questionShape.isCompound
+        && prepared.decision === "knowledge_answer"
         && prepared.retrieved.length > 0
         && !groundedFactMatchesQuestion(draftAnswer, content)
       ) {
@@ -428,6 +430,8 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
           draftAnswer,
           customerQuestion: content,
           language: body.data.language || "en",
+          isCompound: prepared.questionShape.isCompound,
+          estimatedParts: prepared.questionShape.estimatedParts,
           requestId: supportContext.requestId,
           signal: abortController.signal,
         });
@@ -476,10 +480,14 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
     : (fullResponse || STAGE_ONE_FALLBACK);
-  const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
+  const condenseLimits = prepared.questionShape.isCompound
+    ? { maxSentences: 6, maxCharacters: 900 }
+    : undefined;
+  const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse), condenseLimits);
   let candidateResponse = keepCompleteAssistantOutput(condensedResponse);
   if (
-    !providerAnswerGenerated
+    !prepared.questionShape.isCompound
+    && !providerAnswerGenerated
     && prepared.decision === "knowledge_answer"
     && prepared.retrieved.length > 0
     && candidateResponse
@@ -506,9 +514,11 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     ? OUT_OF_SCOPE_RESPONSE
     : outputIsGrounded
       ? candidateResponse
-      : keepCompleteAssistantOutput(
-        selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact) || prepared.groundedFact || STAGE_ONE_FALLBACK,
-      );
+      : prepared.questionShape.isCompound
+        ? keepCompleteAssistantOutput(candidateResponse || STAGE_ONE_FALLBACK)
+        : keepCompleteAssistantOutput(
+          selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact) || prepared.groundedFact || STAGE_ONE_FALLBACK,
+        );
   if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);

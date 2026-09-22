@@ -3,7 +3,8 @@ import { test } from "node:test";
 import { knowledgeBackedFallback } from "../src/lib/knowledge-fallback";
 import { buildTopicRetrievalQueries } from "../src/lib/topic-retrieval";
 import { buildHumanizeMessages } from "../src/lib/answer-pipeline";
-import { canonicalizeForRetrieval, isBrandOverviewQuestion, isPureGreeting, prepareCustomerQuestion } from "../src/lib/support-query";
+import { detectQuestionIntents, retrievalQueriesForQuestion } from "../src/lib/intent-grounding";
+import { analyzeQuestionShape, canonicalizeForRetrieval, isBrandOverviewQuestion, isPureGreeting, prepareCustomerQuestion } from "../src/lib/support-query";
 
 const colloquialOverviewQuestions = [
   "tell me more about kamalo ?",
@@ -112,6 +113,32 @@ test("maps twisted wording to stable topic retrieval queries", () => {
     const queries = buildTopicRetrievalQueries(question);
     assert.ok(queries.includes(expectedQuery), `${question} -> ${queries.join(" | ")}`);
   }
+});
+
+test("detects compound customer messages with multiple questions", () => {
+  const compound = "What is Kamalo? Tell me about Kamalo and how we can earn coins through Kamalo.";
+  const shape = analyzeQuestionShape(compound);
+  assert.equal(shape.isCompound, true);
+  assert.ok(shape.estimatedParts >= 2);
+
+  const intents = detectQuestionIntents(compound);
+  assert.ok(intents.includes("overview"), `overview in ${intents.join(", ")}`);
+  assert.ok(intents.includes("earn"), `earn in ${intents.join(", ")}`);
+
+  const queries = retrievalQueriesForQuestion(compound);
+  assert.ok(queries.includes("What is KAMALO"), queries.join(" | "));
+  assert.ok(queries.includes("How can I earn Coins"), queries.join(" | "));
+});
+
+test("builds compound humanization with longer answer limits", () => {
+  const messages = buildHumanizeMessages({
+    draftAnswer: "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience. You can earn KAMALO Coins from eligible actions, transactions, referrals, and Boosters when the applicable offer rules are met.",
+    customerQuestion: "What is Kamalo? Tell me about Kamalo and how we can earn coins through Kamalo.",
+    language: "en",
+    isCompound: true,
+    estimatedParts: 2,
+  });
+  assert.ok(messages.some((message) => /2 questions/i.test(message.content)));
 });
 
 test("understands angry Hinglish customer phrasing", () => {

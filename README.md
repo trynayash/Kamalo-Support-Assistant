@@ -68,8 +68,9 @@ This repo includes a `render.yaml` blueprint for a single web service that serve
 
 1. Push the repo to GitHub.
 2. In Render, create a **Blueprint** from `render.yaml`.
-3. Set the secret env vars when prompted: `OPENROUTER_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `KAMALO_FEEDBACK_EMAIL`.
-4. After deploy, open the Render URL. Health checks use `/api/healthz`.
+3. Set the secret env vars when prompted: `DATABASE_URL`, `OPENROUTER_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `KAMALO_FEEDBACK_EMAIL`.
+4. For Supabase, use the **Session pooler** URI (`pooler.supabase.com`, port 5432) — not the direct `db.*.supabase.co` host. Render cannot reach Supabase over IPv6; the pooler URI avoids that failure.
+5. After deploy, open the Render URL. Health checks use `/api/healthz`.
 
 The production service sets `STATIC_DIR=artifacts/kamalo-ai/dist/public` so Express serves the SPA and API from one origin.
 

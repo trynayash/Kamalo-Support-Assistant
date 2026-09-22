@@ -1,6 +1,9 @@
+import dns from "node:dns";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+dns.setDefaultResultOrder("ipv4first");
 
 export function loadEnv(rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..")) {
   const envPath = path.resolve(rootDir, ".env");
@@ -16,6 +19,16 @@ export function loadEnv(rootDir = path.resolve(path.dirname(fileURLToPath(import
   }
 }
 
+function ipv4Lookup(hostname, options, callback) {
+  dns.lookup(hostname, { family: 4 }, (err, address, family) => {
+    if (err && (err.code === "ENOTFOUND" || err.code === "ENODATA")) {
+      dns.lookup(hostname, options, callback);
+      return;
+    }
+    callback(err, address, family);
+  });
+}
+
 export function pgPoolOptions(databaseUrl) {
   const useSsl = databaseUrl.includes("supabase")
     || databaseUrl.includes("sslmode=require")
@@ -28,5 +41,7 @@ export function pgPoolOptions(databaseUrl) {
   return {
     connectionString,
     ssl: useSsl ? { rejectUnauthorized: false } : undefined,
+    lookup: ipv4Lookup,
+    connectionTimeoutMillis: 15_000,
   };
 }

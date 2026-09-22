@@ -82,7 +82,12 @@ export function detectQuestionIntents(content: string): QuestionIntent[] {
   const lower = prepareCustomerQuestion(content).toLowerCase();
   const intents: QuestionIntent[] = [];
 
-  if (/\b(?:tell me more about|what kamalo|what is kamalo|what does kamalo|about kamalo)\b/i.test(lower)
+  if (/\bwhat is kamalo\b/i.test(lower)) {
+    intents.push("overview");
+  } else if (/\btell me about kamalo\b/i.test(lower)
+    && !/\btell me about kamalo\s+(?:coin|coins|silver|gold|payment|payments|offers|booster|wallet|referral|referrals|fincado|auto)\b/i.test(lower)) {
+    intents.push("overview");
+  } else if (/\b(?:tell me more about|what kamalo|what does kamalo|about kamalo)\b/i.test(lower)
     && !/\b(?:coin|coins|silver|gold|payment|transaction|referral|booster|fincado|auto)\b/i.test(lower)) {
     intents.push("overview");
   }

@@ -159,16 +159,23 @@ const MAX_CONCISE_CHARACTERS = 520;
  * This is intentionally a presentation guard, not a factuality check: approved
  * knowledge retrieval and the system policy remain the source of truth.
  */
-export function condenseAssistantOutput(content: string): string {
+export type CondenseOptions = {
+  maxSentences?: number;
+  maxCharacters?: number;
+};
+
+export function condenseAssistantOutput(content: string, options: CondenseOptions = {}): string {
   const normalized = content.replace(/\s+/g, " ").trim();
   if (!normalized) return normalized;
 
+  const maxSentences = options.maxSentences ?? MAX_CONCISE_SENTENCES;
+  const maxCharacters = options.maxCharacters ?? MAX_CONCISE_CHARACTERS;
   const sentences = normalized.match(/[^.!?]+(?:[.!?]+|$)/g)?.map((sentence) => sentence.trim()).filter(Boolean) || [normalized];
-  let concise = sentences.slice(0, MAX_CONCISE_SENTENCES).join(" ").trim();
-  if (concise.length <= MAX_CONCISE_CHARACTERS) return concise;
+  let concise = sentences.slice(0, maxSentences).join(" ").trim();
+  if (concise.length <= maxCharacters) return concise;
 
-  const cutoff = concise.slice(0, MAX_CONCISE_CHARACTERS - 1).lastIndexOf(" ");
-  const safeCutoff = cutoff >= 160 ? cutoff : MAX_CONCISE_CHARACTERS - 1;
+  const cutoff = concise.slice(0, maxCharacters - 1).lastIndexOf(" ");
+  const safeCutoff = cutoff >= 160 ? cutoff : maxCharacters - 1;
   return `${concise.slice(0, safeCutoff).trim()}…`;
 }
 

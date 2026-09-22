@@ -68,6 +68,8 @@ Get the URI from **Supabase → Project Settings → Database → Connection str
 
 Also set the same `DATABASE_URL` on Render (or your host) in environment variables.
 
+**Render / IPv4-only hosts:** always use the **Session pooler** URI (`aws-0-[REGION].pooler.supabase.com`). Do **not** use the direct connection host (`db.[PROJECT-REF].supabase.co`) — it often resolves to IPv6 and fails on Render with `ENETUNREACH`.
+
 ## 5. Verify
 
 ```bash

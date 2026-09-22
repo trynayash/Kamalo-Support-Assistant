@@ -133,7 +133,7 @@ export function canonicalizeForRetrieval(content: string): string {
     .replace(/\s+/g, " ")
     .trim();
 
-  if (isBrandOverviewQuestion(text)) return "What is KAMALO";
+  if (isBrandOverviewQuestion(text) && !analyzeQuestionShape(content).isCompound) return "What is KAMALO";
 
   text = text
     .replace(/\bhow (?:can|do) i (?:get|earn|collect|make|receive)\b/gi, "How can I earn")
@@ -146,4 +146,42 @@ export function canonicalizeForRetrieval(content: string): string {
     .trim();
 
   return text;
+}
+
+export type QuestionShape = {
+  isCompound: boolean;
+  estimatedParts: number;
+};
+
+/** Detect when one customer message asks 2–3 distinct things that all need answers. */
+export function analyzeQuestionShape(content: string): QuestionShape {
+  const normalized = prepareCustomerQuestion(content);
+  let parts = (normalized.match(/\?/g) || []).length;
+
+  if (/\band\s+how\b/i.test(normalized)) parts = Math.max(parts, 2);
+  if (/\band\s+also\b/i.test(normalized)) parts = Math.max(parts, 2);
+  if (/\bwhat is\b/i.test(normalized) && /\bhow (?:can|do|we|to)\b/i.test(normalized)) parts = Math.max(parts, 2);
+  if (/\btell me about\b/i.test(normalized) && /\bhow (?:can|do|we|to)\b/i.test(normalized)) parts = Math.max(parts, 2);
+
+  const topicSignals = [
+    /\bwhat is\b/i.test(normalized),
+    /\btell me about\b/i.test(normalized),
+    /\bhow (?:can|do|we|to)\b/i.test(normalized),
+    /\bwhen\b/i.test(normalized),
+    /\bwhere\b/i.test(normalized),
+    /\bwhy\b/i.test(normalized),
+  ].filter(Boolean).length;
+  if (topicSignals >= 2 && /\band\b/i.test(normalized)) {
+    parts = Math.max(parts, topicSignals);
+  }
+
+  const isCompound = parts >= 2;
+  return {
+    isCompound,
+    estimatedParts: Math.min(Math.max(parts, 1), 4),
+  };
+}
+
+export function compoundAnswerInstruction(estimatedParts: number): string {
+  return `The customer message contains about ${estimatedParts} distinct questions or topics in one message. Answer every part in the order asked. Give one or two factual sentences per part so the full reply covers all of them. Do not skip an earlier part to answer only the last one.`;
 }
