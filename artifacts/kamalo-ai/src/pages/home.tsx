@@ -298,6 +298,52 @@ async function streamAssistantResponse(conversationId: string, content: string, 
   return { content: finalContent || fullResponse, messageId, outcome };
 }
 
+function ChatWorkspaceSkeleton({ showHeader = false }: { showHeader?: boolean }) {
+  return (
+    <div className="flex min-h-0 w-full flex-1 flex-col" role="status" aria-live="polite" data-testid="status-conversation-loading">
+      {showHeader && (
+        <header className="mx-auto flex w-full max-w-[980px] shrink-0 items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
+          <div className="skeleton h-7 w-48 max-w-[70%] rounded-lg" />
+          <div className="skeleton hidden h-9 w-20 rounded-lg sm:block" />
+        </header>
+      )}
+      <section className="mx-auto flex min-h-0 w-full max-w-[980px] flex-1 flex-col pt-4 md:pt-8">
+        <div className="chat-message-viewport min-h-[min(530px,calc(100dvh-260px))] flex-1 space-y-6 overflow-hidden pb-7 pr-1 md:space-y-7">
+          <div className="flex justify-end">
+            <div className="skeleton h-14 w-[min(62%,420px)] rounded-xl rounded-tr-sm" />
+          </div>
+          <div className="flex justify-start">
+            <div className="skeleton h-24 w-[min(78%,520px)] rounded-xl rounded-tl-sm" />
+          </div>
+          <div className="flex justify-end">
+            <div className="skeleton h-12 w-[min(44%,300px)] rounded-xl rounded-tr-sm" />
+          </div>
+          <div className="flex justify-start">
+            <div className="skeleton h-20 w-[min(68%,460px)] rounded-xl rounded-tl-sm" />
+          </div>
+        </div>
+        <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+          <div className="mx-auto max-w-[980px]">
+            <div className="rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)]">
+              <div className="skeleton mx-3 my-2 h-11 rounded-lg" />
+              <div className="flex items-center justify-between gap-2 px-2 pb-0.5">
+                <div className="flex min-w-0 items-center gap-2">
+                  <div className="skeleton h-9 w-28 rounded-xl" />
+                  <div className="skeleton h-9 w-[6.8rem] rounded-xl" />
+                  <div className="skeleton hidden h-9 w-9 rounded-xl sm:block" />
+                </div>
+                <div className="skeleton h-9 w-9 rounded-xl" />
+              </div>
+            </div>
+            <div className="skeleton mx-auto mt-2 h-3 w-56 max-w-full rounded-full" />
+          </div>
+        </div>
+      </section>
+      <span className="sr-only">Loading conversation</span>
+    </div>
+  );
+}
+
 function ChatClosedState({ onNewConversation }: { onNewConversation: () => void }) {
   return (
     <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center px-4 py-12 text-center animate-rise">
@@ -348,6 +394,7 @@ export function HomePage() {
   const shouldAutoScrollRef = useRef(true);
   const voiceToastRef = useRef<ReturnType<typeof showToast> | null>(null);
   const lastVoiceErrorRef = useRef('');
+  const previousSelectedIdRef = useRef<string | null>(null);
 
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
@@ -360,7 +407,11 @@ export function HomePage() {
   const activeConversation = conversations.find((conversation) => conversation.id === selectedId);
   const loadedConversation = conversationQuery.data?.id === selectedId ? conversationQuery.data : null;
   const messages = localMessages ?? loadedConversation?.messages ?? [];
-  const conversationLoading = Boolean(selectedId) && (conversationQuery.isLoading || conversationQuery.isFetching || !loadedConversation);
+  const conversationLoading = Boolean(selectedId)
+    && localMessages === null
+    && !isSending
+    && !conversationQuery.isError
+    && (conversationQuery.isLoading || !loadedConversation);
   const selectedChatLanguage = chatLanguages.find((language) => language.value === preferredLanguage) || chatLanguages[0];
   const speech = useSpeechInput({
     value: input,
@@ -428,14 +479,28 @@ export function HomePage() {
     const conversationId = new URLSearchParams(window.location.search).get('conversation');
     if (conversationId) {
       setSelectedId(conversationId);
-       setConversationMode('readonly');
-       setLocalMessages(null);
+      setConversationMode('readonly');
     }
   }, [location]);
 
   useEffect(() => {
-    if (loadedConversation && !isSending) setLocalMessages(loadedConversation.messages);
+    if (!loadedConversation || isSending || loadedConversation.id !== selectedId) return;
+    setLocalMessages((current) => {
+      if (!current) return loadedConversation.messages;
+      if (loadedConversation.messages.length >= current.length) return loadedConversation.messages;
+      return current;
+    });
   }, [loadedConversation, selectedId, isSending]);
+
+  useEffect(() => {
+    const previous = previousSelectedIdRef.current;
+    if (previous === selectedId) return;
+    previousSelectedIdRef.current = selectedId;
+    if (!previous && selectedId && isSending) return;
+    setLocalMessages(null);
+    setResponseOutcomes({});
+    setStreamingText('');
+  }, [selectedId, isSending]);
 
   useEffect(() => {
     shouldAutoScrollRef.current = true;
@@ -550,8 +615,16 @@ export function HomePage() {
       const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
       setLocalMessages((current) => [...(current ?? []), assistantMessage]);
       if (response.outcome) setResponseOutcomes((current) => ({ ...current, [assistantMessage.id]: response.outcome as AssistantResponseOutcome }));
-      await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
-      await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
+      queryClient.setQueryData(getGetConversationQueryKey(conversationId), (current) => {
+        if (!current || current.id !== conversationId) return current;
+        const merged = [...current.messages];
+        for (const message of [userMessage, assistantMessage]) {
+          if (!merged.some((item) => item.id === message.id)) merged.push(message);
+        }
+        return { ...current, messages: merged, updatedAt: assistantMessage.createdAt };
+      });
+      void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
+      void queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
       setInput(content);
       const failureDescription = uploadFailed
@@ -724,7 +797,7 @@ export function HomePage() {
   return (
      <KamaloShell conversationCount={conversations.length} onNewConversation={startNewConversation} lockChrome>
         <div className="chat-workspace mx-auto flex min-h-0 w-full max-w-[1320px] flex-1 flex-col px-4 sm:px-6 md:px-9 md:py-7 lg:px-12" onPointerDown={markUserActivity} onKeyDown={markUserActivity}>
-          {selectedId && <header className="mx-auto flex w-full max-w-[980px] shrink-0 items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
+          {selectedId && !conversationLoading && <header className="mx-auto flex w-full max-w-[980px] shrink-0 items-center justify-between border-b border-border/70 py-4 md:border-0 md:py-0">
               <div className="min-w-0 flex-1">
                 {renaming ? <form onSubmit={(event) => { event.preventDefault(); void saveConversationTitle(); }} className="flex max-w-xl items-center gap-2"><input value={titleDraft} onChange={(event) => setTitleDraft(event.target.value)} maxLength={120} autoFocus className="h-9 min-w-0 flex-1 rounded-lg border border-primary/40 bg-card px-3 text-[14px] font-bold outline-none focus:ring-4 focus:ring-primary/10" aria-label="Conversation title" data-testid="input-conversation-title" /><button type="submit" disabled={!titleDraft.trim() || updateConversation.isPending} className="rounded-md bg-primary px-3 py-2 text-[10px] font-bold text-primary-foreground disabled:opacity-50" data-testid="button-save-conversation-title">Save</button><button type="button" onClick={() => setRenaming(false)} className="rounded-md p-2 text-muted-foreground hover:bg-muted" aria-label="Cancel rename" data-testid="button-cancel-conversation-title"><HiOutlineXMark size={15} /></button></form> : <div className="flex min-w-0 items-center gap-2"><h2 className="truncate text-[15px] font-bold tracking-[-.02em] md:text-[20px]">{activeConversation?.title || loadedConversation?.title || 'Support workspace'}</h2><button type="button" onClick={beginRename} disabled={conversationMode === 'readonly'} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-primary disabled:opacity-40" aria-label="Rename conversation" data-testid="button-rename-conversation"><HiOutlinePencilSquare size={14} /></button></div>}
                 {conversationMode === 'readonly' && <div className="mt-1 font-mono text-[9px] uppercase tracking-[.14em] text-muted-foreground">Read-only history</div>}
@@ -732,9 +805,12 @@ export function HomePage() {
             <KamaloActionButton variant="quiet" size="sm" onClick={clearCurrent} disabled={!selectedId || deleteConversation.isPending} leftIcon={<HiOutlineBackspace size={14} />} className="hidden sm:inline-flex" data-testid="button-clear-conversation">Clear</KamaloActionButton>
          </header>}
          <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col">
+           {conversationLoading ? (
+             <ChatWorkspaceSkeleton showHeader={Boolean(selectedId)} />
+           ) : (
            <section className="mx-auto flex min-h-0 min-w-0 w-full max-w-[980px] flex-1 flex-col pt-4 md:pt-8">
              <div ref={messagesScrollRef} onScroll={handleWorkspaceScroll} className="chat-message-viewport min-h-0 flex-1 overflow-x-hidden overflow-y-auto">
-              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><KamaloActionButton variant="outline" size="sm" onClick={() => void conversationQuery.refetch()} className="mt-3" data-testid="button-retry-conversation-load">Try again</KamaloActionButton></div> : conversationLoading ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] items-start justify-center pt-10" role="status" aria-live="polite" data-testid="status-conversation-loading"><div className="w-full max-w-xl space-y-5"><div className="skeleton h-20 w-4/5 rounded-xl" /><div className="ml-auto skeleton h-14 w-3/5 rounded-xl" /><p className="sr-only">Loading conversation</p></div></div> : messages.length === 0 && !isSending ? (
+              {inactivityState === 'closed' ? <ChatClosedState onNewConversation={startNewConversation} /> : selectedId && conversationQuery.isError && !loadedConversation ? <div className="flex min-h-[min(530px,calc(100dvh-260px))] flex-col items-center justify-center text-center animate-rise" role="alert" aria-live="assertive" data-testid="status-conversation-load-error"><p className="text-[13px] text-destructive">This conversation could not be loaded.</p><KamaloActionButton variant="outline" size="sm" onClick={() => void conversationQuery.refetch()} className="mt-3" data-testid="button-retry-conversation-load">Try again</KamaloActionButton></div> : messages.length === 0 && !isSending ? (
                 <div className="min-w-0 pb-7 pr-1" data-testid="conversation-messages">
                  <div className="mx-auto max-w-xl px-1 py-2 sm:py-5">
                    <ChatWelcomeState
@@ -752,7 +828,7 @@ export function HomePage() {
             )}
              </div>
              {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><KamaloActionButton variant="outline" size="sm" onClick={markUserActivity} data-testid="button-inactivity-continue">I’m here</KamaloActionButton></div>}
-            {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
+            {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && !conversationLoading && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[980px]">
                  <div className="relative rounded-xl border border-border bg-card p-1.5 shadow-[var(--shadow-md)] focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/5">
                     {pendingImage && <div className="mb-2 flex min-w-0 items-center gap-2 rounded-lg border border-border/80 bg-background/70 p-2" data-testid="attachment-preview">
@@ -834,6 +910,7 @@ export function HomePage() {
                </div>
             </div>}
           </section>
+           )}
 
         </div>
       </div>
