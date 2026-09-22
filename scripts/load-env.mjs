@@ -19,14 +19,8 @@ export function loadEnv(rootDir = path.resolve(path.dirname(fileURLToPath(import
   }
 }
 
-function ipv4Lookup(hostname, options, callback) {
-  dns.lookup(hostname, { family: 4 }, (err, address, family) => {
-    if (err && (err.code === "ENOTFOUND" || err.code === "ENODATA")) {
-      dns.lookup(hostname, options, callback);
-      return;
-    }
-    callback(err, address, family);
-  });
+function ipv4Lookup(hostname, _options, callback) {
+  dns.lookup(hostname, { family: 4 }, callback);
 }
 
 export function pgPoolOptions(databaseUrl) {

@@ -28,6 +28,15 @@ void ensureSeedKnowledge()
     });
   })
   .catch((error) => {
+    const cause = error instanceof Error && "cause" in error ? error.cause : error;
+    const causeMessage = cause instanceof Error ? cause.message : String(cause ?? "");
+    if (/ENETUNREACH|supabase\.co:5432|SUPABASE_DIRECT_HOST/i.test(causeMessage)) {
+      logger.error(
+        "Database connection failed. On Render, set DATABASE_URL to the Supabase Session pooler URI "
+        + "(pooler.supabase.com:5432), not the direct db.*.supabase.co host. "
+        + "See Supabase → Project Settings → Database → Connect → Session mode.",
+      );
+    }
     logger.error({ err: error }, "Knowledge initialization failed");
     process.exit(1);
   });

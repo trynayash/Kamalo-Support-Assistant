@@ -15,7 +15,7 @@ const apiDir = path.join(rootDir, "artifacts", "api-server");
 
 const result = spawnSync(
   tsxBin,
-  ["--test", "test/colloquial-support.test.ts", "test/intent-grounding.test.ts"],
+  ["--test", "test/colloquial-support.test.ts", "test/intent-grounding.test.ts", "test/pg-pool-options.test.ts"],
   { cwd: apiDir, stdio: "inherit", shell: process.platform === "win32" },
 );
 

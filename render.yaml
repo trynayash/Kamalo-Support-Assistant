@@ -28,6 +28,12 @@ services:
         value: /
       - key: DATABASE_URL
         sync: false
+      # Optional: paste Session pooler URI here instead of changing DATABASE_URL
+      - key: DATABASE_POOLER_URL
+        sync: false
+      # Optional: auto-rewrite db.*.supabase.co when region is known (e.g. ap-south-1)
+      - key: SUPABASE_DB_REGION
+        sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_ANSWER_MODEL
