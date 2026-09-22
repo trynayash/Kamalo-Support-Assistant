@@ -130,7 +130,7 @@ test("ignores wrong preferred facts and picks the right article", () => {
 
 test("routes general offers questions away from booster-only answers", () => {
   assert.ok(detectQuestionIntents("kamalo offers").includes("offers"));
-  assert.ok(retrievalQueriesForQuestion("kamalo offers").includes("Where can I use KAMALO"));
+  assert.ok(retrievalQueriesForQuestion("kamalo offers").includes("What are KAMALO offers"));
 
   const answer = selectGroundedAnswer("kamalo offers", [boosterArticle, shopOffersArticle], null);
   assert.match(answer || "", /discover eligible online and offline offers/i);

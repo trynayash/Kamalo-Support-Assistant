@@ -34,7 +34,7 @@ const hinglishPhraseReplacements: Array<[RegExp, string]> = [
   [/\bkya\s+(?:hai|h|he|hain)\s+kamalo\b/gi, "what is kamalo"],
 ];
 
-export const brandOverviewTopicPattern = /\b(?:coin|coins|silver|gold|fincado|booster|referral|referrals|commission|wallet|otp|merchant|merchants|payment|payments|transaction|transactions|refund|refunds|auto|mandate|guru|prepaid|gift\s+card|reward\s+card|notification|notifications|cashback|coupon|coupons|offer|offers|deal|deals|delivery|shipment|level|levels|milestone|milestones|expiry|expire|redeem|redemption|signup|sign\s*up|register|login|otp)\b/i;
+export const brandOverviewTopicPattern = /\b(?:coin|coins|silver|gold|fincado|booster|referral|referrals|commission|wallet|otp|merchant|merchants|payment|payments|transaction|transactions|refund|refunds|auto|mandate|guru|prepaid|gift\s+card|reward\s+card|notification|notifications|cashback|coupon|coupons|offer|offers|deal|deals|reward|rewards|delivery|shipment|level|levels|milestone|milestones|expiry|expire|redeem|redemption|signup|sign\s*up|register|login|otp)\b/i;
 
 const troubleshootingPattern = /\b(?:my|mine|not working|broken|error|issue|problem|stuck|failed|wrong|missing|didn't|didnt|cant|can't|cannot|won't|wont|help me fix|fix my|where is my|why didn't|why did not)\b/i;
 

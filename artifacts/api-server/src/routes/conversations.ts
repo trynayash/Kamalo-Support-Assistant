@@ -422,13 +422,12 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       providerAnswerGenerated = true;
 
       draftAnswer = preferGroundedFact(draftAnswer, prepared.groundedFact, content, prepared.questionShape.isCompound);
-      const questionIntents = detectQuestionIntents(content);
+      // Keep the full knowledge-grounded AI draft. Only replace when the model leaked drafting/meta text.
       if (
         !prepared.questionShape.isCompound
         && prepared.decision === "knowledge_answer"
         && prepared.retrieved.length > 0
-        && questionIntents.length > 0
-        && !groundedFactMatchesQuestion(draftAnswer, content)
+        && containsProviderDrafting(draftAnswer)
       ) {
         const intentCorrected = selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact);
         if (intentCorrected) draftAnswer = intentCorrected;
@@ -491,7 +490,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     : (fullResponse || STAGE_ONE_FALLBACK);
   const condenseLimits = prepared.questionShape.isCompound
     ? { maxSentences: 6, maxCharacters: 900 }
-    : undefined;
+    : { maxSentences: 5, maxCharacters: 750 };
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse), condenseLimits);
   let candidateResponse = keepCompleteAssistantOutput(condensedResponse);
   if (
@@ -500,7 +499,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     && prepared.decision === "knowledge_answer"
     && prepared.retrieved.length > 0
     && candidateResponse
-    && !groundedFactMatchesQuestion(candidateResponse, content)
+    && (containsProviderDrafting(candidateResponse) || !groundedFactMatchesQuestion(candidateResponse, content))
   ) {
     const intentCorrected = selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact);
     if (intentCorrected) {
@@ -508,28 +507,30 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       responseOutcome = "grounding_fallback";
     }
   }
-  // Validate numeric claims against article content only. Article titles carry
-  // internal sequence numbers that must never make an unsupported customer
-  // number appear approved.
+  // After a knowledge-grounded AI draft + humanize, only replace for safety:
+  // drafting leaks, live-account claims, or unsupported numbers — not soft paraphrase mismatch.
   const approvedSources = prepared.retrieved.map((article) => sanitizeKnowledgeForProvider(article.content));
   const outputIsGrounded = !providerAnswerGenerated
     || prepared.decision !== "knowledge_answer"
     || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");
   const usedGroundingFallback = providerAnswerGenerated
     && prepared.decision === "knowledge_answer"
-    && !outputIsGrounded;
+    && !outputIsGrounded
+    && (containsProviderDrafting(candidateResponse) || /\b(?:your balance is|you currently have|i (?:have )?checked your)\b/i.test(candidateResponse));
   if (usedGroundingFallback) responseOutcome = "grounding_fallback";
   fullResponse = prepared.decision === "out_of_scope"
     ? OUT_OF_SCOPE_RESPONSE
-    : outputIsGrounded
+    : (providerAnswerGenerated && prepared.decision === "knowledge_answer" && !usedGroundingFallback)
       ? candidateResponse
-      : prepared.questionShape.isCompound
-        ? keepCompleteAssistantOutput(candidateResponse || STAGE_ONE_FALLBACK)
-        : keepCompleteAssistantOutput(
-          selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact)
-            || (detectQuestionIntents(content).length ? prepared.groundedFact : null)
-            || STAGE_ONE_FALLBACK,
-        );
+      : outputIsGrounded
+        ? candidateResponse
+        : prepared.questionShape.isCompound
+          ? keepCompleteAssistantOutput(candidateResponse || STAGE_ONE_FALLBACK)
+          : keepCompleteAssistantOutput(
+            selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact)
+              || (detectQuestionIntents(content).length ? prepared.groundedFact : null)
+              || STAGE_ONE_FALLBACK,
+          );
   if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);

@@ -21,6 +21,7 @@ export type QuestionIntent =
   | "commission"
   | "booster"
   | "offers"
+  | "rewards"
   | "gift_card"
   | "fincado"
   | "auto_kamalo"
@@ -46,7 +47,8 @@ export const intentRetrievalQueries: Partial<Record<QuestionIntent, string>> = {
   referral: "How do referrals work",
   commission: "Commission structure and processing",
   booster: "What is Booster",
-  offers: "Where can I use KAMALO",
+  offers: "What are KAMALO offers",
+  rewards: "What are KAMALO rewards",
   gift_card: "Wallet prepaid card",
   fincado: "What is FINCADO",
   auto_kamalo: "What is Auto KAMALO",
@@ -134,6 +136,7 @@ export function detectQuestionIntents(content: string): QuestionIntent[] {
   if (/\b(?:commission|commision|referral income|referral payout)\b/i.test(lower)) intents.push("commission");
   if (/\b(?:booster|boosters|promo offer|promotion coins)\b/i.test(lower)) intents.push("booster");
   if (/\b(?:offers?|deals?|coupons?)\b/i.test(lower) && !/\bbooster\b/i.test(lower)) intents.push("offers");
+  if (/\brewards?\b/i.test(lower) && !/\b(?:coin|coins)\b/i.test(lower)) intents.push("rewards");
   if (/\b(?:gift\s*cards?|prepaid\s*cards?|reward\s*cards?|prepaid|ppi\s*wallet)\b/i.test(lower)) intents.push("gift_card");
   if (/\b(?:fincado|fin cadoo|daily drive|weekly streak)\b/i.test(lower)) intents.push("fincado");
   if (/\b(?:auto kamalo|autopay|auto pay|mandate)\b/i.test(lower)) intents.push("auto_kamalo");
@@ -215,8 +218,11 @@ function sentenceIntentScore(sentence: string, intents: QuestionIntent[]): numbe
         if (/\b(?:booster|boosters|promotion|promo offer|offer terms)\b/i.test(lower)) score += 26;
         break;
       case "offers":
-        if (/\b(?:shop|discover|eligible|online and offline offers|available offers|earning opportunit|merchant offers)\b/i.test(lower)) score += 32;
+        if (/\b(?:shop|discover|eligible|online and offline offers|available offers|earning opportunit|merchant offers|deals|coupons)\b/i.test(lower)) score += 32;
         if (/\bbooster offer\b/i.test(lower)) score -= 28;
+        break;
+      case "rewards":
+        if (/\b(?:reward|rewards|coins|earn|referral|booster|silver|gold)\b/i.test(lower)) score += 28;
         break;
       case "gift_card":
         if (/\b(?:prepaid|gift card|wallet|ppi|payment option|customer-facing capabilities)\b/i.test(lower)) score += 32;
@@ -266,7 +272,8 @@ function titleIntentScore(title: string, intents: QuestionIntent[]): number {
       ["referral", /\breferral\b/i, 35],
       ["commission", /\bcommission\b/i, 35],
       ["booster", /\bbooster\b/i, 35],
-      ["offers", /\b(?:where can i use|shop|offers?)\b/i, 35, /\bbooster\b/i, -40],
+      ["offers", /\b(?:where can i use|shop|offers?|deals?)\b/i, 35, /\bbooster\b/i, -40],
+      ["rewards", /\b(?:reward|rewards|coins)\b/i, 35],
       ["gift_card", /\b(?:prepaid|gift card|wallet)\b/i, 35],
       ["fincado", /\bfincado\b/i, 35],
       ["auto_kamalo", /\bauto kamalo\b/i, 35],

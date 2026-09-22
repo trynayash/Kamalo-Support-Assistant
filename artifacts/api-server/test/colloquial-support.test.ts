@@ -105,7 +105,7 @@ test("maps twisted wording to stable topic retrieval queries", () => {
     ["not recieved otp", "OTP support"],
     ["cant signup bro", "I can't register"],
     ["what fincado do", "What is FINCADO"],
-    ["kamalo offers", "Where can I use KAMALO"],
+    ["kamalo offers", "What are KAMALO offers"],
     ["kamalo gift cards what are they", "Wallet prepaid card"],
   ];
 
@@ -154,12 +154,18 @@ test("builds compound humanization with longer answer limits", () => {
   assert.ok(messages.some((message) => /2 questions/i.test(message.content)));
 });
 
+test("routes rewards and offers to dedicated knowledge queries", () => {
+  assert.ok(detectQuestionIntents("what are kamalo rewards").includes("rewards"));
+  assert.ok(retrievalQueriesForQuestion("what are kamalo rewards").includes("What are KAMALO rewards"));
+  assert.ok(buildTopicRetrievalQueries("deals in kamalo").includes("What are KAMALO offers"));
+});
+
 test("understands angry Hinglish customer phrasing", () => {
   const angryHinglishCases: Array<[string, string]> = [
     ["abe yaar mera payment fail ho gaya kya karu", "My payment failed"],
     ["wtf otp nahi aa raha bar bar", "OTP support"],
     ["coin kaise milega bhai", "How can I earn Coins"],
-    ["offer kya hai kamalo me", "Where can I use KAMALO"],
+    ["offer kya hai kamalo me", "What are KAMALO offers"],
     ["gift card kya hai yaar", "Wallet prepaid card"],
     ["paisa wapas kab milega this is bullshit", "What is a refund"],
     ["silver kaise milega bhai", "How do I earn Silver"],

@@ -79,6 +79,36 @@ const seedArticles: SeedArticle[] = [
     content: "KAMALO merchant guidance can cover onboarding, offers, settlement, commissions, refunds, a merchant dashboard, and technical integration. The specific terms depend on the merchant guidance and applicable offer.",
   },
   {
+    title: "What are KAMALO offers",
+    category: "Offers",
+    content: "KAMALO offers are merchant and Shop & KAMALO promotions that customers can discover in the KAMALO experience. Offers may be online or offline and can let customers earn Coins or other applicable rewards when the offer rules are met. The exact merchants, amounts, and eligibility depend on the offer that is currently available in the app. Stage 1 cannot list live inventory such as current Amazon deals or fuel offers; customers should open Shop & KAMALO in the app to see what is available now.",
+  },
+  {
+    title: "Where can I use KAMALO",
+    category: "Offers",
+    content: "Customers can discover eligible online and offline offers in Shop & KAMALO. These offers are the main place to browse KAMALO deals, coupons, and merchant promotions. Exact availability changes over time and must be checked in the app.",
+  },
+  {
+    title: "Offers versus Booster",
+    category: "Offers",
+    content: "General KAMALO offers and deals are the promotions available in Shop & KAMALO. A Booster is a separate offer concept that can change eligible Coin earning when its own terms apply. A question about KAMALO offers or deals should be answered with Shop & KAMALO offer guidance, not Booster-only terms, unless the customer specifically asks about Booster.",
+  },
+  {
+    title: "What are KAMALO rewards",
+    category: "Rewards",
+    content: "In KAMALO, rewards primarily mean KAMALO Coins and related reward journeys such as referrals, Boosters, Silver, and Gold when those rules apply. Coins are the reward units used inside KAMALO. Customers can earn them from eligible actions, transactions, referrals, and Boosters according to the applicable offer rules. Stage 1 can explain how rewards work but cannot show a personal reward balance.",
+  },
+  {
+    title: "How can I earn Coins",
+    category: "Coins",
+    content: "You can earn KAMALO Coins from eligible actions, transactions, referrals, and Boosters when the applicable offer rules are met. The amount depends on the offer or rule that applies. Stage 1 cannot view a personal Coin balance.",
+  },
+  {
+    title: "What are KAMALO Coins",
+    category: "Coins",
+    content: "KAMALO Coins are the reward units used inside KAMALO. They can be earned through eligible activities and used according to the applicable redemption rules. Documented guidance links Coin value to a 1 Rupee to 1 Coin relationship for applicable redemption value, with exact treatment depending on the current rules.",
+  },
+  {
     title: "What is a prepaid card",
     category: "Wallet",
     content: "KAMALO prepaid cards and gift cards are wallet-related payment options covered by KAMALO product guidance. KAMALO can explain the approved customer-facing capabilities for these cards. Specific limits, fees, KYC, delivery times, and eligibility depend on the applicable KAMALO rules and must not be invented.",

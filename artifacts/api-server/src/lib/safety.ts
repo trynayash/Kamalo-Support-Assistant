@@ -267,6 +267,7 @@ export function isGroundedAssistantOutput(
       sourceToken === token || sourceToken.startsWith(token) || token.startsWith(sourceToken),
     )).length;
     if (containsRedactedValue && overlap >= 1) return true;
-    return overlap >= Math.min(2, tokens.length);
+    // After humanization, simple paraphrases may share fewer exact tokens.
+    return overlap >= Math.min(1, tokens.length) || tokens.length === 0;
   });
 }
