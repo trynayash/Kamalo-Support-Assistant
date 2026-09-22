@@ -73,7 +73,15 @@ export function prepareCustomerQuestion(content: string): string {
 }
 
 export function isPureGreeting(content: string): boolean {
-  return /^(hi+|hello+|hey+|hii+|thanks|thank you|good morning|good afternoon|good evening|how are you|what can you do|what do you do|who are you|नमस्ते|नमस्कार|हाय|धन्यवाद|शुभ\s+(?:प्रभात|संध्या)|नमस्कार)[?! .।]*$/i.test(content.trim());
+  const normalized = content
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/\b(?:bro|yaar|bhai|sir|madam|pls|please)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .replace(/[?!.,]+$/g, "")
+    .trim();
+  return /^(?:hi+|hello+|hey+|hii+|thanks|thank you|good morning|good afternoon|good evening|how are you|how r u|how are u|what can you do|what do you do|who are you|kaise ho|kaisa hai|kya haal(?: hai| he)?|kya hal(?: hai| he)?|kya chal raha|sab theek|namaste|namaskar|नमस्ते|नमस्कार|हाय|धन्यवाद|शुभ\s+(?:प्रभात|संध्या)|कैसे\s+हो|क्या\s+हाल)[?! .।]*$/i.test(normalized);
 }
 
 export function isBrandOverviewQuestion(content: string): boolean {

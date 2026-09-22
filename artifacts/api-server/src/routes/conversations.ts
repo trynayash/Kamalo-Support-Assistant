@@ -21,6 +21,7 @@ import { ImageUploadError, deleteConversationImage, readConversationImage, saveC
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
 import { groundedFactMatchesQuestion, selectGroundedAnswer } from "../lib/intent-grounding";
 import { knowledgeBackedFallback } from "../lib/knowledge-fallback";
+import { humanizeKnowledgeAnswer } from "../lib/answer-pipeline";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
 
@@ -404,15 +405,36 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
         responseOutcome = prepared.decision === "fallback" ? "unknown" : "complete";
       }
     } else {
-      for await (const chunk of llmProvider.stream({
+      let draftAnswer = await llmProvider.generate({
         messages: prepared.llmMessages,
         model: prepared.answerModel,
         requestId: supportContext.requestId,
         signal: abortController.signal,
-      })) {
-        fullResponse += chunk;
-      }
+      });
       providerAnswerGenerated = true;
+
+      draftAnswer = preferGroundedFact(draftAnswer, prepared.groundedFact, content);
+      if (
+        prepared.decision === "knowledge_answer"
+        && prepared.retrieved.length > 0
+        && !groundedFactMatchesQuestion(draftAnswer, content)
+      ) {
+        const intentCorrected = selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact);
+        if (intentCorrected) draftAnswer = intentCorrected;
+      }
+
+      try {
+        fullResponse = await humanizeKnowledgeAnswer({
+          draftAnswer,
+          customerQuestion: content,
+          language: body.data.language || "en",
+          requestId: supportContext.requestId,
+          signal: abortController.signal,
+        });
+      } catch (humanizeError) {
+        req.log.warn({ err: humanizeError, requestId: supportContext.requestId }, "Humanization failed; using factual draft");
+        fullResponse = draftAnswer;
+      }
     }
   } catch (error) {
     if (clientClosed) {
@@ -453,11 +475,12 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
   const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
-    : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact, content);
+    : (fullResponse || STAGE_ONE_FALLBACK);
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
   let candidateResponse = keepCompleteAssistantOutput(condensedResponse);
   if (
-    prepared.decision === "knowledge_answer"
+    !providerAnswerGenerated
+    && prepared.decision === "knowledge_answer"
     && prepared.retrieved.length > 0
     && candidateResponse
     && !groundedFactMatchesQuestion(candidateResponse, content)

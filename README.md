@@ -18,7 +18,15 @@ Stage 1 deliberately does not include live customer account lookup, transaction 
 
 ## Run locally (Windows, macOS, Linux)
 
-Requirements: Node.js 20+, pnpm 10+, Docker Desktop running (for local PostgreSQL with pgvector).
+Requirements: Node.js 20+ (LTS recommended; Node 25 works), pnpm 10.28+, Docker Desktop running (for local PostgreSQL with pgvector).
+
+Install pnpm **without Corepack** (avoids signature errors on Windows and read-only errors on Render):
+
+```bash
+npm install -g pnpm@10.28.2
+# If `pnpm` still invokes Corepack, run once:
+corepack disable
+```
 
 ```bash
 cp .env.example .env

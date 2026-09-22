@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { knowledgeBackedFallback } from "../src/lib/knowledge-fallback";
 import { buildTopicRetrievalQueries } from "../src/lib/topic-retrieval";
-import { canonicalizeForRetrieval, isBrandOverviewQuestion, prepareCustomerQuestion } from "../src/lib/support-query";
+import { buildHumanizeMessages } from "../src/lib/answer-pipeline";
+import { canonicalizeForRetrieval, isBrandOverviewQuestion, isPureGreeting, prepareCustomerQuestion } from "../src/lib/support-query";
 
 const colloquialOverviewQuestions = [
   "tell me more about kamalo ?",
@@ -14,6 +15,22 @@ const colloquialOverviewQuestions = [
   "hi bro tell me about kamalo",
   "ok so what is kamalo app",
 ];
+
+test("recognizes Hinglish social greetings", () => {
+  for (const greeting of ["kaise ho", "kya haal hai", "namaste", "hi bro"]) {
+    assert.equal(isPureGreeting(greeting), true, greeting);
+  }
+});
+
+test("builds a two-stage humanization request from a factual draft", () => {
+  const messages = buildHumanizeMessages({
+    draftAnswer: "KAMALO prepaid cards and gift cards are wallet-related payment options covered by KAMALO product guidance.",
+    customerQuestion: "gift card kya hai yaar",
+    language: "en",
+  });
+  assert.match(messages.at(-1)?.content || "", /gift card kya hai/i);
+  assert.match(messages.at(-1)?.content || "", /prepaid cards and gift cards/i);
+});
 
 test("recognizes colloquial brand overview questions", () => {
   for (const question of colloquialOverviewQuestions) {
