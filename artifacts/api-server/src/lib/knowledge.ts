@@ -249,6 +249,19 @@ async function insertKnowledgeArticle(article: SeedArticle): Promise<void> {
   });
 }
 
+async function archiveLegacyGuruKnowledge(): Promise<void> {
+  const now = new Date();
+  await db.update(knowledgeArticlesTable)
+    .set({ status: "archived", effectiveUntil: now, updatedAt: now })
+    .where(and(
+      eq(knowledgeArticlesTable.status, "approved"),
+      or(
+        like(knowledgeArticlesTable.title, "Guru guidance /%"),
+        like(knowledgeArticlesTable.category, "Guru /%"),
+      ),
+    ));
+}
+
 export type KnowledgeTopicRow = {
   id: string;
   title: string;
@@ -354,6 +367,7 @@ async function readKnowledgeSource(filename: string): Promise<string> {
 }
 
 async function setupKnowledge(): Promise<void> {
+  await archiveLegacyGuruKnowledge();
   const existingRows = await db
     .select({ title: knowledgeArticlesTable.title })
     .from(knowledgeArticlesTable);
@@ -377,22 +391,6 @@ async function setupKnowledge(): Promise<void> {
     console.info(`Imported ${parseMasterKnowledge(source).length} KAMALO master knowledge articles.`);
     } catch (error) {
       console.warn(`KAMALO master knowledge file was not imported.`, error);
-    }
-  }
-
-  const guruMarker = "Guru guidance / 001 · 1. THE KAMALO GURU PHILOSOPHY / Overview";
-  if (!existingTitles.has(guruMarker)) {
-    try {
-      const source = await readKnowledgeSource(guruKnowledgeFilename);
-      const articles = parseGuruKnowledge(source);
-      for (const article of articles) {
-        if (existingTitles.has(article.title)) continue;
-        await insertKnowledgeArticle(article);
-        existingTitles.add(article.title);
-      }
-      console.info(`Imported ${articles.length} KAMALO Guru knowledge articles.`);
-    } catch (error) {
-      console.warn(`KAMALO Guru knowledge file was not imported.`, error);
     }
   }
 
@@ -431,9 +429,11 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
   const primaryTerms = new Set(tokenize(retrievalQuery));
   const primaryTopicTerms = [...primaryTerms].filter((term) => !retrievalBrandTerms.has(term));
   const normalizedQuery = tokenize(retrievalQuery).join(" ");
+  const isBrandOverviewQuery = /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(query.trim().replace(/[?!.,]+$/, "").trim());
 
   return articles
     .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
+    .filter((article) => !/^guru(?:\s+guidance)?\s*\/|founder-provided kamalo guru guidance/i.test(`${article.title}\n${article.category}\n${article.content}`))
     .map((article) => {
       const title = tokenize(article.title);
       const category = tokenize(article.category);
@@ -461,7 +461,7 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         + numericLevelBoost
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
-      const brandOverviewMatch = primaryTopicTerms.length === 0
+       const brandOverviewMatch = isBrandOverviewQuery
         && /\bwhat\s+is\s+kamalo\b/i.test(article.title);
       return { article, score, primaryTopicMatches, titleCategoryMatches, brandOverviewMatch };
     })

@@ -13,3 +13,4 @@
 - [Replit Expo preview networking](replit-expo-preview-networking.md) — Expo Go previews must advertise a reachable LAN/managed host, not localhost; optional DevTools native-library warnings do not stop Metro.
 - [KAMALO icon system](kamalo-icon-system.md) — keep web icons on Tabler’s grid and use a local Tabler-style SVG set in native Expo because browser fonts do not run there.
 - [Deployment health probes](deployment-health-probes.md) — API publication may probe `/` even when an explicit health path is configured.
+- [Knowledge corpus deactivation](knowledge-corpus-deactivation.md) — when source policy removes internal material, archive stale rows and stop re-importing them; retrieval filters alone are not enough.

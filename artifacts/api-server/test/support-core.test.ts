@@ -386,7 +386,7 @@ test("does not retrieve an unrelated article from the KAMALO brand name alone", 
 });
 
 test("keeps the supported KAMALO overview exception", () => {
-  const overview = rankKnowledgeArticles("What is KAMALO?", [{
+  const overview = rankKnowledgeArticles("What is KAMALO ?", [{
     id: "overview-fixture",
     title: "What is KAMALO?",
     category: "Product",
@@ -394,6 +394,32 @@ test("keeps the supported KAMALO overview exception", () => {
     version: 1,
   }]);
   assert.equal(overview.some((article) => article.title === "What is KAMALO?"), true);
+});
+
+test("keeps Guru material out of customer retrieval and answers the KAMALO overview directly", async () => {
+  const results = rankKnowledgeArticles("What is KAMALO app?", [
+    {
+      id: "overview-fixture",
+      title: "What is KAMALO?",
+      category: "Product",
+      content: "KAMALO is an ecosystem.",
+      version: 1,
+    },
+    {
+      id: "guru-fixture",
+      title: "Guru guidance / Asking KAMALO Guru",
+      category: "Guru / Growth",
+      content: "Founder-provided KAMALO Guru guidance. The user can tap ASK KAMALO GURU.",
+      version: 2,
+    },
+  ]);
+  assert.deepEqual(results.map((article) => article.id), ["overview-fixture"]);
+
+  const prepared = await prepareSupportRequest(testContext(), "What is KAMALO app?", false);
+  assert.equal(
+    preferGroundedFact("KAMALO is a customer support system with live engine data.", prepared.groundedFact, "What is KAMALO app?"),
+    "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.",
+  );
 });
 
 test("evaluates representative customer questions by approved knowledge topic", async () => {
@@ -840,6 +866,29 @@ test("rejects unsupported live and numeric provider claims at the route boundary
     const result = await streamResult(response);
     assert.doesNotMatch(result.content, /500 Coins|checked your current balance/i);
     assert.equal(result.content, "I don't have confirmed information about that in the KAMALO information available to me.");
+  } finally {
+    llmProvider.stream = originalStream;
+  }
+});
+
+test("uses the approved overview instead of a provider's wrong KAMALO definition", async () => {
+  const conversation = await createConversation(`${testPrefix} overview`);
+  const originalStream = llmProvider.stream;
+  llmProvider.stream = async function* () {
+    yield "KAMALO is a customer support system with live engine data and ASK KAMALO GURU.";
+  };
+  try {
+    const response = await request(`/api/conversations/${conversation.id}/messages`, {
+      method: "POST",
+      body: JSON.stringify({ content: "What is KAMALO app?" }),
+    });
+    assert.equal(response.status, 200);
+    const result = await streamResult(response);
+    assert.equal(
+      result.content,
+      "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.",
+    );
+    assert.doesNotMatch(result.content, /Guru|live engine|customer support system/i);
   } finally {
     llmProvider.stream = originalStream;
   }

@@ -420,7 +420,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   const draftFallback = prepared.groundedFact || (/\b(?:mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content) ? STAGE_ONE_FALLBACK : SAFE_ASSISTANT_ERROR);
   const preferredResponse = containsProviderDrafting(fullResponse)
     ? draftFallback
-    : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact);
+    : preferGroundedFact(fullResponse || STAGE_ONE_FALLBACK, prepared.groundedFact, content);
   const condensedResponse = condenseAssistantOutput(sanitizeAssistantOutput(preferredResponse));
   const candidateResponse = keepCompleteAssistantOutput(condensedResponse);
   // Validate numeric claims against article content only. Article titles carry

@@ -331,8 +331,14 @@ describe('useSpeechInput', () => {
     });
     await flushReact();
 
+    expect(view.speech.isTranscribing).toBe(false);
+    expect(view.speech.status).toBe('listening');
+    expect(view.speech.error).toContain('Recording locally');
+    expect(transcribeRecordedAudio).not.toHaveBeenCalled();
+
+    act(() => view.speech.stop());
+    await flushReact();
     expect(view.speech.isTranscribing).toBe(true);
-    expect(view.speech.error).toBe('Transcribing locally…');
     expect(transcribeRecordedAudio).toHaveBeenCalledWith(expect.any(Blob), lang);
 
     (globalThis as typeof globalThis & { resolveTranscript?: (value: string) => void }).resolveTranscript?.(
@@ -426,7 +432,11 @@ describe('useSpeechInput', () => {
     });
     await flushReact();
 
-    expect(onChange).toHaveBeenLastCalledWith('Existing question');
+    expect(onChange).toHaveBeenLastCalledWith('Existing question partial voice text');
+    expect(view.speech.status).toBe('listening');
+    expect(view.speech.isTranscribing).toBe(false);
+    act(() => view.speech.stop());
+    await flushReact();
     expect(view.speech.status).toBe('error');
     expect(view.speech.error).toContain('Local voice transcription could not finish');
     expect(view.speech.hasRetryableRecording).toBe(true);

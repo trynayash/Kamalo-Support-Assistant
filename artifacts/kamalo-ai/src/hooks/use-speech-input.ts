@@ -115,6 +115,8 @@ function joinTranscript(base: string, transcript: string): string {
   return `${normalizedBase} ${normalizedTranscript}`.trim().slice(0, 4000);
 }
 
+const LOCAL_TRANSCRIPTION_TIMEOUT_MS = 90_000;
+
 export function useSpeechInput({
   value,
   onChange,
@@ -276,9 +278,13 @@ export function useSpeechInput({
     setIsTranscribing(true);
     setStatus('listening');
     setError('Transcribing locally…');
+    let timeoutId: number | null = null;
     try {
       const { transcribeRecordedAudio } = await import('@/lib/local-speech-transcription');
-      const transcript = await transcribeRecordedAudio(blob, lang);
+      const timeout = new Promise<never>((_, reject) => {
+        timeoutId = window.setTimeout(() => reject(new Error('Local voice transcription timed out.')), LOCAL_TRANSCRIPTION_TIMEOUT_MS);
+      });
+      const transcript = await Promise.race([transcribeRecordedAudio(blob, lang), timeout]);
       if (!isMountedRef.current) return;
       if (!transcript) {
         if (baseText) onChange(baseText);
@@ -294,8 +300,9 @@ export function useSpeechInput({
       if (!isMountedRef.current) return;
       if (baseText) onChange(baseText);
       setStatus('error');
-      setError('Local voice transcription could not finish. Retry voice or type your question.');
+      setError('Local voice transcription could not finish. Your draft is still editable. Retry voice or type your question.');
     } finally {
+      if (timeoutId !== null) window.clearTimeout(timeoutId);
       if (isMountedRef.current) setIsTranscribing(false);
     }
   }, [clearRetryableRecording, lang, onChange]);
@@ -351,11 +358,25 @@ export function useSpeechInput({
     recognition.onerror = (event) => {
       if (event.error === 'aborted') return;
       // Browser speech recognition can fail with "network" even when the user's
-      // connection and microphone are healthy. Use the recorded audio instead of
-      // asking the user to retry against the same unavailable browser service.
+      // connection and microphone are healthy. Keep the local recorder running
+      // and wait for an explicit stop before transcribing the complete recording.
       if (canRecordLocally() && event.error !== 'not-allowed' && event.error !== 'permission-denied' && event.error !== 'audio-capture') {
-        setError('Browser voice recognition is unavailable. Transcribing locally…');
-        stopRecording(true);
+        localFallbackRef.current = true;
+        pauseRequestedRef.current = false;
+        const failedRecognition = recognitionRef.current;
+        recognitionRef.current = null;
+        if (failedRecognition) {
+          failedRecognition.onend = null;
+          failedRecognition.onerror = null;
+          failedRecognition.onresult = null;
+          try {
+            failedRecognition.abort();
+          } catch {
+            // The recognition service may already be ending after its error.
+          }
+        }
+        setStatus('listening');
+        setError('Browser voice recognition is unavailable. Recording locally — stop when you finish speaking.');
         return;
       }
       if (event.error === 'not-allowed' || event.error === 'permission-denied' || event.error === 'audio-capture') {

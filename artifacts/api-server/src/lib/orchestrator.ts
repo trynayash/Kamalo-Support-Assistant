@@ -90,6 +90,11 @@ const factAliases: Record<string, string[]> = {
 };
 
 const factStopWords = new Set(["a", "about", "and", "are", "can", "does", "for", "how", "i", "is", "it", "my", "of", "that", "the", "this", "what", "where", "why"]);
+const KAMALO_OVERVIEW_FACT = "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.";
+
+export function isBrandOverviewQuestion(content: string): boolean {
+  return /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(content.trim().replace(/[?!.,]+$/, ""));
+}
 
 function factTerms(content: string): string[] {
   const terms = new Set<string>();
@@ -128,6 +133,7 @@ function isKamaloAdjacentQuestion(content: string, history: ConversationHistoryM
 }
 
 function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string | null {
+  if (isBrandOverviewQuestion(content)) return KAMALO_OVERVIEW_FACT;
   const terms = factTerms(content);
   if (!terms.length) return null;
   const accountSpecific = isAccountSpecificQuestion(content);
@@ -159,7 +165,13 @@ function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string
   return best ? condenseAssistantOutput(best.sentence) : null;
 }
 
-export function preferGroundedFact(content: string, groundedFact: string | null): string {
+export function preferGroundedFact(content: string, groundedFact: string | null, question = content): string {
+  if (
+    groundedFact
+    && isBrandOverviewQuestion(question)
+  ) {
+    return groundedFact;
+  }
   if (
     groundedFact
     && (containsProviderDrafting(content) || /\b(?:i (?:do not|don't) have confirmed|approved guidance only covers|we need to answer|the primary article|use approved knowledge|final response contract)\b/i.test(content))
