@@ -406,7 +406,18 @@ export function HomePage() {
   const conversations = useMemo(() => conversationsQuery.data || [], [conversationsQuery.data]);
   const activeConversation = conversations.find((conversation) => conversation.id === selectedId);
   const loadedConversation = conversationQuery.data?.id === selectedId ? conversationQuery.data : null;
-  const messages = localMessages ?? loadedConversation?.messages ?? [];
+  const messages = useMemo(() => {
+    const raw = localMessages ?? loadedConversation?.messages ?? [];
+    const seen = new Set<string>();
+    const deduped: ChatMessage[] = [];
+    for (const msg of raw) {
+      if (!seen.has(msg.id)) {
+        seen.add(msg.id);
+        deduped.push(msg);
+      }
+    }
+    return deduped;
+  }, [localMessages, loadedConversation?.messages]);
   const conversationLoading = Boolean(selectedId)
     && localMessages === null
     && !isSending
@@ -492,7 +503,16 @@ export function HomePage() {
       const fingerprints = new Set(loadedConversation.messages.map((message) => `${message.role}:${message.content}`));
       const hasLocalOnly = current.some((message) => !fingerprints.has(`${message.role}:${message.content}`) && message.id.startsWith('local-'));
       if (hasLocalOnly && loadedConversation.messages.length === current.length) return current;
-      return loadedConversation.messages;
+      // Deduplicate by ID when adopting server messages to prevent duplicate-key warnings.
+      const seen = new Set<string>();
+      const deduped: ChatMessage[] = [];
+      for (const msg of loadedConversation.messages) {
+        if (!seen.has(msg.id)) {
+          seen.add(msg.id);
+          deduped.push(msg);
+        }
+      }
+      return deduped;
     });
   }, [loadedConversation, selectedId, isSending]);
 
