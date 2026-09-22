@@ -109,7 +109,8 @@ export function detectQuestionIntents(content: string): QuestionIntent[] {
   if (/\b(?:expir|expire|expiry|fifo|validity|when.*expire)\b/i.test(lower)) intents.push("expire");
   if (/\b(?:redeem|redemption|use coins|spend coins|convert coins)\b/i.test(lower)) intents.push("redeem");
   if (/\b(?:what\s+is|what\s+are|tell me|explain|mean|work)\b/i.test(lower)
-    && !/\b(?:earn|get|expir|redeem|fail|refund|offer|offers|deal|deals|gift|prepaid|booster|wallet|payment|transaction|referral|silver|gold|fincado|otp|notification)\b/i.test(lower)) {
+    && !/\b(?:earn|get|expir|redeem|fail|refund|offer|offers|deal|deals|gift|prepaid|booster|wallet|payment|transaction|referral|silver|gold|fincado|otp|notification|things you can do|what can you|capabilities|ecosystem according)\b/i.test(lower)
+    && /\b(?:coin|coins|reward|rewards|silver|gold|fincado|booster|referral|kamalo|wallet|prepaid|gift)\b/i.test(lower)) {
     intents.push("meaning");
   }
   if (/\b(?:payment|transaction|paymant|txn|paisa|paise).*\b(?:fail|failed|declin|reject|not work|didnt work|unsuccessful|nahi hua|nahi ho|deducted|kat gaya)\b/i.test(lower)
@@ -140,7 +141,7 @@ export function detectQuestionIntents(content: string): QuestionIntent[] {
   if (/\b(?:merchant|seller|shop|settlement|store offer)\b/i.test(lower)) intents.push("merchant");
   if (/\b(?:guru|kamalo guru)\b/i.test(lower)) intents.push("guru");
 
-  return intents.length ? [...new Set(intents)] : ["meaning"];
+  return [...new Set(intents)];
 }
 
 export function retrievalQueriesForQuestion(content: string): string[] {
@@ -300,9 +301,21 @@ function approvedSentences(content: string): string[] {
     .filter((sentence) => !internalKnowledgePattern.test(sentence));
 }
 
+function termsOverlap(questionTerms: string[], candidateTerms: string[]): number {
+  return questionTerms.filter((term) => candidateTerms.includes(term)).length;
+}
+
 export function groundedFactMatchesQuestion(fact: string, question: string): boolean {
   const intents = detectQuestionIntents(question);
-  if (sentenceIntentScore(fact, intents) < 0) return false;
+  if (!intents.length) return false;
+  if (sentenceIntentScore(fact, intents) <= 0) return false;
+
+  const questionTerms = factTerms(normalizeSupportQuestion(question));
+  const factTermsList = factTerms(fact);
+  if (questionTerms.length > 0 && termsOverlap(questionTerms, factTermsList) === 0) {
+    // Allow overview facts for overview questions even when wording differs slightly.
+    if (!(intents.includes("overview") && sentenceIntentScore(fact, ["overview"]) > 0)) return false;
+  }
 
   for (const rule of intentConflictRules) {
     if (!rule.intents.some((intent) => intents.includes(intent))) continue;
@@ -320,6 +333,8 @@ export function selectGroundedAnswer(
   preferredFact: string | null = null,
 ): string | null {
   const intents = detectQuestionIntents(question);
+  if (!intents.length) return null;
+
   const terms = factTerms(normalizeSupportQuestion(question));
 
   if (preferredFact && groundedFactMatchesQuestion(preferredFact, question)) {
@@ -332,18 +347,18 @@ export function selectGroundedAnswer(
     const titleTerms = factTerms(article.title);
     return approvedSentences(safeContent).map((sentence) => {
       const sentenceTerms = factTerms(sentence);
-      const overlap = terms.filter((term) => sentenceTerms.some((item) => item.includes(term) || term.includes(item))).length;
-      const titleMatch = terms.filter((term) => titleTerms.some((item) => item.includes(term) || term.includes(item))).length;
+      const overlap = termsOverlap(terms, sentenceTerms);
+      const titleMatch = termsOverlap(terms, titleTerms);
       const intentScore = sentenceIntentScore(sentence, intents);
       const titleScore = titleIntentScore(article.title, intents);
       const numericBoost = intents.includes("expire") && /\b\d+\s*[- ]?(?:month|months|day|days)\b/i.test(sentence) ? 8 : 0;
-      const score = (overlap * 3) + (titleMatch * 2) + intentScore + titleScore + numericBoost;
-      return { sentence, score, articleTitle: article.title };
+      const score = (overlap * 6) + (titleMatch * 4) + intentScore + titleScore + numericBoost;
+      return { sentence, score, overlap, titleMatch, intentScore, articleTitle: article.title };
     });
   });
 
   const ranked = candidates
-    .filter((candidate) => candidate.score > 0)
+    .filter((candidate) => candidate.score > 12 && (candidate.overlap > 0 || candidate.titleMatch > 0 || candidate.intentScore >= 24))
     .sort((a, b) => b.score - a.score || a.sentence.length - b.sentence.length);
 
   if (!ranked.length) return null;
@@ -353,7 +368,7 @@ export function selectGroundedAnswer(
     candidate.articleTitle === best.articleTitle
     && candidate.sentence !== best.sentence
     && candidate.score >= best.score - 8
-    && sentenceIntentScore(candidate.sentence, intents) >= 0,
+    && sentenceIntentScore(candidate.sentence, intents) > 0,
   );
 
   const combined = companion ? `${best.sentence} ${companion.sentence}` : best.sentence;

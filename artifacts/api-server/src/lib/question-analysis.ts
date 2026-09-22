@@ -49,6 +49,12 @@ function heuristicAnalysis(content: string, history: ConversationHistoryMessage[
     questionType = "account_specific";
   } else if (/\b(that|it|this|same|previous)\b/i.test(normalized) && history.length) {
     questionType = "follow_up";
+  } else if (
+    /\b[\w-]+\.kamalo\.(?:app|com|in|net|io|org)\b/i.test(normalized)
+    && !/\b(?:coin|coins|silver|gold|fincado|payment|transaction|refund|referral|wallet|otp|merchant|offer|booster)\b/i.test(normalized)
+  ) {
+    // Unknown KAMALO subdomains are not brand overview and have no approved article yet.
+    questionType = "out_of_scope";
   } else if (!/\bkamalo\b/i.test(`${normalized}\n${recentUserContext}`) &&
     !/\b(?:coin|coins|silver|gold|fincado|payment|transaction|refund|referral|commission|wallet|otp|merchant)\b/i.test(normalized)) {
     questionType = "out_of_scope";

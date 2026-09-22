@@ -144,6 +144,16 @@ test("detects intents from angry Hinglish payment and OTP questions", () => {
   assert.ok(detectQuestionIntents("paisa wapas kab milega").includes("refund"));
 });
 
+test("does not invent Coins answers for vague or non-product messages", () => {
+  assert.deepEqual(detectQuestionIntents("okayy"), []);
+  assert.deepEqual(detectQuestionIntents("What is an ecosystem according to you?"), []);
+  assert.equal(selectGroundedAnswer("okayy", [earnArticle, expiryArticle], null), null);
+  assert.equal(
+    selectGroundedAnswer("What is an ecosystem according to you?", [earnArticle, expiryArticle], "1 Coin is equal to 1 paisa."),
+    null,
+  );
+});
+
 test("routes gift card questions to prepaid guidance, not reconciliation", () => {
   assert.ok(detectQuestionIntents("kamalo gift cards what are they").includes("gift_card"));
   assert.ok(retrievalQueriesForQuestion("kamalo gift cards what are they").includes("Wallet prepaid card"));

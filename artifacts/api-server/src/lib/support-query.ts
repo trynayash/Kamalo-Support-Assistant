@@ -5,7 +5,7 @@ export type ConversationHistoryMessage = {
 
 const greetingPrefixPattern = /^(?:hi+|hello+|hey+|hii+|helo+|thanks|thank you|good morning|good afternoon|good evening|namaste|namaskar|नमस्ते|नमस्कार|yo|sup)[,!.?\s]+/i;
 
-const conversationalFillerPattern = /\b(?:please|pls|plz|kindly|um+|uh+|like|just|actually|basically|ok(?:ay)?|so|well|listen|bro|sir|madam|ma'am|dear|kindly|thanks|thank you|abe|arre|yaar|bhai|matlab|dekh|sun|sunno|batao|bata|jaldi|abhi)\b/gi;
+const conversationalFillerPattern = /\b(?:please|pls|plz|kindly|um+|uh+|like|just|actually|basically|ok(?:a+y+)?|so|well|listen|bro|sir|madam|ma'am|dear|kindly|thanks|thank you|abe|arre|yaar|bhai|matlab|dekh|sun|sunno|batao|bata|jaldi|abhi)\b/gi;
 
 /** Angry / frustrated filler — stripped before intent detection; product words are kept. */
 const emotionalFillerPattern = /\b(?:what the (?:hell|heck|fuck)|wtf|ffs|damn it|fix this now|answer me now|tell me now|this is (?:bullshit|bs|nonsense|ridiculous|worst|useless|terrible|bakwas|bakwaas|bekar|ghatiya)|worst app|useless app|fed up|sick of|bar bar|kitni baar|again and again|bloody|stupid app|cheating|dhokha|scam app|you guys suck|kya bakwas|kya bakwaas|bakwas hai|bekar hai|ghatiya app)\b/gi;
@@ -72,7 +72,31 @@ export function prepareCustomerQuestion(content: string): string {
   return expandHinglishWording(normalizeSupportQuestion(content));
 }
 
+/** Short acknowledgments that should not trigger knowledge grounding. */
+export function isAcknowledgment(content: string): boolean {
+  const normalized = content
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[?!.,]+$/g, "")
+    .trim();
+  return /^(?:ok(?:a+y+)?|k|kk|got it|alright|all right|cool|nice|great|thanks|thank you|thx|ty|sure|done|noted|understood|samajh gaya|theek hai|thik hai|acha|accha)[!. ]*$/i.test(normalized);
+}
+
+/** Capability / “what can you do” questions, including paraphrases with preamble. */
+export function isCapabilityQuestion(content: string): boolean {
+  const normalized = content
+    .normalize("NFKC")
+    .replace(/\s+/g, " ")
+    .trim()
+    .replace(/[?!.,]+$/g, "")
+    .trim();
+  return /\b(?:what (?:can|do) you do|what are (?:the )?(?:things|capabilities) you can do|what are your (?:capabilities|features)|how can you help(?: me)?|what (?:help|support) can you (?:give|provide))\b/i.test(normalized)
+    && !brandOverviewTopicPattern.test(normalized);
+}
+
 export function isPureGreeting(content: string): boolean {
+  if (isAcknowledgment(content) || isCapabilityQuestion(content)) return true;
   const normalized = content
     .normalize("NFKC")
     .replace(/\s+/g, " ")
@@ -93,7 +117,9 @@ export function isBrandOverviewQuestion(content: string): boolean {
 
   if (/^kamalo(?:\s+app)?$/i.test(lower)) return true;
 
-  if (!/\bkamalo\b/i.test(lower)) return false;
+  // Hostnames like sms.kamalo.app contain "kamalo" but are not brand-overview questions.
+  const withoutHostnames = lower.replace(/\b[\w-]+\.kamalo\.(?:app|com|in|net|io|org)\b/gi, " ").replace(/\s+/g, " ").trim();
+  if (!/\bkamalo\b/i.test(withoutHostnames)) return false;
 
   if (/\b(?:want to know|wanna know|need to know|curious about|help me understand)\b/i.test(lower)) {
     return true;

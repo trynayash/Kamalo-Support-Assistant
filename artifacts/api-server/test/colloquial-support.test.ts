@@ -115,6 +115,19 @@ test("maps twisted wording to stable topic retrieval queries", () => {
   }
 });
 
+test("treats acknowledgments and capability paraphrases as greetings", () => {
+  for (const message of ["okayy", "ok", "got it", "theek hai"]) {
+    assert.equal(isPureGreeting(message), true, message);
+  }
+  assert.equal(isPureGreeting("They are a good chatbot, what are the things you can do?"), true);
+  assert.equal(isPureGreeting("what can you do"), true);
+});
+
+test("does not treat kamalo hostnames as brand overview", () => {
+  assert.equal(isBrandOverviewQuestion("what is sms.kamalo.app?"), false);
+  assert.equal(isBrandOverviewQuestion("what is kamalo"), true);
+});
+
 test("detects compound customer messages with multiple questions", () => {
   const compound = "What is Kamalo? Tell me about Kamalo and how we can earn coins through Kamalo.";
   const shape = analyzeQuestionShape(compound);

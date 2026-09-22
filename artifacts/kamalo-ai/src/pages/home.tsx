@@ -487,8 +487,12 @@ export function HomePage() {
     if (!loadedConversation || isSending || loadedConversation.id !== selectedId) return;
     setLocalMessages((current) => {
       if (!current) return loadedConversation.messages;
-      if (loadedConversation.messages.length >= current.length) return loadedConversation.messages;
-      return current;
+      // Prefer server messages once they catch up, but never flash an older shorter transcript.
+      if (loadedConversation.messages.length < current.length) return current;
+      const fingerprints = new Set(loadedConversation.messages.map((message) => `${message.role}:${message.content}`));
+      const hasLocalOnly = current.some((message) => !fingerprints.has(`${message.role}:${message.content}`) && message.id.startsWith('local-'));
+      if (hasLocalOnly && loadedConversation.messages.length === current.length) return current;
+      return loadedConversation.messages;
     });
   }, [loadedConversation, selectedId, isSending]);
 
@@ -613,13 +617,25 @@ export function HomePage() {
       setStreamingText('');
       const response = await streamAssistantResponse(conversationId, content, setStreamingText, uploadedImage?.id, mode, preferredLanguage);
       const assistantMessage: ChatMessage = { id: response.messageId || `local-assistant-${Date.now()}`, conversationId, role: 'assistant', content: response.content || 'I could not find a grounded answer for that yet.', createdAt: new Date().toISOString(), feedback: null, attachments: [] };
-      setLocalMessages((current) => [...(current ?? []), assistantMessage]);
+      // Finish streaming UI before committing the final bubble so the same answer is not shown twice.
+      setStreamingText('');
+      setIsSending(false);
+      setLocalMessages((current) => {
+        const base = current ?? [];
+        if (base.some((item) => item.id === assistantMessage.id || (item.role === 'assistant' && item.content === assistantMessage.content))) {
+          return base.map((item) => (item.role === 'assistant' && item.content === assistantMessage.content ? { ...item, id: assistantMessage.id } : item));
+        }
+        return [...base, assistantMessage];
+      });
       if (response.outcome) setResponseOutcomes((current) => ({ ...current, [assistantMessage.id]: response.outcome as AssistantResponseOutcome }));
       queryClient.setQueryData(getGetConversationQueryKey(conversationId), (current) => {
         if (!current || current.id !== conversationId) return current;
         const merged = [...current.messages];
+        const sameContent = (a: ChatMessage, b: ChatMessage) => a.role === b.role && a.content === b.content;
         for (const message of [userMessage, assistantMessage]) {
-          if (!merged.some((item) => item.id === message.id)) merged.push(message);
+          const existingIndex = merged.findIndex((item) => item.id === message.id || sameContent(item, message));
+          if (existingIndex >= 0) merged[existingIndex] = { ...merged[existingIndex], ...message, id: merged[existingIndex].id.startsWith('local-') ? message.id : merged[existingIndex].id };
+          else merged.push(message);
         }
         return { ...current, messages: merged, updatedAt: assistantMessage.createdAt };
       });

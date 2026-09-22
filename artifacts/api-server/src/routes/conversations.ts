@@ -19,11 +19,12 @@ import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
 import { condenseAssistantOutput, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput, sanitizeKnowledgeForProvider } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
-import { groundedFactMatchesQuestion, selectGroundedAnswer } from "../lib/intent-grounding";
+import { groundedFactMatchesQuestion, detectQuestionIntents, selectGroundedAnswer } from "../lib/intent-grounding";
 import { knowledgeBackedFallback } from "../lib/knowledge-fallback";
 import { humanizeKnowledgeAnswer } from "../lib/answer-pipeline";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
+import { isAcknowledgment, isCapabilityQuestion } from "../lib/support-query";
 
 const router: IRouter = Router();
 const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
@@ -388,7 +389,13 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       fullResponse = PROMPT_EXTRACTION_RESPONSE;
       responseOutcome = "prompt_extraction";
     } else if (prepared.decision === "greeting") {
-      fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
+      if (isCapabilityQuestion(content)) {
+        fullResponse = "I explain KAMALO products, Coins, payments, offers, referrals, and related support topics from approved KAMALO knowledge. Ask me about any of those.";
+      } else if (isAcknowledgment(content)) {
+        fullResponse = "Got it. What would you like to know about KAMALO next?";
+      } else {
+        fullResponse = "Hi! I'm KAMALO AI. How can I help you understand KAMALO?";
+      }
       responseOutcome = "greeting";
     } else if (prepared.decision === "retrieval_error") {
       fullResponse = SAFE_ASSISTANT_ERROR;
@@ -415,10 +422,12 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       providerAnswerGenerated = true;
 
       draftAnswer = preferGroundedFact(draftAnswer, prepared.groundedFact, content, prepared.questionShape.isCompound);
+      const questionIntents = detectQuestionIntents(content);
       if (
         !prepared.questionShape.isCompound
         && prepared.decision === "knowledge_answer"
         && prepared.retrieved.length > 0
+        && questionIntents.length > 0
         && !groundedFactMatchesQuestion(draftAnswer, content)
       ) {
         const intentCorrected = selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact);
@@ -517,7 +526,9 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       : prepared.questionShape.isCompound
         ? keepCompleteAssistantOutput(candidateResponse || STAGE_ONE_FALLBACK)
         : keepCompleteAssistantOutput(
-          selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact) || prepared.groundedFact || STAGE_ONE_FALLBACK,
+          selectGroundedAnswer(content, prepared.retrieved, prepared.groundedFact)
+            || (detectQuestionIntents(content).length ? prepared.groundedFact : null)
+            || STAGE_ONE_FALLBACK,
         );
   if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
   if (clientClosed) {
