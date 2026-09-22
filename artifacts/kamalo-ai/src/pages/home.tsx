@@ -25,7 +25,7 @@ import { useSpeechInput } from '@/hooks/use-speech-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
-const UNKNOWN_RESPONSE = "I don't have confirmed information about that in the KAMALO information available to me.";
+const UNKNOWN_RESPONSE = "I am not able to confirm that from the KAMALO knowledge I have right now. Please raise a ticket so our team can review your query and get back to you.";
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const quickPrompts = [
@@ -200,8 +200,8 @@ function MessageBubble({ message, onFeedback, onCopy, onRetry, onRaiseTicket }: 
             <div className="flex items-start gap-2.5">
               <HiOutlineLifebuoy size={16} className="mt-0.5 shrink-0 text-primary" />
               <div className="min-w-0">
-                 <p className="text-[11px] font-bold text-foreground">I don’t have confirmed knowledge for this yet.</p>
-                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Raise a ticket and our support team will review your query and get back to you with a resolution.</p>
+                 <p className="text-[11px] font-bold text-foreground">I can’t confirm that from KAMALO knowledge yet.</p>
+                  <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Raise a ticket and our support team will review your query and get back to you.</p>
                 <button type="button" onClick={onRaiseTicket} className="mt-2.5 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[11px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5" data-testid={`button-raise-ticket-${message.id}`}><HiOutlineLifebuoy size={13} />Raise a ticket</button>
               </div>
             </div>
@@ -837,7 +837,7 @@ export function HomePage() {
               </div>
             ) : (
                  <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
-                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} onRaiseTicket={message.role === 'assistant' && (responseOutcomes[message.id] === 'unknown' || message.content === UNKNOWN_RESPONSE) ? () => openEscalation(message) : undefined} />)}
+                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} onRaiseTicket={message.role === 'assistant' && (responseOutcomes[message.id] === 'unknown' || message.content === UNKNOWN_RESPONSE || /raise a ticket/i.test(message.content)) ? () => openEscalation(message) : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
               </div>

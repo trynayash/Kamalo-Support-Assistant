@@ -53,8 +53,8 @@ function heuristicAnalysis(content: string, history: ConversationHistoryMessage[
     /\b[\w-]+\.kamalo\.(?:app|com|in|net|io|org)\b/i.test(normalized)
     && !/\b(?:coin|coins|silver|gold|fincado|payment|transaction|refund|referral|wallet|otp|merchant|offer|booster)\b/i.test(normalized)
   ) {
-    // Unknown KAMALO subdomains are not brand overview and have no approved article yet.
-    questionType = "out_of_scope";
+    // Unknown subdomain / feature URL — treat as KAMALO-adjacent unknown (escalate), not email-only out of scope.
+    questionType = "general";
   } else if (!/\bkamalo\b/i.test(`${normalized}\n${recentUserContext}`) &&
     !/\b(?:coin|coins|silver|gold|fincado|payment|transaction|refund|referral|commission|wallet|otp|merchant)\b/i.test(normalized)) {
     questionType = "out_of_scope";

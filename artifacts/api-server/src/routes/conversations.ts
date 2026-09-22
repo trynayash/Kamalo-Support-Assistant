@@ -25,10 +25,10 @@ import { humanizeKnowledgeAnswer } from "../lib/answer-pipeline";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
 import { recordSupportEvent } from "../lib/observability";
 import { isAcknowledgment, isCapabilityQuestion } from "../lib/support-query";
+import { isUnknownKamaloResponse, OUT_OF_SCOPE_RESPONSE, UNKNOWN_KAMALO_RESPONSE } from "../lib/support-responses";
 
 const router: IRouter = Router();
-const STAGE_ONE_FALLBACK = "I don't have confirmed information about that in the KAMALO information available to me.";
-const OUT_OF_SCOPE_RESPONSE = "Sorry, please email info@kamalo.app.";
+const STAGE_ONE_FALLBACK = UNKNOWN_KAMALO_RESPONSE;
 const IMAGE_NOT_SUPPORTED_RESPONSE = "Images are saved with your message, but this chat cannot interpret image content yet.";
 type AssistantResponseOutcome = "complete" | "unknown" | "out_of_scope" | "provider_error" | "knowledge_error" | "grounding_fallback" | "image_only" | "prompt_extraction" | "greeting";
 function dateString(value: Date): string {
@@ -434,15 +434,20 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
       }
 
       try {
-        fullResponse = await humanizeKnowledgeAnswer({
-          draftAnswer,
-          customerQuestion: content,
-          language: body.data.language || "en",
-          isCompound: prepared.questionShape.isCompound,
-          estimatedParts: prepared.questionShape.estimatedParts,
-          requestId: supportContext.requestId,
-          signal: abortController.signal,
-        });
+        if (isUnknownKamaloResponse(draftAnswer)) {
+          fullResponse = STAGE_ONE_FALLBACK;
+          responseOutcome = "unknown";
+        } else {
+          fullResponse = await humanizeKnowledgeAnswer({
+            draftAnswer,
+            customerQuestion: content,
+            language: body.data.language || "en",
+            isCompound: prepared.questionShape.isCompound,
+            estimatedParts: prepared.questionShape.estimatedParts,
+            requestId: supportContext.requestId,
+            signal: abortController.signal,
+          });
+        }
       } catch (humanizeError) {
         req.log.warn({ err: humanizeError, requestId: supportContext.requestId }, "Humanization failed; using factual draft");
         fullResponse = draftAnswer;
@@ -532,6 +537,10 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
               || STAGE_ONE_FALLBACK,
           );
   if (!fullResponse) fullResponse = STAGE_ONE_FALLBACK;
+  if (isUnknownKamaloResponse(fullResponse)) {
+    fullResponse = STAGE_ONE_FALLBACK;
+    responseOutcome = "unknown";
+  }
   if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
     res.removeListener("close", onClientClosed);

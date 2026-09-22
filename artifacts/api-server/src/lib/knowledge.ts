@@ -2,7 +2,7 @@ import { and, asc, eq, gt, isNull, lte, like, or } from "drizzle-orm";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
-import { containsInstructionInjection } from "./safety";
+import { containsInstructionInjection, sanitizeKnowledgeForProvider } from "./safety";
 import { canonicalizeForRetrieval, isBrandOverviewQuestion, normalizeSupportQuestion } from "./support-query";
 
 type SeedArticle = {
@@ -262,7 +262,8 @@ function parseGuruKnowledge(source: string): SeedArticle[] {
 
   return articles.map((article, index) => ({
     ...article,
-    title: `Guru guidance / ${String(index + 1).padStart(3, "0")} · ${article.title}`,
+    title: `Stage 1 Guru / ${String(index + 1).padStart(3, "0")} · ${article.title.replace(/^Guru guidance \/\s*/i, "")}`,
+    category: article.category.replace(/^Guru \//i, "Stage 1 Guru /"),
   }));
 }
 
@@ -403,6 +404,7 @@ async function readKnowledgeSource(filename: string): Promise<string> {
 }
 
 async function setupKnowledge(): Promise<void> {
+  // Legacy Guru rows used live-check wording; keep those archived.
   await archiveLegacyGuruKnowledge();
   const existingRows = await db
     .select({ title: knowledgeArticlesTable.title })
@@ -419,14 +421,38 @@ async function setupKnowledge(): Promise<void> {
   if (!existingTitles.has(masterMarker)) {
     try {
       const source = await readKnowledgeSource(masterKnowledgeFilename);
-    for (const article of parseMasterKnowledge(source)) {
-      if (existingTitles.has(article.title)) continue;
-      await insertKnowledgeArticle(article);
-      existingTitles.add(article.title);
-    }
-    console.info(`Imported ${parseMasterKnowledge(source).length} KAMALO master knowledge articles.`);
+      const masterArticles = parseMasterKnowledge(source);
+      for (const article of masterArticles) {
+        if (existingTitles.has(article.title)) continue;
+        await insertKnowledgeArticle(article);
+        existingTitles.add(article.title);
+      }
+      console.info(`Imported ${masterArticles.length} KAMALO master knowledge articles.`);
     } catch (error) {
       console.warn(`KAMALO master knowledge file was not imported.`, error);
+    }
+  }
+
+  const hasStageOneGuru = [...existingTitles].some((title) => title.startsWith("Stage 1 Guru /"));
+  if (!hasStageOneGuru) {
+    try {
+      const source = await readKnowledgeSource(guruKnowledgeFilename);
+      const guruArticles = parseGuruKnowledge(source);
+      let imported = 0;
+      for (const article of guruArticles) {
+        if (existingTitles.has(article.title)) continue;
+        const safeContent = sanitizeKnowledgeForProvider(article.content);
+        if (safeContent.length < 48) continue;
+        if (/\blet me check\b|\bi['’]?ve started checking\b|\bi understand\.\s*your payment\b/i.test(safeContent) && safeContent.length < 160) {
+          continue;
+        }
+        await insertKnowledgeArticle({ ...article, content: article.content });
+        existingTitles.add(article.title);
+        imported += 1;
+      }
+      console.info(`Imported ${imported} Stage 1 Guru knowledge articles.`);
+    } catch (error) {
+      console.warn(`KAMALO Guru knowledge file was not imported.`, error);
     }
   }
 
@@ -497,7 +523,7 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
 
   return articles
     .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
-    .filter((article) => !/^guru(?:\s+guidance)?\s*\/|founder-provided kamalo guru guidance/i.test(`${article.title}\n${article.category}\n${article.content}`))
+    .filter((article) => !/^guru guidance\s*\//i.test(article.title) && !/^guru\s*\//i.test(article.category))
     .filter((article) => !isPersonalizedKnowledgeArticle(article))
     .map((article) => {
       const title = tokenize(article.title);

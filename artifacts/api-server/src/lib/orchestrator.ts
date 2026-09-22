@@ -257,7 +257,7 @@ export async function prepareSupportRequest(
             ...history.slice(-2).map((message) => ({ ...message, content: sanitizeProviderText(message.content) })),
           ]
         : []),
-      { role: "system", content: "Stage 1 output contract: return only the factual draft answer from approved knowledge. Do not simplify wording yet — a separate humanization step handles customer-facing language." },
+      { role: "system", content: "Stage 1 output contract: return only the factual draft answer from approved knowledge. Synthesize from the articles above. If knowledge is missing for a KAMALO feature question, use the exact unknown/escalate line from the system rules. Do not simplify wording yet — a separate humanization step handles customer-facing language." },
       { role: "user", content: sanitizeProviderText(content) },
     ],
   };
