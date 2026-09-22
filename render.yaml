@@ -1,0 +1,42 @@
+# Render Blueprint: one web service serves the API and built web UI.
+# Create a PostgreSQL database on Render, then set the secret env vars below.
+
+# Optional: use Supabase instead of Render Postgres — create the Supabase project,
+# import supabase/kamalo-development.sql, then set DATABASE_URL manually and
+# remove/ignore the databases block below.
+
+services:
+  - type: web
+    name: kamalo
+    runtime: node
+    plan: free
+    buildCommand: >-
+      corepack enable &&
+      corepack prepare pnpm@10.28.2 --activate &&
+      pnpm install --frozen-lockfile &&
+      pnpm run build:production
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STATIC_DIR
+        value: artifacts/kamalo-ai/dist/public
+      - key: BASE_PATH
+        value: /
+      - key: DATABASE_URL
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_ANSWER_MODEL
+        value: openrouter/free
+      - key: OPENROUTER_ROUTING_MODEL
+        value: openrouter/free
+      - key: GROQ_API_KEY
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: KAMALO_FEEDBACK_EMAIL
+        sync: false

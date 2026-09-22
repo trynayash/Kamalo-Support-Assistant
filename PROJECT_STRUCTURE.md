@@ -52,8 +52,7 @@ using the new endpoint in either frontend.
 attached_assets/       # Approved uploaded/source assets shared by artifacts
 scripts/                # Workspace build, validation, and maintenance scripts
 vendor-handoff/         # Portable vendor handoff documentation and assets
-.local/                 # Replit-provided skills and local project tooling
-.agents/                # Agent memory and workspace-local agent metadata
+.local/                 # Optional local tooling (not required for deploy)
 ```
 
 Important root files:
@@ -61,19 +60,17 @@ Important root files:
 - `pnpm-workspace.yaml` defines workspace packages, catalogs, and package-age
   protections.
 - `package.json` and `pnpm-lock.yaml` define the workspace toolchain.
-- `.replit` defines Nix runtime libraries and workspace-level settings.
-- Each artifact's `.replit-artifact/artifact.toml` defines its preview route,
-  workflow, and service boundary.
+- `render.yaml` defines the Render production blueprint.
+- `docker-compose.yml` runs local PostgreSQL with pgvector.
 
 ## Development commands
 
-Run the managed workflows from the Replit workspace:
+From the repo root:
 
-```text
-artifacts/kamalo-ai: web
-artifacts/api-server: API Server
-artifacts/kamalo-mobile: expo
-artifacts/mockup-sandbox: Component Preview Server
+```bash
+pnpm run dev:db      # local PostgreSQL (Docker)
+pnpm run setup:local
+pnpm run dev         # API + web UI
 ```
 
 Useful package checks:

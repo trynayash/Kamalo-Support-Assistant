@@ -1,8 +1,11 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import path from "node:path";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+
+const staticDir = process.env.STATIC_DIR?.trim();
 
 const app: Express = express();
 
@@ -26,6 +29,7 @@ app.use(
   }),
 );
 app.use(cors({ credentials: true, origin: true }));
+app.use("/api/transcribe", express.json({ limit: "16mb" }));
 app.use(express.json({ limit: "64kb" }));
 app.use(express.urlencoded({ extended: true }));
 
@@ -48,15 +52,25 @@ app.use((req, res, next) => {
   next();
 });
 
-app.get("/", (_req, res) => {
-  res.json({ status: "ok" });
-});
+if (!staticDir) {
+  app.get("/", (_req, res) => {
+    res.json({ status: "ok" });
+  });
+}
 
 app.use("/api", router);
 
 app.use("/api", (_req, res) => {
   res.status(404).json({ error: "The requested resource was not found." });
 });
+
+if (staticDir) {
+  const publicDir = path.resolve(staticDir);
+  app.use(express.static(publicDir, { index: false }));
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => {
+    res.sendFile(path.join(publicDir, "index.html"));
+  });
+}
 
 app.use((error: unknown, req: express.Request, res: express.Response, next: express.NextFunction) => {
   req.log.error({ err: error }, "Unhandled API error");

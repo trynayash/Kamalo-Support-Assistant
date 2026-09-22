@@ -23,6 +23,16 @@ export type KnowledgeEvaluationFixture = {
  */
 export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
   {
+    topic: "brand overview",
+    query: "tell me more about kamalo",
+    expectedTitle: "What is KAMALO?",
+  },
+  {
+    topic: "brand overview",
+    query: "what kamalo do",
+    expectedTitle: "What is KAMALO?",
+  },
+  {
     topic: "registration",
     query: "I cannot signup for KAMALO",
     expectedTitle: `I can't register.`,

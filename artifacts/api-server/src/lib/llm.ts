@@ -5,7 +5,9 @@ export type LLMMessage = {
 
 export type LLMRequest = {
   messages: LLMMessage[];
+  model?: string;
   temperature?: number;
+  maxTokens?: number;
   requestId?: string;
   signal?: AbortSignal;
 };
@@ -20,7 +22,16 @@ export interface LLMProvider {
 export const OPENROUTER_MODEL = "openrouter/free";
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const OPENROUTER_TIMEOUT_MS = 45_000;
+const OPENROUTER_ROUTING_TIMEOUT_MS = 20_000;
 const MAX_RETRIES = 2;
+
+export function getRoutingModel(): string {
+  return process.env.OPENROUTER_ROUTING_MODEL?.trim() || OPENROUTER_MODEL;
+}
+
+export function getAnswerModel(): string {
+  return process.env.OPENROUTER_ANSWER_MODEL?.trim() || OPENROUTER_MODEL;
+}
 
 export class OpenRouterError extends Error {
   constructor(
@@ -44,10 +55,10 @@ function getOpenRouterKey(): string {
 
 function requestBody(request: LLMRequest, stream: boolean) {
   return {
-    model: OPENROUTER_MODEL,
+    model: request.model ?? getAnswerModel(),
     messages: request.messages,
     temperature: request.temperature ?? 0.1,
-    max_tokens: 512,
+    max_tokens: request.maxTokens ?? 512,
     stream,
   };
 }
@@ -77,8 +88,8 @@ async function responseError(response: Response): Promise<OpenRouterError> {
   );
 }
 
-function requestSignal(externalSignal?: AbortSignal): AbortSignal {
-  const timeoutSignal = AbortSignal.timeout(OPENROUTER_TIMEOUT_MS);
+function requestSignal(externalSignal?: AbortSignal, timeoutMs = OPENROUTER_TIMEOUT_MS): AbortSignal {
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
   return externalSignal ? AbortSignal.any([externalSignal, timeoutSignal]) : timeoutSignal;
 }
 
@@ -90,6 +101,7 @@ function isAbortLikeError(error: unknown): boolean {
 async function fetchWithRetry(request: LLMRequest, stream: boolean): Promise<Response> {
   const key = getOpenRouterKey();
   let lastError: unknown;
+  const timeoutMs = stream ? OPENROUTER_TIMEOUT_MS : OPENROUTER_ROUTING_TIMEOUT_MS;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
     if (request.signal?.aborted) {
@@ -102,12 +114,12 @@ async function fetchWithRetry(request: LLMRequest, stream: boolean): Promise<Res
         headers: {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
-          "HTTP-Referer": "https://kamalo.ai",
+          "HTTP-Referer": "https://kamalo.app",
           "X-Title": "KAMALO AI",
           ...(request.requestId ? { "X-Request-ID": request.requestId } : {}),
         },
         body: JSON.stringify(requestBody(request, stream)),
-        signal: requestSignal(request.signal),
+        signal: requestSignal(request.signal, timeoutMs),
       });
 
       if (response.ok) return response;

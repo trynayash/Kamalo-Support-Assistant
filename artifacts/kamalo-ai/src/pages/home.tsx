@@ -378,7 +378,7 @@ export function HomePage() {
           ? 'Voice input paused'
           : 'Listening for your question';
       const description = speech.isTranscribing
-        ? speech.error || 'Transcribing locally. Keep this window open until it finishes.'
+        ? speech.error || 'Transcribing your voice. Keep this window open until it finishes.'
         : speech.isPaused
           ? 'Resume when you are ready, or stop to finish the recording.'
           : speech.error || 'Speak naturally, then tap Stop when you are finished.';

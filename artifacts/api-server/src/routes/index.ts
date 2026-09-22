@@ -4,6 +4,7 @@ import conversationsRouter from "./conversations";
 import feedbackRouter from "./feedback";
 import knowledgeRouter from "./knowledge";
 import ticketsRouter from "./tickets";
+import transcribeRouter from "./transcribe";
 import { ImageUploadError } from "../lib/image-attachments";
 
 const router: IRouter = Router();
@@ -13,6 +14,7 @@ router.use(conversationsRouter);
 router.use(feedbackRouter);
 router.use(knowledgeRouter);
 router.use(ticketsRouter);
+router.use(transcribeRouter);
 
 router.use((error: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (error instanceof ImageUploadError) {

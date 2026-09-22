@@ -2,7 +2,7 @@ import type { Logger } from "pino";
 import type { SupportRequestContext } from "./context";
 
 export type SupportEvent = {
-  event: "support_request_started" | "knowledge_retrieved" | "tool_decision" | "provider_failure" | "response_completed";
+  event: "support_request_started" | "question_analyzed" | "knowledge_retrieved" | "tool_decision" | "provider_failure" | "response_completed";
   context: SupportRequestContext;
   latencyMs?: number;
   evidenceCount?: number;
@@ -10,6 +10,9 @@ export type SupportEvent = {
   toolName?: string;
   decision?: string;
   outcome?: string;
+  analysisSource?: string;
+  questionType?: string;
+  retrievalQuery?: string;
 };
 
 export function recordSupportEvent(logger: Logger, event: SupportEvent): void {
@@ -29,5 +32,8 @@ export function recordSupportEvent(logger: Logger, event: SupportEvent): void {
     toolName: event.toolName,
     decision: event.decision,
     outcome: event.outcome,
+    analysisSource: event.analysisSource,
+    questionType: event.questionType,
+    retrievalQuery: event.retrievalQuery,
   }, "Support Core event");
 }

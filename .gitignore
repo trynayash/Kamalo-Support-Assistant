@@ -27,6 +27,10 @@ node_modules
 !.vscode/launch.json
 !.vscode/extensions.json
 
+# local secrets
+.env
+.env.local
+
 # misc
 /.sass-cache
 /connect.lock
@@ -52,3 +56,14 @@ Thumbs.db
 
 # Playwright browser test artifacts
 /artifacts/kamalo-ai/test-results/
+
+# Replit / local-only artifacts (not needed for Render)
+.replit
+.replitignore
+replit.md
+replit_backup.sql
+.agents/
+exports/
+.config/
+development_db.sql
+*.dump

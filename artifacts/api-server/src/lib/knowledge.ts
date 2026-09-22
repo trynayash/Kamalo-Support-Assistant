@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db";
 import { containsInstructionInjection } from "./safety";
+import { canonicalizeForRetrieval, isBrandOverviewQuestion, normalizeSupportQuestion } from "./support-query";
 
 type SeedArticle = {
   title: string;
@@ -76,6 +77,11 @@ const seedArticles: SeedArticle[] = [
     title: "Merchant offers",
     category: "Merchant",
     content: "KAMALO merchant guidance can cover onboarding, offers, settlement, commissions, refunds, a merchant dashboard, and technical integration. The specific terms depend on the merchant guidance and applicable offer.",
+  },
+  {
+    title: "What is a prepaid card",
+    category: "Wallet",
+    content: "KAMALO prepaid cards and gift cards are wallet-related payment options covered by KAMALO product guidance. KAMALO can explain the approved customer-facing capabilities for these cards. Specific limits, fees, KYC, delivery times, and eligibility depend on the applicable KAMALO rules and must not be invented.",
   },
 ];
 
@@ -423,13 +429,41 @@ export type RetrievedArticle = {
  * a small, deterministic topic catalog instead of depending on the imported
  * corpus or its insertion order.
  */
+function expandColloquialQuery(query: string): string {
+  return query
+    .replace(/\b(?:wanna|want to)\s+(?:know|learn)\s+(?:about\s+)?/gi, "what is ")
+    .replace(/\b(?:can u|can you|could you|please|pls|plz)\s+(?:tell|explain|help)\s+(?:me\s+)?(?:more\s+)?(?:about\s+)?/gi, "what is ")
+    .replace(/\btell me(?:\s+more)?\s+about\b/gi, "what is ")
+    .replace(/\bwhat\s+(?:do|does)\s+kamalo\s+do\b/gi, "what is kamalo")
+    .replace(/\bwhat\s+kamalo\s+(?:is|does|do)\b/gi, "what is kamalo")
+    .replace(/\bwhat\s+(?:is|does)\s+(?:this|that)\s+mean\b/gi, "what is")
+    .replace(/\bhow\s+(?:to|can i|do i)\s+get\b/gi, "how can I earn")
+    .replace(/\bhow\s+(?:to|can i|do i)\s+use\b/gi, "how to redeem")
+    .replace(/\bget\s+coins?\b/gi, "earn coins")
+    .replace(/\buse\s+coins?\b/gi, "redeem coins")
+    .replace(/\bmoney\s+back\b/gi, "refund")
+    .replace(/\bnot\s+(?:got|getting|received|recieved)\b/gi, "didn't receive")
+    .replace(/\bnothing\s+(?:happened|working|worked)\b/gi, "failed")
+    .replace(/\bdidnt\s+work\b/gi, "failed")
+    .replace(/\bnot\s+working\b/gi, "failed")
+    .replace(/\brecieve\b/gi, "receive")
+    .replace(/\bcommision\b/gi, "commission")
+    .replace(/\bpaymant\b/gi, "payment")
+    .replace(/\bsignup\b/gi, "register")
+    .replace(/\bsign\s+up\b/gi, "register")
+    .replace(/\bwhere\s+(?:is|are|did)\s+my\b/gi, "where is my")
+    .replace(/\bhow\s+much\s+(?:need|needed|require)\b/gi, "how much do I need");
+}
+
 export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[]): RetrievedArticle[] {
-  const retrievalQuery = expandMultilingualQuery(query);
+  const normalizedQuestion = normalizeSupportQuestion(query);
+  const canonicalQuestion = canonicalizeForRetrieval(query);
+  const retrievalQuery = expandMultilingualQuery(expandColloquialQuery(canonicalQuestion || normalizedQuestion));
   const terms = expandedTerms(retrievalQuery);
   const primaryTerms = new Set(tokenize(retrievalQuery));
   const queryTopicTerms = new Set(terms.filter((term) => exclusiveTopicTerms.has(term)));
   const normalizedQuery = tokenize(retrievalQuery).join(" ");
-  const isBrandOverviewQuery = /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(query.trim().replace(/[?!.,]+$/, "").trim());
+  const isBrandOverviewQuery = isBrandOverviewQuestion(query);
 
   return articles
     .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
@@ -470,7 +504,7 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
       const brandOverviewMatch = isBrandOverviewQuery
-        && /\bwhat\s+is\s+kamalo\b/i.test(article.title);
+        && /\bwhat\s+is\s+kamalo\b/i.test(`${article.title}\n${article.category}`);
       return { article, score, primaryTopicMatches, titleCategoryMatches, brandOverviewMatch };
     })
     // A single common word in an article body is not enough evidence. Require
@@ -544,6 +578,8 @@ const exclusiveTopicTerms = new Set([
   "otp",
   "wallet",
   "prepaid",
+  "gift",
+  "offer",
   "commission",
   "referral",
   "transaction",
@@ -567,9 +603,15 @@ const retrievalAliases: Record<string, string[]> = {
   shipment: ["shipment", "delivery", "dispatch", "shipping"],
   auto: ["auto", "mandate", "automatic", "autopay"],
   autopay: ["auto", "mandate", "automatic", "autopay"],
-  booster: ["booster", "offer", "promotion", "promo"],
-  promotion: ["booster", "offer", "promotion", "promo"],
-  promo: ["booster", "offer", "promotion", "promo"],
+  booster: ["booster", "promotion", "promo"],
+  promotion: ["booster", "promotion", "promo"],
+  promo: ["booster", "promotion", "promo"],
+  offer: ["offer", "offers", "merchant", "shop", "deal", "deals"],
+  offers: ["offer", "offers", "merchant", "shop", "deal", "deals"],
+  deal: ["offer", "offers", "merchant", "shop", "deal", "deals"],
+  deals: ["offer", "offers", "merchant", "shop", "deal", "deals"],
+  gift: ["gift", "prepaid", "wallet", "card"],
+  prepaid: ["gift", "prepaid", "wallet", "card"],
   coin: ["coin", "coins", "reward", "rewards", "points"],
   reward: ["coin", "coins", "reward", "rewards", "points"],
   point: ["coin", "coins", "reward", "rewards", "points"],
@@ -585,6 +627,11 @@ const retrievalAliases: Record<string, string[]> = {
   notification: ["notification", "alert", "message", "deep", "link", "receive", "received"],
   alert: ["notification", "alert", "message", "deep", "link", "receive", "received"],
   recieve: ["notification", "alert", "message", "deep", "link", "receive", "received"],
+  receive: ["notification", "alert", "message", "receive", "received"],
+  got: ["get", "receive", "received", "earn"],
+  get: ["get", "receive", "earn", "qualify"],
+  use: ["use", "redeem", "redemption"],
+  back: ["refund", "reversal"],
   payment: ["payment", "transaction", "charged", "deducted", "transfer"],
   transaction: ["payment", "transaction", "charged", "deducted", "transfer"],
   charged: ["payment", "transaction", "charged", "deducted", "transfer"],
@@ -622,6 +669,17 @@ const multilingualRetrievalAliases: Array<{ phrases: string[]; english: string }
   { phrases: ["ऑटो कमालो", "ऑटो कामालो"], english: "auto kamalo mandate" },
   { phrases: ["फिनकाडो"], english: "fincado progress analytics" },
   { phrases: ["खाते", "अकाउंट", "खातं"], english: "account profile login" },
+  { phrases: ["paisa kat gaya", "paise kat gaye", "payment kat gaya", "money cut gaya"], english: "payment deducted failed" },
+  { phrases: ["paisa wapas", "paise wapas", "money wapas", "paisa back"], english: "refund money back" },
+  { phrases: ["otp nahi aaya", "otp nahi aa raha", "otp aa nahi", "otp not coming"], english: "otp verification not received" },
+  { phrases: ["payment fail ho gaya", "payment nahi ho raha", "transaction fail hua", "payment nahi hua"], english: "payment failed" },
+  { phrases: ["coin kaise milega", "coins kaise milenge", "coin kaha gaya", "coins kahan gaye"], english: "coins earn rewards" },
+  { phrases: ["offer kya hai", "offers kya hai", "kamalo offers"], english: "merchant offers shop" },
+  { phrases: ["gift card kya hai", "gift cards kya hai"], english: "prepaid gift card wallet" },
+  { phrases: ["silver kaise milega", "chandi kaise"], english: "silver milestone progress" },
+  { phrases: ["notification nahi aaya", "notif nahi aaya"], english: "notification alert message" },
+  { phrases: ["signup nahi ho raha", "register nahi ho raha"], english: "register signup account" },
+  { phrases: ["login nahi ho raha", "log in nahi ho raha"], english: "login sign in password" },
 ];
 
 function expandMultilingualQuery(query: string): string {

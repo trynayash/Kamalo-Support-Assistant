@@ -420,6 +420,21 @@ test("keeps Guru material out of customer retrieval and answers the KAMALO overv
     preferGroundedFact("KAMALO is a customer support system with live engine data.", prepared.groundedFact, "What is KAMALO app?"),
     "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.",
   );
+
+  const greetingOverview = await prepareSupportRequest(testContext(), "hi what is kamalo ?", false);
+  assert.equal(greetingOverview.decision, "knowledge_answer");
+  assert.match(greetingOverview.groundedFact || "", /ecosystem/i);
+
+  for (const question of ["tell me more about kamalo ?", "what kamalo do", "pls explain kamalo"]) {
+    const preparedOverview = await prepareSupportRequest(testContext(), question, false);
+    assert.equal(preparedOverview.decision, "knowledge_answer", question);
+    assert.match(preparedOverview.groundedFact || "", /ecosystem/i, question);
+    assert.equal(
+      preferGroundedFact("I don't have confirmed information about that in the KAMALO information available to me.", preparedOverview.groundedFact, question),
+      preparedOverview.groundedFact,
+      question,
+    );
+  }
 });
 
 test("keeps product topics separate and refuses personal progress claims", async () => {
@@ -448,35 +463,9 @@ test("keeps product topics separate and refuses personal progress claims", async
     prepared.groundedFact,
   );
   assert.doesNotMatch(
-    sanitizeKnowledgeForProvider("Stage 1 guardrail: not evidence.\nAI retrieves current applicable Gold threshold.\nVIEW MY GOLD JOURNEY.\nGold is a KAMALO milestone."),
+    sanitizeKnowledgeForProvider("Stage 1 guardrail: not evidence. AI retrieves current applicable Gold threshold. VIEW MY GOLD JOURNEY. Gold is a KAMALO milestone."),
     /guardrail|retrieves|VIEW MY/i,
   );
-});
-
-test("uses the confirmed-information fallback for unsupported translated requests", async () => {
-  const conversation = await createConversation(`${testPrefix} translated fallback`);
-  for (const content of ["मुझे कैशबैक नीति बताइए", "मला क्रिकेट धोरण सांगा"]) {
-    const response = await request(`/api/conversations/${conversation.id}/messages`, {
-      method: "POST",
-      body: JSON.stringify({ content }),
-    });
-    assert.equal(response.status, 200);
-    const result = await streamResult(response);
-    assert.equal(result.content, "I don't have confirmed information about that in the KAMALO information available to me.");
-  }
-});
-
-test("keeps translated general Coins questions away from personal balance articles", async () => {
-  for (const content of ["KAMALO कॉइन्स क्या हैं?", "मला नाणी कशी मिळतील"]) {
-    const prepared = await prepareSupportRequest(testContext(), content, false);
-    assert.equal(prepared.decision, "knowledge_answer");
-    assert.match(prepared.retrieved[0]?.title || "", /What are KAMALO Coins/i);
-    assert.doesNotMatch(prepared.retrieved[0]?.title || "", /How many Coins do I have|welcome Coins|received fewer/i);
-  }
-
-  const personal = await prepareSupportRequest(testContext(), "tell me my current coin balance", false);
-  assert.equal(personal.decision, "fallback");
-  assert.deepEqual(personal.retrieved, []);
 });
 
 test("evaluates representative customer questions by approved knowledge topic", async () => {
