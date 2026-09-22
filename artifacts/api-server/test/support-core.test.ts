@@ -8,7 +8,7 @@ import { createSupportRequestContext, DEMO_USER_ID, type SupportRequestContext }
 import { llmProvider, OpenRouterProvider } from "../src/lib/llm";
 import { assertNoDuplicateActiveApprovedTopics, findDuplicateActiveApprovedTopics, rankKnowledgeArticles, retrieveKnowledge } from "../src/lib/knowledge";
 import { prepareSupportRequest, preferGroundedFact } from "../src/lib/orchestrator";
-import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeProviderText } from "../src/lib/safety";
+import { condenseAssistantOutput, containsInstructionInjection, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, sanitizeKnowledgeForProvider, sanitizeProviderText } from "../src/lib/safety";
 import { ToolGateway, actionRegistry, listToolDefinitions, toolGateway } from "../src/lib/tool-registry";
 import { representativeKnowledgeFixtures, representativeKnowledgeQuestions } from "./knowledge-evaluation";
 import {
@@ -419,6 +419,37 @@ test("keeps Guru material out of customer retrieval and answers the KAMALO overv
   assert.equal(
     preferGroundedFact("KAMALO is a customer support system with live engine data.", prepared.groundedFact, "What is KAMALO app?"),
     "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.",
+  );
+});
+
+test("keeps product topics separate and refuses personal progress claims", async () => {
+  const ranked = rankKnowledgeArticles("Where is my Silver shipment?", [
+    {
+      id: "gold-delivery",
+      title: "Where is my Gold Coin?",
+      category: "Physical delivery",
+      content: "Gold delivery guidance.",
+      version: 1,
+    },
+    {
+      id: "silver-delivery",
+      title: "Where is my Silver Coin?",
+      category: "Physical delivery",
+      content: "Silver delivery guidance.",
+      version: 1,
+    },
+  ]);
+  assert.equal(ranked[0]?.id, "silver-delivery");
+
+  const prepared = await prepareSupportRequest(testContext(), "Tell me my current Coin balance.", false);
+  assert.equal(prepared.groundedFact, "I don't have access to your live KAMALO account information, so I can't check that here.");
+  assert.equal(
+    preferGroundedFact("You currently have 500 Coins.", prepared.groundedFact, "Tell me my current Coin balance."),
+    prepared.groundedFact,
+  );
+  assert.doesNotMatch(
+    sanitizeKnowledgeForProvider("Stage 1 guardrail: not evidence.\nAI retrieves current applicable Gold threshold.\nVIEW MY GOLD JOURNEY.\nGold is a KAMALO milestone."),
+    /guardrail|retrieves|VIEW MY/i,
   );
 });
 

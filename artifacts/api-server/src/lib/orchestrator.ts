@@ -2,7 +2,7 @@ import type { LLMMessage } from "./llm";
 import type { SupportRequestContext } from "./context";
 import { toolGateway, type KnowledgeToolResult } from "./tool-registry";
 import type { RetrievedArticle } from "./knowledge";
-import { condenseAssistantOutput, containsProviderDrafting, sanitizeProviderText } from "./safety";
+import { condenseAssistantOutput, containsProviderDrafting, sanitizeKnowledgeForProvider, sanitizeProviderText } from "./safety";
 
 export const SYSTEM_PROMPT = `You are KAMALO AI, the official KAMALO customer support assistant.
 
@@ -91,9 +91,10 @@ const factAliases: Record<string, string[]> = {
 
 const factStopWords = new Set(["a", "about", "and", "are", "can", "does", "for", "how", "i", "is", "it", "my", "of", "that", "the", "this", "what", "where", "why"]);
 const KAMALO_OVERVIEW_FACT = "KAMALO is an ecosystem that brings together product journeys, transactions, rewards, referrals, merchant offers, and supporting services in one experience.";
+const LIVE_ACCOUNT_LIMITATION_FACT = "I don't have access to your live KAMALO account information, so I can't check that here.";
 
 export function isBrandOverviewQuestion(content: string): boolean {
-  return /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(content.trim().replace(/[?!.,]+$/, ""));
+  return /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(content.trim().replace(/[?!.,]+$/, "").trim());
 }
 
 function factTerms(content: string): string[] {
@@ -110,18 +111,26 @@ function isAccountSpecificQuestion(content: string): boolean {
   // question ("how do I earn Coins?") and must not by themselves flag a
   // question as needing live-account verification. Only explicit ownership
   // or live-status language should trigger that path.
-  return /\b(my|mine|personal|current balance|my balance|my account|my coins|my silver|my gold|account balance|transaction reference|order history|order status)\b/i.test(content);
+  return /\b(?:personal|current balance|my balance|my account|account balance|transaction reference|order history|order status|(?:my\s+)?current\s+(?:coin|coins?|reward|rewards?)\s+balance|how many (?:coins?|rewards?) (?:do i have|have i)|what(?:'s| is) my (?:coin|coins?|reward|rewards?) balance|my (?:silver|gold|coin|coins?|reward|rewards?) (?:shipment|delivery|status|balance|target|goal|progress|qualification)|my (?:delivery|shipment|refund|notification) status|how far am i from (?:silver|gold)|am i eligible for (?:silver|gold))\b/i.test(content);
 }
 
 function isPersonalizedKnowledge(article: RetrievedArticle): boolean {
   return /\b(?:my coins|your coins|you currently|your next expiry|x coins|how many coins expire|when will my coins expire)\b/i.test(`${article.title}\n${article.content}`);
 }
 
+function isBoundaryOnlyKnowledge(article: RetrievedArticle): boolean {
+  return /\bboundaries?\b/i.test(`${article.title}\n${article.category}`);
+}
+
 const kamaloAdjacentPatterns = [
-  /\bkamalo\b/i,
+  /\b(?:kamalo|kamlo|kmalo|kamaloo)\b/i,
   /\b(?:coin|coins|reward|rewards|silver|gold|fincado|booster|referral|referrals|commission|transaction|transactions|payment|payments|refund|refunds|wallet|prepaid|merchant|merchants|notification|notifications|otp|cashback|coupon|coupons|offer|offers|deal|deals|gift\s*cards?|redemption|redeem|expiry|expire|expired|reversal|reversed|settlement|dispatch|delivery|milestone|streak|mandate)\b/i,
   /\b(?:auto\s+kamalo|prepaid\s+card|gift\s+card|reward\s+card|merchant\s+offer|account\s+balance|transaction\s+status|payment\s+status)\b/i,
 ];
+
+function containsIndicScript(content: string): boolean {
+  return /[\u0900-\u097f]/.test(content);
+}
 
 function isKamaloAdjacentQuestion(content: string, history: ConversationHistoryMessage[]): boolean {
   const recentUserContext = history
@@ -132,24 +141,35 @@ function isKamaloAdjacentQuestion(content: string, history: ConversationHistoryM
   return kamaloAdjacentPatterns.some((pattern) => pattern.test(`${content}\n${recentUserContext}`));
 }
 
+const compoundQuestionPattern = /\b(?:and|also|plus|as well as|along with)\b/i;
+
+function shouldUseSupportingArticle(content: string, retrieved: RetrievedArticle[]): boolean {
+  if (!compoundQuestionPattern.test(content)) return false;
+  const topicMatches = retrieved.filter((article) =>
+    /\b(?:coin|coins|silver|gold|fincado|auto kamalo|booster|referral|commission|payment|transaction|refund|notification|otp|wallet|prepaid|merchant|offer|delivery|settlement)\b/i.test(
+      `${article.title}\n${article.category}`,
+    ),
+  );
+  return topicMatches.length > 1;
+}
+
 function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string | null {
   if (isBrandOverviewQuestion(content)) return KAMALO_OVERVIEW_FACT;
+  if (isAccountSpecificQuestion(content)) return LIVE_ACCOUNT_LIMITATION_FACT;
   const terms = factTerms(content);
   if (!terms.length) return null;
-  const accountSpecific = isAccountSpecificQuestion(content);
-  if (accountSpecific) return null;
   if (/\b(?:payment|transaction)\b/i.test(content) && /\bfailed\b/i.test(content)) {
     return "If a payment failed without any debit, you can safely try again. If money was deducted, the payment and refund status need investigation.";
   }
 
   const candidates = retrieved.flatMap((article) => {
-    if (isPersonalizedKnowledge(article)) return [];
+    if (isPersonalizedKnowledge(article) || isBoundaryOnlyKnowledge(article)) return [];
     const titleTerms = factTerms(article.title);
     return article.content
       .split(/(?<=[.!?])\s+/)
       .map((sentence) => sentence.trim())
       .filter((sentence) => sentence.length > 20)
-      .filter((sentence) => !/stage 1 guardrail|founder-provided|the ai should|never hard-code|let me check|then show|\byour\b|\byou currently\b|\bscheduled to expire\b|expiry date|batch|status|\bX\b/i.test(sentence))
+       .filter((sentence) => !/stage 1(?:\s+guardrail|\s+cannot)|founder-provided|\b(?:the )?ai\b|never hard-code|let me check|then show|\b(?:cta|view my|show you exactly where you stand)\b|\byour\b|\byou currently\b|\bscheduled to expire\b|expiry date|batch|status|must not invent|cannot (?:check|view|inspect)|\bX\b/i.test(sentence))
       .map((sentence) => {
         const sentenceTerms = factTerms(sentence);
         const overlap = terms.filter((term) => sentenceTerms.some((sentenceTerm) => sentenceTerm.includes(term) || term.includes(sentenceTerm))).length;
@@ -166,6 +186,7 @@ function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string
 }
 
 export function preferGroundedFact(content: string, groundedFact: string | null, question = content): string {
+  if (groundedFact === LIVE_ACCOUNT_LIMITATION_FACT) return groundedFact;
   if (
     groundedFact
     && isBrandOverviewQuestion(question)
@@ -201,18 +222,26 @@ export async function prepareSupportRequest(
     .flatMap((result) => result.ok && result.data?.articles ? result.data.articles : [])
     .filter((article, index, articles) => articles.findIndex((candidate) => candidate.id === article.id) === index)
   const retrievalPool = followUp && !isAccountSpecificQuestion(content)
-    ? allRetrieved.filter((article) => !isPersonalizedKnowledge(article))
-    : allRetrieved;
+    ? allRetrieved.filter((article) => !isPersonalizedKnowledge(article) && !isBoundaryOnlyKnowledge(article))
+    : allRetrieved.filter((article) => !isBoundaryOnlyKnowledge(article));
   const groundedFact = groundedFactFor(content, retrievalPool);
   const groundedFactArticle = groundedFact
     ? retrievalPool.find((article) => article.content.includes(groundedFact.replace(/…$/, "")))
     : undefined;
-  const retrieved = (followUp
-    ? [...retrievalPool.slice(0, 2), groundedFactArticle]
-    : retrievalPool.slice(0, 6))
-    .filter((article): article is RetrievedArticle => Boolean(article))
+  const primaryArticle = groundedFactArticle || retrievalPool[0];
+  const focusedRetrieved = primaryArticle
+    ? [
+        primaryArticle,
+        ...(shouldUseSupportingArticle(content, retrievalPool)
+          ? retrievalPool.filter((article) => article.id !== primaryArticle.id).slice(0, 2)
+          : []),
+      ]
+    : [];
+  const retrieved = (followUp && !primaryArticle
+    ? retrievalPool.slice(0, 1)
+    : focusedRetrieved)
     .filter((article, index, articles) => articles.findIndex((candidate) => candidate.id === article.id) === index)
-    .slice(0, followUp ? 3 : 6);
+    .slice(0, 3);
   const evidence = retrieved.map((article) => ({
     id: article.id,
     title: article.title,
@@ -221,9 +250,12 @@ export async function prepareSupportRequest(
     sourceType: "approved_knowledge" as const,
   }));
   const contextEnvelope = `Trusted KAMALO support context: locale=${context.locale}; response_language=${language}; Stage 1 has no live account access and has no permission to perform account, transaction, wallet, reward, refund, or settings actions.`;
-  const knowledgeContext = retrieved.map((article, index) => (
-    `<approved_knowledge priority="${index === 0 ? "primary" : "supporting"}" category="${sanitizeProviderText(article.category)}" title="${sanitizeProviderText(article.title)}" version="${article.version}">\n${sanitizeProviderText(article.content)}\n</approved_knowledge>`
-  )).join("\n\n");
+  const knowledgeContext = retrieved.map((article, index) => {
+    const safeContent = sanitizeKnowledgeForProvider(article.content);
+    return safeContent
+      ? `<approved_knowledge priority="${index === 0 ? "primary" : "supporting"}" category="${sanitizeProviderText(article.category)}" title="${sanitizeProviderText(article.title)}" version="${article.version}">\n${safeContent}\n</approved_knowledge>`
+      : "";
+  }).filter(Boolean).join("\n\n");
   const decision = imageOnly
     ? "image_only"
     : isGreeting(content)
@@ -231,7 +263,7 @@ export async function prepareSupportRequest(
       : retrievalFailures === retrievalResults.length
         ? "retrieval_error"
       : retrieved.length === 0
-        ? isKamaloAdjacentQuestion(content, history) ? "fallback" : "out_of_scope"
+          ? isKamaloAdjacentQuestion(content, history) || containsIndicScript(content) ? "fallback" : "out_of_scope"
         : "knowledge_answer";
 
   return {

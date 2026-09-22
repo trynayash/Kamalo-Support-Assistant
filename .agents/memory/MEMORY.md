@@ -14,3 +14,4 @@
 - [KAMALO icon system](kamalo-icon-system.md) — keep web icons on Tabler’s grid and use a local Tabler-style SVG set in native Expo because browser fonts do not run there.
 - [Deployment health probes](deployment-health-probes.md) — API publication may probe `/` even when an explicit health path is configured.
 - [Knowledge corpus deactivation](knowledge-corpus-deactivation.md) — when source policy removes internal material, archive stale rows and stop re-importing them; retrieval filters alone are not enough.
+- [KAMALO AI retrieval boundaries](kamalo-ai-retrieval-boundaries.md) — topic-aware ranking and internal-line sanitization prevent relevant-looking but wrong or non-customer answers.

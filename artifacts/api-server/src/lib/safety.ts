@@ -64,6 +64,33 @@ export function sanitizeProviderText(content: string): string {
     .replace(/\b(password|passcode|pin)\s*(?:is|:|=)\s*\S+/gi, "$1 [redacted]");
 }
 
+export function sanitizeKnowledgeForProvider(content: string): string {
+  let dropNextAllCapsLine = false;
+  const lines = content.split(/\r?\n/).flatMap((rawLine) => {
+    const line = rawLine.trim();
+    if (!line) return [];
+    if (dropNextAllCapsLine) {
+      dropNextAllCapsLine = false;
+      if (/^[A-Z][A-Z\s:!-]{2,}$/.test(line)) return [];
+    }
+    if (/\bcta\b/i.test(line)) {
+      dropNextAllCapsLine = true;
+      return [];
+    }
+    if (
+      /stage\s*1\s+guardrail|founder-provided|approved product guidance,\s*not evidence|until a verified server-side tool returns|\b(?:the )?ai\s+(?:must|should|can|cannot|retrieves?|checks?|needs?)\b|\b(?:view my|show you exactly where you stand)\b|must not invent|never reveal|never hard-code/i.test(line)
+    ) {
+      return [];
+    }
+    const cleaned = line
+      .replace(/["']?I'm here to help\.\s*Let me check the transaction status so we can see exactly where the payment stopped\.["']?/i, "")
+      .replace(/["']?I've checked it\.\s*/i, "")
+      .trim();
+    return cleaned ? [cleaned] : [];
+  });
+  return lines.join(" ").replace(/\s+/g, " ").trim();
+}
+
 export function hasPossibleSensitiveTail(content: string): boolean {
   return possibleSecretTailPatterns.some((pattern) => pattern.test(content.slice(-512)));
 }
@@ -189,6 +216,7 @@ const unsafeLiveClaimPatterns = [
 
 const safeUnmatchedSentencePatterns = [
   /^(?:i do not|i don't|i can(?:not|'t)) have confirmed information\b/i,
+  /^i don't have access to your live kamalo account information\b/i,
   /^(?:please|you can|try|contact|reach|ask|allow|check|confirm|make sure|use|request)\b/i,
   /\b(?:live|personal|account-specific|verified)\s+(?:information|check|support)\b/i,
   /^\[redacted\]$/i,

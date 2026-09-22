@@ -16,7 +16,7 @@ import {
 } from "@workspace/api-zod";
 import { db, conversationsTable, messageAttachmentsTable, messagesTable } from "@workspace/db";
 import { llmProvider, OPENROUTER_MODEL, OpenRouterError } from "../lib/llm";
-import { condenseAssistantOutput, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput } from "../lib/safety";
+import { condenseAssistantOutput, containsProviderDrafting, isGroundedAssistantOutput, isPromptExtractionAttempt, keepCompleteAssistantOutput, normalizeUserInput, PROMPT_EXTRACTION_RESPONSE, SAFE_ASSISTANT_ERROR, sanitizeAssistantOutput, sanitizeKnowledgeForProvider } from "../lib/safety";
 import { ImageUploadError, deleteConversationImage, readConversationImage, saveConversationImage } from "../lib/image-attachments";
 import { createSupportRequestContext, DEMO_USER_ID } from "../lib/context";
 import { prepareSupportRequest, preferGroundedFact, type ConversationHistoryMessage } from "../lib/orchestrator";
@@ -426,7 +426,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   // Validate numeric claims against article content only. Article titles carry
   // internal sequence numbers that must never make an unsupported customer
   // number appear approved.
-  const approvedSources = prepared.retrieved.map((article) => article.content);
+  const approvedSources = prepared.retrieved.map((article) => sanitizeKnowledgeForProvider(article.content));
   const outputIsGrounded = !providerAnswerGenerated
     || prepared.decision !== "knowledge_answer"
     || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");
@@ -915,7 +915,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   // Validate numeric claims against article content only. Article titles carry
   // internal sequence numbers that must never make an unsupported customer
   // number appear approved.
-  const approvedSources = prepared.retrieved.map((article) => article.content);
+  const approvedSources = prepared.retrieved.map((article) => sanitizeKnowledgeForProvider(article.content));
   const outputIsGrounded = !providerAnswerGenerated
     || prepared.decision !== "knowledge_answer"
     || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");
@@ -1402,7 +1402,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   // Validate numeric claims against article content only. Article titles carry
   // internal sequence numbers that must never make an unsupported customer
   // number appear approved.
-  const approvedSources = prepared.retrieved.map((article) => article.content);
+  const approvedSources = prepared.retrieved.map((article) => sanitizeKnowledgeForProvider(article.content));
   const outputIsGrounded = !providerAnswerGenerated
     || prepared.decision !== "knowledge_answer"
     || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");
@@ -1884,7 +1884,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   // Validate numeric claims against article content only. Article titles carry
   // internal sequence numbers that must never make an unsupported customer
   // number appear approved.
-  const approvedSources = prepared.retrieved.map((article) => article.content);
+  const approvedSources = prepared.retrieved.map((article) => sanitizeKnowledgeForProvider(article.content));
   const outputIsGrounded = !providerAnswerGenerated
     || prepared.decision !== "knowledge_answer"
     || isGroundedAssistantOutput(candidateResponse, approvedSources, body.data.language || "en");

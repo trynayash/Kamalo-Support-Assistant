@@ -427,7 +427,7 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
   const retrievalQuery = expandMultilingualQuery(query);
   const terms = expandedTerms(retrievalQuery);
   const primaryTerms = new Set(tokenize(retrievalQuery));
-  const primaryTopicTerms = [...primaryTerms].filter((term) => !retrievalBrandTerms.has(term));
+  const queryTopicTerms = new Set([...primaryTerms].filter((term) => exclusiveTopicTerms.has(term)));
   const normalizedQuery = tokenize(retrievalQuery).join(" ");
   const isBrandOverviewQuery = /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(query.trim().replace(/[?!.,]+$/, "").trim());
 
@@ -448,6 +448,11 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         !retrievalBrandTerms.has(term) && (titleTerms.has(term) || categoryTerms.has(term)),
       );
       const primaryTopicMatches = primaryMatches.filter((term) => !retrievalBrandTerms.has(term));
+      const titleTopicTerms = title.filter((term) => exclusiveTopicTerms.has(term));
+      const topicMatchBoost = titleTopicTerms.filter((term) => queryTopicTerms.has(term)).length * 18;
+      const topicConflictPenalty = queryTopicTerms.size > 0
+        ? titleTopicTerms.filter((term) => !queryTopicTerms.has(term)).length * 16
+        : 0;
       const numericLevelBoost = primaryTerms.has("level") && /\b\d+\s*[- ]?\s*levels?\b/i.test(`${article.title} ${article.content}`)
         ? 12
         : 0;
@@ -459,9 +464,11 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
         return total;
       }, 0)
         + numericLevelBoost
+        + topicMatchBoost
+        - topicConflictPenalty
         + (normalizedQuery && tokenize(`${article.title} ${article.content}`).join(" ").includes(normalizedQuery) ? 12 : 0)
         + (tokenize(article.title).join(" ").includes(normalizedQuery) ? 18 : 0);
-       const brandOverviewMatch = isBrandOverviewQuery
+      const brandOverviewMatch = isBrandOverviewQuery
         && /\bwhat\s+is\s+kamalo\b/i.test(article.title);
       return { article, score, primaryTopicMatches, titleCategoryMatches, brandOverviewMatch };
     })
@@ -524,13 +531,33 @@ const retrievalStopWords = new Set([
 ]);
 
 const retrievalBrandTerms = new Set(["kamalo"]);
+const exclusiveTopicTerms = new Set([
+  "coin",
+  "silver",
+  "gold",
+  "fincado",
+  "auto",
+  "booster",
+  "merchant",
+  "notification",
+  "otp",
+  "wallet",
+  "prepaid",
+  "commission",
+  "referral",
+  "transaction",
+  "payment",
+  "refund",
+  "delivery",
+  "shipment",
+]);
 
 const retrievalAliases: Record<string, string[]> = {
   account: ["account", "profile", "register", "registration", "login", "locked", "signup"],
   register: ["account", "profile", "register", "registration", "login", "locked", "signup"],
   signup: ["account", "profile", "register", "registration", "login", "locked", "signup"],
   address: ["address", "delivery", "dispatch", "shipping", "shipment"],
-  shipment: ["address", "delivery", "dispatch", "shipping", "shipment"],
+  shipment: ["shipment", "delivery", "dispatch", "shipping"],
   auto: ["auto", "mandate", "automatic", "autopay"],
   autopay: ["auto", "mandate", "automatic", "autopay"],
   booster: ["booster", "offer", "promotion", "promo"],
@@ -555,8 +582,15 @@ const retrievalAliases: Record<string, string[]> = {
   transaction: ["payment", "transaction", "charged", "deducted", "transfer"],
   charged: ["payment", "transaction", "charged", "deducted", "transfer"],
   pending: ["pending", "processing", "waiting", "delay", "delayed"],
-  refund: ["refund", "reversal", "reversed", "cancelled", "cancel"],
+  refund: ["refund", "reversal", "reversed", "cancelled", "cancel", "transaction", "payment"],
   silver: ["silver", "milestone", "progress", "qualification"],
+  coine: ["coin", "coins", "reward", "rewards", "points"],
+  silvar: ["silver", "milestone", "progress", "qualification"],
+  sliver: ["silver", "milestone", "progress", "qualification"],
+  gld: ["gold", "community", "milestone"],
+  fincadoo: ["fincado", "progress", "analytics"],
+  paymant: ["payment", "transaction", "failed", "declined"],
+  refnd: ["refund", "reversal", "transaction"],
 };
 
 const multilingualRetrievalAliases: Array<{ phrases: string[]; english: string }> = [
