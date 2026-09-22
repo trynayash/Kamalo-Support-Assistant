@@ -119,6 +119,76 @@ export const representativeKnowledgeQuestions: KnowledgeEvaluationCase[] = [
     history: [{ role: "user", content: "My payment failed." }],
     expectedTitle: "My payment failed.",
   },
+  {
+    topic: "Hindi Coins",
+    query: "KAMALO कॉइन्स क्या हैं?",
+    expectedTitle: "What are KAMALO Coins?",
+  },
+  {
+    topic: "Marathi Coins",
+    query: "KAMALO नाणी म्हणजे काय?",
+    expectedTitle: "What are KAMALO Coins?",
+  },
+  {
+    topic: "Hindi Silver",
+    query: "सिल्वर के लिए कैसे योग्य होऊं?",
+    expectedTitle: "How do I earn Silver?",
+  },
+  {
+    topic: "Marathi Silver",
+    query: "सिल्वरची पात्रता काय आहे?",
+    expectedTitle: "How do I earn Silver?",
+  },
+  {
+    topic: "Hindi Gold",
+    query: "गोल्ड के लिए कितना चाहिए?",
+    expectedTitle: "How much do I need for Gold?",
+  },
+  {
+    topic: "Marathi Gold",
+    query: "गोल्डसाठी किती हवे?",
+    expectedTitle: "How much do I need for Gold?",
+  },
+  {
+    topic: "Hindi payments",
+    query: "मेरा भुगतान विफल हो गया",
+    expectedTitle: "My payment failed.",
+  },
+  {
+    topic: "Marathi payments",
+    query: "माझे पेमेंट अयशस्वी झाले",
+    expectedTitle: "My payment failed.",
+  },
+  {
+    topic: "Hindi refunds",
+    query: "मुझे रिफंड चाहिए",
+    expectedTitle: "I want a refund.",
+  },
+  {
+    topic: "Marathi refunds",
+    query: "मला परतावा हवा",
+    expectedTitle: "I want a refund.",
+  },
+  {
+    topic: "misspelled Coins",
+    query: "How do I earn KAMALO coines?",
+    expectedTitle: "What are KAMALO Coins?",
+  },
+  {
+    topic: "misspelled payments",
+    query: "My paymant failed",
+    expectedTitle: "My payment failed.",
+  },
+  {
+    topic: "misspelled Silver",
+    query: "What is KAMALO silvar?",
+    expectedTitle: "How do I earn Silver?",
+  },
+  {
+    topic: "misspelled FINCADO",
+    query: "What is KAMALO fincdao?",
+    expectedTitle: "FINCADO analytics and progress",
+  },
 ];
 
 /**

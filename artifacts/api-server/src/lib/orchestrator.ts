@@ -115,7 +115,7 @@ function isAccountSpecificQuestion(content: string): boolean {
 }
 
 function isPersonalizedKnowledge(article: RetrievedArticle): boolean {
-  return /\b(?:my coins|your coins|you currently|your next expiry|x coins|how many coins expire|when will my coins expire)\b/i.test(`${article.title}\n${article.content}`);
+  return /\b(?:my(?:\s+\d[\d,]*)?(?:\s+welcome)?\s+coins?|your coins|you currently|your next expiry|x coins|how many coins? (?:do i have|expire)|how much do i have|what(?:'s| is) my (?:coin|coins?|reward|rewards?) balance|when will my coins expire|where are my(?:\s+\d[\d,]*)?(?:\s+welcome)?\s+coins?|why didn['’]t i receive my coins?|received fewer coins?|why did i (?:get|only get|receive) \d+ coins?)\b/i.test(`${article.title}\n${article.content}`);
 }
 
 function isBoundaryOnlyKnowledge(article: RetrievedArticle): boolean {
@@ -156,6 +156,12 @@ function shouldUseSupportingArticle(content: string, retrieved: RetrievedArticle
 function groundedFactFor(content: string, retrieved: RetrievedArticle[]): string | null {
   if (isBrandOverviewQuestion(content)) return KAMALO_OVERVIEW_FACT;
   if (isAccountSpecificQuestion(content)) return LIVE_ACCOUNT_LIMITATION_FACT;
+  if (
+    containsIndicScript(content)
+    && !/\b(?:coin|coins|silver|gold|fincado|payment|refund|transaction|otp|wallet|commission|referral|booster|merchant|notification|auto\s+kamalo)\b/i.test(content)
+  ) {
+    return null;
+  }
   const terms = factTerms(content);
   if (!terms.length) return null;
   if (/\b(?:payment|transaction)\b/i.test(content) && /\bfailed\b/i.test(content)) {
@@ -221,9 +227,9 @@ export async function prepareSupportRequest(
   const allRetrieved = retrievalResults
     .flatMap((result) => result.ok && result.data?.articles ? result.data.articles : [])
     .filter((article, index, articles) => articles.findIndex((candidate) => candidate.id === article.id) === index)
-  const retrievalPool = followUp && !isAccountSpecificQuestion(content)
-    ? allRetrieved.filter((article) => !isPersonalizedKnowledge(article) && !isBoundaryOnlyKnowledge(article))
-    : allRetrieved.filter((article) => !isBoundaryOnlyKnowledge(article));
+  const retrievalPool = isAccountSpecificQuestion(content)
+    ? []
+    : allRetrieved.filter((article) => !isPersonalizedKnowledge(article) && !isBoundaryOnlyKnowledge(article));
   const groundedFact = groundedFactFor(content, retrievalPool);
   const groundedFactArticle = groundedFact
     ? retrievalPool.find((article) => article.content.includes(groundedFact.replace(/…$/, "")))

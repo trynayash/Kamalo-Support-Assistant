@@ -427,13 +427,14 @@ export function rankKnowledgeArticles(query: string, articles: RetrievedArticle[
   const retrievalQuery = expandMultilingualQuery(query);
   const terms = expandedTerms(retrievalQuery);
   const primaryTerms = new Set(tokenize(retrievalQuery));
-  const queryTopicTerms = new Set([...primaryTerms].filter((term) => exclusiveTopicTerms.has(term)));
+  const queryTopicTerms = new Set(terms.filter((term) => exclusiveTopicTerms.has(term)));
   const normalizedQuery = tokenize(retrievalQuery).join(" ");
   const isBrandOverviewQuery = /^(?:what\s+is|what\s+does)\s+kamalo(?:\s+app)?$/i.test(query.trim().replace(/[?!.,]+$/, "").trim());
 
   return articles
     .filter((article) => !containsInstructionInjection(`${article.title}\n${article.category}\n${article.content}`))
     .filter((article) => !/^guru(?:\s+guidance)?\s*\/|founder-provided kamalo guru guidance/i.test(`${article.title}\n${article.category}\n${article.content}`))
+    .filter((article) => !isPersonalizedKnowledgeArticle(article))
     .map((article) => {
       const title = tokenize(article.title);
       const category = tokenize(article.category);
@@ -552,6 +553,12 @@ const exclusiveTopicTerms = new Set([
   "shipment",
 ]);
 
+function isPersonalizedKnowledgeArticle(article: RetrievedArticle): boolean {
+  return /\b(?:my(?:\s+\d[\d,]*)?(?:\s+welcome)?\s+coins?|your coins|you currently|your next expiry|x coins|how many coins? (?:do i have|expire)|how much do i have|what(?:'s| is) my (?:coin|coins?|reward|rewards?) balance|when will my coins expire|where are my(?:\s+\d[\d,]*)?(?:\s+welcome)?\s+coins?|why didn['’]t i receive my coins?|received fewer coins?|why did i (?:get|only get|receive) \d+ coins?)\b/i.test(
+    `${article.title}\n${article.content}`,
+  );
+}
+
 const retrievalAliases: Record<string, string[]> = {
   account: ["account", "profile", "register", "registration", "login", "locked", "signup"],
   register: ["account", "profile", "register", "registration", "login", "locked", "signup"],
@@ -589,6 +596,7 @@ const retrievalAliases: Record<string, string[]> = {
   sliver: ["silver", "milestone", "progress", "qualification"],
   gld: ["gold", "community", "milestone"],
   fincadoo: ["fincado", "progress", "analytics"],
+  fincdao: ["fincado", "progress", "analytics"],
   paymant: ["payment", "transaction", "failed", "declined"],
   refnd: ["refund", "reversal", "transaction"],
 };
