@@ -13,10 +13,12 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandRaised, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineClipboardDocument, HiOutlineHandRaised, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
+import { ToastAction } from '@/components/ui/toast';
+import { toast as showToast } from '@/hooks/use-toast';
 import { useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
 import { useSpeechInput } from '@/hooks/use-speech-input';
@@ -330,15 +332,11 @@ export function HomePage() {
   const [input, setInput] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [streamingText, setStreamingText] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [notice, setNotice] = useState('');
   const [conversationMode, setConversationMode] = useState<'new' | 'active' | 'readonly'>('new');
   const [inactivityState, setInactivityState] = useState<'active' | 'prompted' | 'closed'>('active');
   const [inactivityResetToken, setInactivityResetToken] = useState(0);
   const [feedbackDialog, setFeedbackDialog] = useState<{ message: ChatMessage; reaction: 'helpful' | 'not_helpful'; defaults?: { category?: string; summary?: string; details?: string } } | null>(null);
   const [pendingImage, setPendingImage] = useState<PendingImage | null>(null);
-  const [attachmentError, setAttachmentError] = useState('');
-  const [retryContent, setRetryContent] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [titleDraft, setTitleDraft] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState<ChatLanguage>(initialChatLanguage);
@@ -348,6 +346,8 @@ export function HomePage() {
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const shouldAutoScrollRef = useRef(true);
+  const voiceToastRef = useRef<ReturnType<typeof showToast> | null>(null);
+  const lastVoiceErrorRef = useRef('');
 
   const conversationsQuery = useListConversations({ query: { queryKey: getListConversationsQueryKey() } });
   const conversationQuery = useGetConversation(selectedId || '', { query: { enabled: !!selectedId, queryKey: getGetConversationQueryKey(selectedId || '') } });
@@ -370,6 +370,47 @@ export function HomePage() {
   });
 
   useEffect(() => {
+    const voiceInProgress = speech.isListening || speech.isTranscribing;
+    if (voiceInProgress) {
+      const title = speech.isTranscribing
+        ? 'Finishing your voice note'
+        : speech.isPaused
+          ? 'Voice input paused'
+          : 'Listening for your question';
+      const description = speech.isTranscribing
+        ? speech.error || 'Transcribing locally. Keep this window open until it finishes.'
+        : speech.isPaused
+          ? 'Resume when you are ready, or stop to finish the recording.'
+          : speech.error || 'Speak naturally, then tap Stop when you are finished.';
+      const toastContent = { title, description, duration: Infinity };
+      if (voiceToastRef.current) voiceToastRef.current.update({ ...toastContent, id: voiceToastRef.current.id });
+      else voiceToastRef.current = showToast(toastContent);
+      return;
+    }
+
+    if (voiceToastRef.current) {
+      voiceToastRef.current.dismiss();
+      voiceToastRef.current = null;
+    }
+
+    if (speech.error && lastVoiceErrorRef.current !== speech.error) {
+      lastVoiceErrorRef.current = speech.error;
+      showToast({
+        title: 'Voice input needs attention',
+        description: speech.error,
+        variant: 'destructive',
+        duration: 3000,
+        testId: 'status-voice-error',
+        action: speech.hasRetryableRecording
+          ? <ToastAction altText="Retry voice transcription" onClick={speech.retryTranscription}>Retry voice</ToastAction>
+          : undefined,
+      });
+    } else if (!speech.error) {
+      lastVoiceErrorRef.current = '';
+    }
+  }, [speech.error, speech.hasRetryableRecording, speech.isListening, speech.isPaused, speech.isTranscribing, speech.retryTranscription]);
+
+  useEffect(() => {
     void speech.refreshSupport();
   }, [location, speech.refreshSupport]);
 
@@ -389,7 +430,6 @@ export function HomePage() {
       setSelectedId(conversationId);
        setConversationMode('readonly');
        setLocalMessages(null);
-       setRetryContent(null);
     }
   }, [location]);
 
@@ -441,15 +481,14 @@ export function HomePage() {
   };
 
   const chooseImage = (file: File | undefined) => {
-    setAttachmentError('');
     if (!file) return;
     const validationError = imageValidationError(file);
     if (validationError) {
-      setAttachmentError(validationError);
+      showToast({ title: 'Image not attached', description: validationError, variant: 'destructive', duration: 3000 });
       return;
     }
     if (pendingImage && pendingImage.file.name === file.name && pendingImage.file.size === file.size && pendingImage.file.lastModified === file.lastModified) {
-      setAttachmentError('That image is already attached.');
+      showToast({ title: 'Image already attached', description: 'Choose a different JPG or PNG image.', variant: 'destructive', duration: 3000 });
       return;
     }
     if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
@@ -459,23 +498,19 @@ export function HomePage() {
   const removeImage = () => {
     if (pendingImage) URL.revokeObjectURL(pendingImage.previewUrl);
     setPendingImage(null);
-    setAttachmentError('');
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const startNewConversation = () => {
     if (isSending) return;
-    setErrorMessage('');
     setSelectedId(null);
     setConversationMode('new');
     setLocalMessages(null);
-    setRetryContent(null);
     setInput('');
     removeImage();
     setStreamingText('');
     setInactivityState('active');
     setInactivityResetToken((value) => value + 1);
-    setNotice('');
     window.setTimeout(() => inputRef.current?.focus(), 0);
   };
 
@@ -485,15 +520,11 @@ export function HomePage() {
     if ((!content && !image) || isSending || conversationMode === 'readonly') return;
     if (speech.isListening) speech.stop();
     shouldAutoScrollRef.current = true;
-    setErrorMessage('');
-    setAttachmentError('');
-    setNotice('');
     setInput('');
     setIsSending(true);
     let conversationId = selectedId;
     const hasImage = Boolean(image);
     let uploadFailed = false;
-    setRetryContent(null);
     try {
        if (!conversationId) {
         const created = await createConversation.mutateAsync({ data: { title: (content || IMAGE_ATTACHMENT_MESSAGE).slice(0, 64) } });
@@ -522,15 +553,24 @@ export function HomePage() {
       await queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       await queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
-      if (uploadFailed) setAttachmentError('The image could not be uploaded. Check the file and try again.');
-      setErrorMessage(uploadFailed
+      setInput(content);
+      const failureDescription = uploadFailed
         ? 'The image could not be uploaded. Check the file and try again.'
         : hasImage
           ? 'The image is stored, but the text request did not go through. The current text provider does not interpret image contents.'
-          : 'That did not go through. Check your connection and try again.');
-      setInput(content);
-      if (!uploadFailed && content) setRetryContent(content);
-      if (hasImage && !uploadFailed) setNotice('The image is stored with this conversation, but the current text provider does not interpret image contents. You can send a text question about it when ready.');
+          : 'That did not go through. Check your connection and try again.';
+      showToast({
+        title: uploadFailed ? 'Image upload failed' : 'Message not sent',
+        description: failureDescription,
+        variant: 'destructive',
+        duration: 3000,
+        action: !uploadFailed && content
+          ? <ToastAction altText="Retry sending message" onClick={() => void sendMessage(content, null)}>Retry</ToastAction>
+          : undefined,
+      });
+      if (hasImage && !uploadFailed) {
+        showToast({ title: 'Image saved with the chat', description: 'The current text provider cannot interpret image contents. You can send a text question about it when ready.', duration: 3000 });
+      }
     } finally {
       setIsSending(false);
       inputModeRef.current = 'text';
@@ -578,10 +618,9 @@ export function HomePage() {
       queryClient.setQueryData<ConversationSummary[]>(getListConversationsQueryKey(), (current) => current?.map((item) => item.id === updated.id ? { ...item, title: updated.title, updatedAt: updated.updatedAt } : item));
       queryClient.setQueryData(getGetConversationQueryKey(selectedId), (current: typeof loadedConversation) => current ? { ...current, title: updated.title, updatedAt: updated.updatedAt } : current);
       setRenaming(false);
-      setNotice('Conversation renamed.');
-      window.setTimeout(() => setNotice(''), 2200);
+      showToast({ title: 'Conversation renamed', description: 'The new title is saved.', duration: 3000 });
     } catch {
-      setErrorMessage('This conversation could not be renamed right now.');
+      showToast({ title: 'Rename failed', description: 'This conversation could not be renamed right now.', variant: 'destructive', duration: 3000 });
     }
   };
 
@@ -619,17 +658,16 @@ export function HomePage() {
                ? ' The ticket is saved, but email delivery needs support sender setup. You can track it in Help & Support.'
                : ' The ticket is saved and will be tracked in Help & Support.';
            const level = getTicketLevelMeta(ticket.level);
-           setNotice(`Ticket ${ticket.ticketNumber} was raised at level ${level.level} (${level.label}).${deliveryNotice}`);
+            showToast({ title: `Ticket ${ticket.ticketNumber} raised`, description: `Level ${level.level} (${level.label}).${deliveryNotice}`, duration: 3000 });
         } catch {
-          setNotice('Feedback was saved, but the support ticket could not be raised. Please try again.');
+           showToast({ title: 'Ticket could not be raised', description: 'Feedback was saved, but the support ticket could not be raised. Please try again.', variant: 'destructive', duration: 3000 });
         }
       } else {
-        setNotice(reaction === 'helpful' ? 'Thanks. That signal helps keep answers useful.' : 'Thanks for the signal. We will review this answer.');
+         showToast({ title: 'Feedback saved', description: reaction === 'helpful' ? 'Thanks. That signal helps keep answers useful.' : 'Thanks for the signal. We will review this answer.', duration: 3000 });
       }
       setFeedbackDialog(null);
-      window.setTimeout(() => setNotice(''), 3200);
     } catch {
-      setNotice('Feedback could not be saved right now.');
+       showToast({ title: 'Feedback could not be saved', description: 'Please try again.', variant: 'destructive', duration: 3000 });
     }
   };
 
@@ -637,11 +675,10 @@ export function HomePage() {
     try {
       if (!navigator.clipboard) throw new Error('Clipboard unavailable');
       await navigator.clipboard.writeText(content);
-      setNotice('Answer copied to clipboard.');
+      showToast({ title: 'Answer copied', description: 'The response is on your clipboard.', duration: 3000 });
     } catch {
-      setNotice('Copying is not available right now.');
+      showToast({ title: 'Copying is unavailable', description: 'Your browser did not provide clipboard access.', variant: 'destructive', duration: 3000 });
     }
-    window.setTimeout(() => setNotice(''), 2200);
   };
 
   const deleteConversationItem = async (conversation: ConversationSummary) => {
@@ -653,13 +690,11 @@ export function HomePage() {
         setSelectedId(null);
         setConversationMode('new');
         setLocalMessages(null);
-        setRetryContent(null);
         setInactivityState('active');
-        setNotice('Conversation removed from history.');
-        window.setTimeout(() => setNotice(''), 2600);
+        showToast({ title: 'Conversation removed', description: 'It was removed from your visible chat history.', duration: 3000 });
       }
     } catch {
-      setErrorMessage('This chat could not be removed right now. Please try again.');
+      showToast({ title: 'Could not remove chat', description: 'This chat could not be removed right now. Please try again.', variant: 'destructive', duration: 3000 });
     }
   };
 
@@ -672,12 +707,10 @@ export function HomePage() {
       setSelectedId(null);
       setConversationMode('new');
       setLocalMessages(null);
-      setRetryContent(null);
       setInactivityState('active');
-      setNotice('Conversation removed from history.');
-      window.setTimeout(() => setNotice(''), 2600);
+      showToast({ title: 'Conversation removed', description: 'It was removed from your visible chat history.', duration: 3000 });
     } catch {
-      setErrorMessage('This chat could not be cleared right now. Please try again.');
+      showToast({ title: 'Could not clear chat', description: 'This chat could not be cleared right now. Please try again.', variant: 'destructive', duration: 3000 });
     }
   };
 
@@ -718,8 +751,6 @@ export function HomePage() {
               </div>
             )}
              </div>
-            {errorMessage && <div className="mb-3 flex items-center justify-between gap-3 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="alert" aria-live="assertive" data-testid="status-send-error"><span>{errorMessage}</span>{retryContent && <button onClick={() => void sendMessage(retryContent, null)} className="shrink-0 font-semibold underline" data-testid="button-retry-send">Retry text</button>}</div>}
-             {notice && <div className="mb-3 flex items-center justify-center gap-2 text-center font-mono text-[10px] text-primary animate-rise" role="status" aria-live="polite" data-testid="status-feedback"><HiOutlineCheck size={13} />{notice}</div>}
              {inactivityState === 'prompted' && <div className="mb-3 flex items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/[.06] px-4 py-3 text-[12px] text-foreground animate-rise" role="alert" data-testid="status-inactivity-prompt"><span>Are you there?</span><KamaloActionButton variant="outline" size="sm" onClick={markUserActivity} data-testid="button-inactivity-continue">I’m here</KamaloActionButton></div>}
             {conversationMode === 'readonly' ? <ReadOnlyHistoryBar onNewConversation={startNewConversation} /> : inactivityState !== 'closed' && <div className="chat-composer safe-bottom bg-background/95 px-3 pt-2 backdrop-blur-sm sm:px-6 md:px-9 lg:px-12">
                <div className="mx-auto max-w-[980px]">
@@ -799,8 +830,6 @@ export function HomePage() {
                        <KamaloActionButton size="icon" onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></KamaloActionButton>
                     </div>
                  </div>
-                   {speech.error && <div className={`mt-2 flex items-center gap-3 rounded-lg border px-3.5 py-2.5 text-[11px] ${speech.isTranscribing || speech.status === 'listening' || speech.status === 'paused' ? 'border-primary/20 bg-primary/5 text-primary' : 'border-destructive/20 bg-destructive/5 text-destructive'}`} role="status" aria-live="polite" data-testid="status-voice-error"><span className="min-w-0 flex-1">{speech.error}</span>{speech.hasRetryableRecording && !speech.isTranscribing && <><button type="button" onClick={speech.retryTranscription} className="shrink-0 font-semibold underline underline-offset-2 hover:no-underline" data-testid="button-retry-voice">Retry voice</button><button type="button" onClick={() => speech.dismissRetryableRecording()} className="shrink-0 rounded-md p-1 text-current/70 hover:bg-current/10 hover:text-current" aria-label="Dismiss recorded voice retry" data-testid="button-dismiss-voice-retry"><HiOutlineXMark size={14} /></button></>}</div>}
-                  {attachmentError && <div className="mt-2 rounded-lg border border-destructive/20 bg-destructive/5 px-3.5 py-2.5 text-[11px] text-destructive" role="status" data-testid="status-attachment-error">{attachmentError}</div>}
                  <p className="mt-1 px-2 text-center text-[9px] leading-3.5 text-muted-foreground/65">KAMALO can make mistakes. Check important information before acting.</p>
                </div>
             </div>}

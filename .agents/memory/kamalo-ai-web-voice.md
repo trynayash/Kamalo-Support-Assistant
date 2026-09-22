@@ -7,4 +7,4 @@ Use browser speech recognition only as an optional fast path. Always keep record
 
 **Why:** The hosted preview produced a browser `network` error, and the first local fallback failed because an English-only Whisper model was called with `language` and `task` options. The multilingual model accepts those generation controls and keeps language handling extensible.
 
-**How to apply:** Keep audio decoding and transcription lazy-loaded in the web client, cache the model in the browser, use the multilingual Whisper model when passing language/task options, and retain diagnostic console logging while showing calm user-facing errors.
+**How to apply:** Keep audio decoding and transcription lazy-loaded in the web client, cache the model in the browser, use the multilingual Whisper model when passing language/task options, and retain diagnostic console logging while showing calm user-facing errors. Put transient voice errors in the global top toast for three seconds; keep recording and transcription progress in a persistent toast until the operation completes.

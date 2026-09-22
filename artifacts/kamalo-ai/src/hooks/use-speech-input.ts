@@ -376,7 +376,7 @@ export function useSpeechInput({
           }
         }
         setStatus('listening');
-        setError('Browser voice recognition is unavailable. Recording locally — stop when you finish speaking.');
+        setError('Recording locally. Speak naturally, then tap Stop when you are finished.');
         return;
       }
       if (event.error === 'not-allowed' || event.error === 'permission-denied' || event.error === 'audio-capture') {
