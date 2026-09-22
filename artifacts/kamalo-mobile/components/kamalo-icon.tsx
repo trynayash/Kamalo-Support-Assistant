@@ -24,6 +24,7 @@ export type KamaloIconName =
   | 'message-circle'
   | 'message-square'
   | 'paperclip'
+  | 'pause'
   | 'plus'
   | 'refresh-cw'
   | 'search'
@@ -59,6 +60,7 @@ const paths: Record<KamaloIconName, string[]> = {
   'message-circle': ['M4 5a3 3 0 0 1 3-3h10a3 3 0 0 1 3 3v7a3 3 0 0 1-3 3H11l-5 4v-4.5A3 3 0 0 1 4 12z'],
   'message-square': ['M5 4h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-8l-4 4v-4H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'],
   paperclip: ['M8 13l5.5-5.5a3 3 0 0 1 4.2 4.2L11 18.4a5 5 0 0 1-7.1-7.1l7-7', 'M8 13l5-5'],
+  pause: ['M7 5v14', 'M17 5v14'],
   plus: ['M12 5v14', 'M5 12h14'],
   'refresh-cw': ['M20 11a8 8 0 0 0-14.7-3L3 11', 'M3 4v7h7', 'M4 13a8 8 0 0 0 14.7 3L21 13', 'M21 20v-7h-7'],
   search: ['M11 19a8 8 0 1 0 0-16a8 8 0 0 0 0 16', 'M21 21l-4.3-4.3'],

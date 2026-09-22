@@ -34,7 +34,7 @@ declare global {
   }
 }
 
-export type SpeechInputStatus = 'idle' | 'listening' | 'unsupported' | 'error';
+export type SpeechInputStatus = 'idle' | 'listening' | 'paused' | 'unsupported' | 'error';
 
 function getSpeechRecognitionConstructor(): SpeechRecognitionConstructor | null {
   if (typeof window === 'undefined') return null;
@@ -136,6 +136,7 @@ export function useSpeechInput({
   const retriedNetworkErrorRef = useRef(false);
   const recordingTimerRef = useRef<number | null>(null);
   const retryableRecordingRef = useRef<{ blob: Blob; baseText: string } | null>(null);
+  const pauseRequestedRef = useRef(false);
   const isMountedRef = useRef(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [status, setStatus] = useState<SpeechInputStatus>('idle');
@@ -172,7 +173,7 @@ export function useSpeechInput({
     if (recorder) {
       recorder.ondataavailable = null;
       recorder.onstop = null;
-      if (recorder.state === 'recording') {
+      if (recorder.state === 'recording' || recorder.state === 'paused') {
         try {
           recorder.stop();
         } catch {
@@ -185,6 +186,7 @@ export function useSpeechInput({
     microphoneStreamRef.current = null;
     recordedChunksRef.current = [];
     localFallbackRef.current = false;
+    pauseRequestedRef.current = false;
     recorderHandledRef.current = true;
   }, []);
 
@@ -232,6 +234,7 @@ export function useSpeechInput({
   }, [cleanupVoiceResources, clearRetryableRecording, refreshSupport]);
 
   const stop = useCallback(() => {
+    pauseRequestedRef.current = false;
     if (recordingTimerRef.current !== null) {
       window.clearTimeout(recordingTimerRef.current);
       recordingTimerRef.current = null;
@@ -242,8 +245,22 @@ export function useSpeechInput({
       // Ignore a recognition instance that ended between the stop request and this call.
     }
     const recorder = recorderRef.current;
-    if (recorder?.state === 'recording') recorder.stop();
-  }, []);
+    if (recorder?.state === 'recording' || recorder?.state === 'paused') recorder.stop();
+    if (!localFallbackRef.current && status === 'paused') setStatus('idle');
+  }, [status]);
+
+  const pause = useCallback(() => {
+    if (!isMountedRef.current || status !== 'listening') return;
+    pauseRequestedRef.current = true;
+    const recorder = recorderRef.current;
+    if (recorder?.state === 'recording') recorder.pause();
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      // Ignore a recognition instance that ended while pausing.
+    }
+    setStatus('paused');
+  }, [status]);
 
   const startLocalTranscription = useCallback(async (blob: Blob, baseText: string) => {
     if (!isMountedRef.current) return;
@@ -301,7 +318,7 @@ export function useSpeechInput({
       microphoneStreamRef.current = null;
       return;
     }
-    if (recorder.state === 'recording') {
+    if (recorder.state === 'recording' || recorder.state === 'paused') {
       recorder.stop();
       return;
     }
@@ -353,6 +370,10 @@ export function useSpeechInput({
         recordingTimerRef.current = null;
       }
       recognitionRef.current = null;
+      if (pauseRequestedRef.current) {
+        setStatus('paused');
+        return;
+      }
       if (!localFallbackRef.current) {
         stopRecording(false);
         setStatus((current) => (current === 'error' ? current : 'idle'));
@@ -369,6 +390,18 @@ export function useSpeechInput({
     }
   }, [cleanupVoiceResources, clearRetryableRecording, lang, onChange, stopRecording, value]);
 
+  const resume = useCallback(() => {
+    if (!isMountedRef.current || status !== 'paused') return;
+    pauseRequestedRef.current = false;
+    const recorder = recorderRef.current;
+    if (recorder?.state === 'paused') recorder.resume();
+    if (!localFallbackRef.current && getSpeechRecognitionConstructor()) {
+      beginRecognition();
+    } else {
+      setStatus('listening');
+    }
+  }, [beginRecognition, status]);
+
   const start = useCallback(async () => {
     const SpeechRecognition = getSpeechRecognitionConstructor();
     if (!isMountedRef.current) return;
@@ -382,6 +415,7 @@ export function useSpeechInput({
     }
     setError('');
     retriedNetworkErrorRef.current = false;
+    pauseRequestedRef.current = false;
     const access = await ensureMicrophoneAccess();
     if (!isMountedRef.current) return;
     if (!access.ok) {
@@ -445,18 +479,22 @@ export function useSpeechInput({
 
   const toggle = useCallback(() => {
     if (status === 'listening') stop();
+    else if (status === 'paused') resume();
     else start();
-  }, [start, status, stop]);
+  }, [resume, start, status, stop]);
 
   return {
     error,
     hasRetryableRecording,
-    isListening: status === 'listening' || isTranscribing,
+    isListening: status === 'listening' || status === 'paused' || isTranscribing,
+    isPaused: status === 'paused',
     isTranscribing,
     isSupported,
+    pause,
     refreshSupport,
     retryTranscription,
     dismissRetryableRecording,
+    resume,
     status,
     start,
     stop,

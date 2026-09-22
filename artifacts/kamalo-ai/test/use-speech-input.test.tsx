@@ -76,6 +76,14 @@ class FakeMediaRecorder {
     this.state = 'recording';
   });
 
+  pause = vi.fn(() => {
+    this.state = 'paused';
+  });
+
+  resume = vi.fn(() => {
+    this.state = 'recording';
+  });
+
   stop = vi.fn(() => {
     this.state = 'inactive';
     this.ondataavailable?.({ data: FakeMediaRecorder.nextBlob });
@@ -362,6 +370,39 @@ describe('useSpeechInput', () => {
     expect(onChange).toHaveBeenCalledWith('Existing question recorded answer');
     expect(view.speech.status).toBe('idle');
     expect(view.speech.error).toBe('');
+    view.unmount();
+  });
+
+  it('pauses and resumes a local recording before transcribing it on stop', async () => {
+    const deferred = new Promise<string>((resolve) => {
+      (globalThis as typeof globalThis & { resolveTranscript?: (value: string) => void }).resolveTranscript = resolve;
+    });
+    vi.mocked(transcribeRecordedAudio).mockReturnValue(deferred);
+    installBrowserApis();
+    const view = renderSpeechInput({ onChange: vi.fn() });
+
+    await act(async () => {
+      await view.speech.start();
+    });
+    const recorder = FakeMediaRecorder.instances[0];
+
+    act(() => view.speech.pause());
+    expect(view.speech.isPaused).toBe(true);
+    expect(recorder.pause).toHaveBeenCalledOnce();
+    expect(recorder.stop).not.toHaveBeenCalled();
+
+    act(() => view.speech.resume());
+    expect(view.speech.isPaused).toBe(false);
+    expect(recorder.resume).toHaveBeenCalledOnce();
+
+    act(() => view.speech.stop());
+    await flushReact();
+    expect(recorder.stop).toHaveBeenCalledOnce();
+    expect(view.speech.isTranscribing).toBe(true);
+
+    (globalThis as typeof globalThis & { resolveTranscript?: (value: string) => void }).resolveTranscript?.('paused voice question');
+    await flushReact();
+    expect(view.speech.status).toBe('idle');
     view.unmount();
   });
 

@@ -70,19 +70,28 @@ export default function ChatScreen() {
   const [activeFeedback, setActiveFeedback] = useState<{ message: ChatMessage; rating: 'helpful' | 'not_helpful' } | null>(null);
   const [feedbackError, setFeedbackError] = useState<string | null>(null);
   const [isListening, setIsListening] = useState(false);
+  const [isVoicePaused, setIsVoicePaused] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [selectedLanguage, setSelectedLanguage] = useState<ChatLanguage>('en');
   const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
   const voiceInputMode = useRef<'text' | 'voice'>('text');
   const voiceBaseDraft = useRef('');
+  const voicePausedRef = useRef(false);
   const [ticketToast, setTicketToast] = useState<{ title: string; message: string } | null>(null);
   const handledTicketToast = useRef<string | null>(null);
   const params = useLocalSearchParams<{ conversationId?: string; ticketRaised?: string; ticketNumber?: string }>();
   const ticketRaised = typeof params.ticketRaised === 'string' ? params.ticketRaised : params.ticketRaised?.[0];
   const ticketNumber = typeof params.ticketNumber === 'string' ? params.ticketNumber : params.ticketNumber?.[0];
 
-  useOptionalSpeechRecognitionEvent('start', () => setIsListening(true));
-  useOptionalSpeechRecognitionEvent('end', () => setIsListening(false));
+  useOptionalSpeechRecognitionEvent('start', () => {
+    voicePausedRef.current = false;
+    setIsVoicePaused(false);
+    setIsListening(true);
+  });
+  useOptionalSpeechRecognitionEvent('end', () => {
+    setIsListening(false);
+    if (!voicePausedRef.current) setIsVoicePaused(false);
+  });
   useOptionalSpeechRecognitionEvent('result', (event) => {
     const transcript = event.results[0]?.transcript?.trim();
     if (!transcript) return;
@@ -90,7 +99,9 @@ export default function ChatScreen() {
     setDraft(`${base}${base ? ' ' : ''}${transcript}`.slice(0, 4000));
   });
   useOptionalSpeechRecognitionEvent('error', (event) => {
+    voicePausedRef.current = false;
     setIsListening(false);
+    setIsVoicePaused(false);
     if (event.error !== 'aborted') setVoiceError(event.error === 'not-allowed' ? 'Microphone access is blocked. Allow microphone access and try again.' : 'Voice input could not hear that. Please try again.');
   });
 
@@ -137,10 +148,27 @@ export default function ChatScreen() {
     setStreamError(null);
     setVoiceError(null);
     voiceInputMode.current = 'text';
-    if (isListening) getSpeechRecognitionModule()?.stop();
+    voicePausedRef.current = false;
+    setIsVoicePaused(false);
+    if (isListening || isVoicePaused) getSpeechRecognitionModule()?.stop();
   }
 
-  async function toggleVoiceInput() {
+  function stopVoiceInput() {
+    voicePausedRef.current = false;
+    setIsVoicePaused(false);
+    setIsListening(false);
+    getSpeechRecognitionModule()?.stop();
+  }
+
+  function pauseVoiceInput() {
+    if (!isListening) return;
+    voicePausedRef.current = true;
+    setIsVoicePaused(true);
+    setIsListening(false);
+    getSpeechRecognitionModule()?.stop();
+  }
+
+  async function startVoiceInput() {
     if (isStreaming) return;
     setVoiceError(null);
     const speechRecognitionModule = getSpeechRecognitionModule();
@@ -152,6 +180,8 @@ export default function ChatScreen() {
       speechRecognitionModule.stop();
       return;
     }
+    voicePausedRef.current = false;
+    setIsVoicePaused(false);
     try {
       const permission = await speechRecognitionModule.requestPermissionsAsync();
       if (!permission.granted) {
@@ -185,6 +215,19 @@ export default function ChatScreen() {
     }
   }
 
+  async function toggleVoiceInput() {
+    if (isStreaming) return;
+    if (isListening) {
+      stopVoiceInput();
+      return;
+    }
+    if (isVoicePaused) {
+      await startVoiceInput();
+      return;
+    }
+    await startVoiceInput();
+  }
+
   async function chooseImage() {
     if (!conversationId) {
       Alert.alert('Start with a question', 'Send a text question first, then attach an image to continue the same conversation.');
@@ -211,7 +254,7 @@ export default function ChatScreen() {
   async function send() {
     const text = draft.trim();
     if ((!text && !attachment) || isStreaming) return;
-    if (isListening) getSpeechRecognitionModule()?.stop();
+    if (isListening || isVoicePaused) stopVoiceInput();
     Keyboard.dismiss();
     await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setStreamError(null);
@@ -397,7 +440,19 @@ export default function ChatScreen() {
               onSubmitEditing={send}
               editable={!isStreaming}
             />
-            <IconButton icon={isListening ? 'square' : 'mic'} label={isListening ? 'Stop voice input' : 'Start voice input'} onPress={() => { void toggleVoiceInput(); }} disabled={isStreaming} />
+            {isListening || isVoicePaused ? (
+              <>
+                <IconButton
+                  icon={isVoicePaused ? 'mic' : 'pause'}
+                  label={isVoicePaused ? 'Resume voice input' : 'Pause voice input'}
+                  onPress={() => { if (isVoicePaused) void toggleVoiceInput(); else pauseVoiceInput(); }}
+                  disabled={isStreaming}
+                />
+                <IconButton icon="square" label="Stop voice input" onPress={stopVoiceInput} disabled={isStreaming} />
+              </>
+            ) : (
+              <IconButton icon="mic" label="Start voice input" onPress={() => { void toggleVoiceInput(); }} disabled={isStreaming} />
+            )}
              <Pressable accessibilityRole="button" accessibilityLabel="Send question" disabled={isStreaming || (!draft.trim() && !attachment)} onPress={send} style={({ pressed }) => [styles.send, { backgroundColor: colors.primary, borderColor: colors.primary, opacity: isStreaming || (!draft.trim() && !attachment) ? 0.32 : pressed ? 0.7 : 1 }]}><KamaloIcon name="arrow-up" size={18} color={colors.primaryForeground} /></Pressable>
           </View>
           <Text style={[styles.composerNote, { color: colors.mutedForeground }]}>KAMALO answers from approved knowledge only.</Text>

@@ -13,7 +13,7 @@ import {
   uploadConversationImage,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
-import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
+import { HiOutlineArrowPath, HiOutlineBackspace, HiOutlineCheck, HiOutlineClipboardDocument, HiOutlineHandRaised, HiOutlineHandThumbDown, HiOutlineHandThumbUp, HiOutlineLanguage, HiOutlineLifebuoy, HiOutlineMicrophone, HiOutlinePaperAirplane, HiOutlinePaperClip, HiOutlinePencilSquare, HiOutlinePlus, HiOutlineStop, HiOutlineXMark } from '@/components/kamalo-icons';
 import { KamaloShell, SectionLabel } from '@/components/kamalo-shell';
 import { FeedbackDialog, type FeedbackDialogSubmission } from '@/components/feedback-dialog';
 import { KamaloActionButton } from '@/components/kamalo-action-button';
@@ -755,7 +755,45 @@ export function HomePage() {
                             onChange={setPreferredLanguage}
                             disabled={isSending || speech.isListening}
                           />
-                         <KamaloActionButton type="button" variant={speech.isListening ? 'outline' : 'quiet'} size="icon" onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }} disabled={isSending || speech.isSupported === false || speech.isTranscribing} aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`} title={speech.isTranscribing ? 'Transcribing voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'} data-testid="button-voice-input">{speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}<span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isListening ? 'Stop' : 'Voice'}</span></KamaloActionButton>
+                          {speech.isListening && !speech.isTranscribing && <KamaloActionButton
+                            type="button"
+                            variant="quiet"
+                            size="icon"
+                            onClick={() => (speech.isPaused ? speech.resume() : speech.pause())}
+                            disabled={isSending}
+                            aria-label={speech.isPaused ? 'Resume voice input' : 'Pause voice input'}
+                            title={speech.isPaused ? 'Resume voice input' : 'Pause voice input'}
+                            data-testid="button-pause-voice"
+                          >
+                            <HiOutlineHandRaised size={14} />
+                            <span className="sr-only">{speech.isPaused ? 'Resume' : 'Pause'}</span>
+                          </KamaloActionButton>}
+                          <KamaloActionButton
+                            type="button"
+                            variant={speech.isListening ? 'outline' : 'quiet'}
+                            size="icon"
+                            onClick={() => { inputModeRef.current = 'voice'; speech.toggle(); }}
+                            disabled={isSending || speech.isSupported === false || speech.isTranscribing}
+                            aria-label={speech.isTranscribing ? 'Transcribing voice input' : speech.isPaused ? 'Resume voice input' : speech.isListening ? 'Stop voice input' : `Start voice input in ${selectedChatLanguage.label}`}
+                            title={speech.isTranscribing ? 'Transcribing voice input' : speech.isPaused ? 'Resume voice input' : speech.isListening ? 'Stop voice input' : 'Start voice input'}
+                            data-testid="button-voice-input"
+                          >
+                            {speech.isTranscribing ? <HiOutlineLanguage size={14} className="animate-pulse" /> : speech.isPaused ? <HiOutlineMicrophone size={14} /> : speech.isListening ? <HiOutlineStop size={14} /> : <HiOutlineMicrophone size={14} />}
+                            <span className="sr-only">{speech.isTranscribing ? 'Processing' : speech.isPaused ? 'Resume' : speech.isListening ? 'Stop' : 'Voice'}</span>
+                          </KamaloActionButton>
+                          {speech.isListening && !speech.isTranscribing && <KamaloActionButton
+                            type="button"
+                            variant="quiet"
+                            size="icon"
+                            onClick={speech.stop}
+                            disabled={isSending}
+                            aria-label="Stop voice input"
+                            title="Stop voice input"
+                            data-testid="button-stop-voice"
+                          >
+                            <HiOutlineStop size={14} />
+                            <span className="sr-only">Stop</span>
+                          </KamaloActionButton>}
                          <span id="attachment-help" className="truncate text-[9px] text-muted-foreground/70">JPG or PNG · max 5 MB · stored, not interpreted</span>
                       </div>
                        <KamaloActionButton size="icon" onClick={() => void sendMessage()} disabled={(!input.trim() && !pendingImage) || isSending} aria-label={isSending ? 'Sending message' : 'Send message'} data-testid="button-send-message"><HiOutlinePaperAirplane size={15} /></KamaloActionButton>
