@@ -456,10 +456,11 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
   } catch (error) {
     if (clientClosed) {
       req.log.info({ conversationId, requestId: supportContext.requestId }, "Client disconnected during response generation");
-      req.removeListener("aborted", onClientClosed);
-      res.removeListener("close", onClientClosed);
-      return;
-    }
+      if (!fullResponse) {
+        fullResponse = SAFE_ASSISTANT_ERROR;
+        responseOutcome = "provider_error";
+      }
+    } else {
     recordSupportEvent(req.log, {
       event: "provider_failure",
       context: supportContext,
@@ -486,6 +487,7 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     } else {
       fullResponse = SAFE_ASSISTANT_ERROR;
       responseOutcome = "provider_error";
+    }
     }
   }
 
@@ -541,11 +543,6 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     fullResponse = STAGE_ONE_FALLBACK;
     responseOutcome = "unknown";
   }
-  if (clientClosed) {
-    req.removeListener("aborted", onClientClosed);
-    res.removeListener("close", onClientClosed);
-    return;
-  }
   const assistantMessage = {
     id: crypto.randomUUID(),
     conversationId,
@@ -557,8 +554,15 @@ router.post("/conversations/:conversationId/messages", async (req, res): Promise
     await db.update(conversationsTable).set({ updatedAt: new Date() }).where(eq(conversationsTable.id, conversationId));
   } catch (error) {
     req.log.error({ err: error, conversationId, requestId: supportContext.requestId }, "Assistant response could not be persisted");
-    await writeSse(res, { error: "The response could not be saved. Please try again." });
-    res.end();
+    if (!clientClosed) {
+      await writeSse(res, { error: "The response could not be saved. Please try again." });
+      res.end();
+    }
+    req.removeListener("aborted", onClientClosed);
+    res.removeListener("close", onClientClosed);
+    return;
+  }
+  if (clientClosed) {
     req.removeListener("aborted", onClientClosed);
     res.removeListener("close", onClientClosed);
     return;

@@ -91,7 +91,7 @@ async function stubScopeRoutingApi(page: import('@playwright/test').Page) {
       const assistantMessageId = `scope-assistant-${responseNumber}`;
       const assistantContent = responseNumber === 1
         ? 'Sorry, please email info@kamalo.app.'
-        : "I don't have confirmed information about that in the KAMALO information available to me.";
+        : "I am not able to confirm that from the KAMALO knowledge I have right now. Please raise a ticket so our team can review your query and get back to you.";
       const outcome = responseNumber === 1 ? 'out_of_scope' : 'unknown';
 
       messages.push(
@@ -134,7 +134,7 @@ test('keeps ticket escalation for Kamalo-adjacent unknowns but not unrelated inp
   await page.getByTestId('button-send-message').click();
 
   const adjacentAssistantMessage = page.getByTestId('message-scope-assistant-2');
-  await expect(adjacentAssistantMessage).toContainText("I don't have confirmed information");
+  await expect(adjacentAssistantMessage).toContainText("raise a ticket");
   await expect(page.getByTestId('card-unknown-escalation-scope-assistant-2')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Raise a ticket' })).toBeVisible();
 });

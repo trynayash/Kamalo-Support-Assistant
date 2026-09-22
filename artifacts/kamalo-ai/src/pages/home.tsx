@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { ChatMessage, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
+import type { ChatMessage, ConversationDetail, ConversationSummary, ImageAttachment } from '@workspace/api-client-react';
 import {
   useCreateSupportTicket,
   getGetConversationQueryKey,
@@ -23,9 +23,9 @@ import { useLocation } from 'wouter';
 import { getTicketLevelMeta } from '@/lib/ticket-levels';
 import { useSpeechInput } from '@/hooks/use-speech-input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isUnknownKamaloResponse } from '@/lib/support-responses';
 
 const CLIENT_SAFE_RESPONSE_ERROR = 'I’m having trouble responding right now. Please try again.';
-const UNKNOWN_RESPONSE = "I am not able to confirm that from the KAMALO knowledge I have right now. Please raise a ticket so our team can review your query and get back to you.";
 const IMAGE_ATTACHMENT_MESSAGE = 'Image attachment sent.';
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const quickPrompts = [
@@ -628,7 +628,7 @@ export function HomePage() {
         return [...base, assistantMessage];
       });
       if (response.outcome) setResponseOutcomes((current) => ({ ...current, [assistantMessage.id]: response.outcome as AssistantResponseOutcome }));
-      queryClient.setQueryData(getGetConversationQueryKey(conversationId), (current) => {
+      queryClient.setQueryData<ConversationDetail | undefined>(getGetConversationQueryKey(conversationId), (current) => {
         if (!current || current.id !== conversationId) return current;
         const merged = [...current.messages];
         const sameContent = (a: ChatMessage, b: ChatMessage) => a.role === b.role && a.content === b.content;
@@ -642,6 +642,12 @@ export function HomePage() {
       void queryClient.invalidateQueries({ queryKey: getGetConversationQueryKey(conversationId) });
       void queryClient.invalidateQueries({ queryKey: getListConversationsQueryKey() });
     } catch {
+      setLocalMessages((current) => {
+        const base = current ?? [];
+        const last = base.at(-1);
+        if (last?.role === 'user' && last.id.startsWith('local-user-')) return base.slice(0, -1);
+        return base;
+      });
       setInput(content);
       const failureDescription = uploadFailed
         ? 'The image could not be uploaded. Check the file and try again.'
@@ -837,7 +843,7 @@ export function HomePage() {
               </div>
             ) : (
                  <div className="min-w-0 space-y-6 overflow-x-hidden pb-7 pr-1 md:space-y-7" data-testid="conversation-messages">
-                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} onRaiseTicket={message.role === 'assistant' && (responseOutcomes[message.id] === 'unknown' || message.content === UNKNOWN_RESPONSE || /raise a ticket/i.test(message.content)) ? () => openEscalation(message) : undefined} />)}
+                {messages.map((message) => <MessageBubble key={message.id} message={message} onFeedback={handleFeedback} onCopy={(content) => { void copyAssistantResponse(content); }} onRetry={canRetryMessage(message) ? retryLast : undefined} onRaiseTicket={message.role === 'assistant' && (responseOutcomes[message.id] === 'unknown' || isUnknownKamaloResponse(message.content)) ? () => openEscalation(message) : undefined} />)}
                 {isSending && <StreamingBubble content={streamingText} />}
                  <div ref={messagesEndRef} className="chat-scroll-end h-px w-full" aria-hidden="true" data-testid="conversation-end" />
               </div>

@@ -49,7 +49,8 @@ function toMono(audioBuffer: AudioBuffer): Float32Array {
 
 export async function transcribeRecordedAudio(blob: Blob, language?: string): Promise<string> {
   if (!blob.size) return '';
-  const AudioContextConstructor = window.AudioContext || window.webkitAudioContext;
+  const AudioContextConstructor = window.AudioContext
+    || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
   if (!AudioContextConstructor) throw new Error('Local speech transcription is not supported in this browser.');
 
   const context = new AudioContextConstructor();

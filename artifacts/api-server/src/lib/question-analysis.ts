@@ -105,7 +105,9 @@ function parseAnalysisResponse(raw: string, fallback: QuestionAnalysis): Questio
       questionType: typeof questionType === "string" && allowedTypes.has(questionType as QuestionAnalysis["questionType"])
         ? questionType as QuestionAnalysis["questionType"]
         : fallback.questionType,
-      needsLiveAccountData: Boolean(parsed.needsLiveAccountData),
+      needsLiveAccountData: (typeof questionType === "string" && questionType === "account_specific")
+        ? Boolean(parsed.needsLiveAccountData)
+        : false,
       source: "openrouter",
     };
   } catch {
