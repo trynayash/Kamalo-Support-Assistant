@@ -10,9 +10,9 @@ services:
     name: kamalo
     runtime: node
     plan: free
+    # Do not use `corepack enable` on Render — /usr/bin is read-only (EROFS).
     buildCommand: >-
-      corepack enable &&
-      corepack prepare pnpm@10.28.2 --activate &&
+      npm install -g pnpm@10.28.2 &&
       pnpm install --frozen-lockfile &&
       pnpm run build:production
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
