@@ -20,8 +20,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { Button, Card, EmptyState, ErrorState, Field, LoadingState, PageHeader, Screen, Badge, formatDate, statusTone } from '@/components/ui';
 import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
-
-const categories = ['Account access', 'Billing', 'Product question', 'Technical issue', 'Other'];
+import { SUPPORT_CATEGORIES, SupportCategory, calculateSlaStatus } from '@/lib/ticketLevels';
 
 export default function SupportScreen() {
   const colors = useColors();
@@ -39,7 +38,7 @@ export default function SupportScreen() {
     feedbackSummary?: string;
   }>();
   const [showForm, setShowForm] = useState(Boolean(params.feedbackRating === 'not_helpful'));
-  const [category, setCategory] = useState(categories[0]);
+  const [category, setCategory] = useState<string>(SUPPORT_CATEGORIES[0]);
   const [summary, setSummary] = useState('');
   const [details, setDetails] = useState('');
   const [email, setEmail] = useState('');
@@ -56,7 +55,7 @@ export default function SupportScreen() {
     if (params.feedbackRating) setFeedbackRating(params.feedbackRating);
     if (params.feedbackRating === 'not_helpful') {
       setShowForm(true);
-      setCategory('Product question');
+      setCategory('Others');
       setSummary(params.feedbackSummary || 'KAMALO answer was not helpful');
       setDetails(params.feedbackNote || '');
     }
@@ -66,7 +65,7 @@ export default function SupportScreen() {
     setSummary('');
     setDetails('');
     setEmail('');
-    setCategory(categories[0]);
+    setCategory(SUPPORT_CATEGORIES[0]);
     setLinkedConversationId(null);
     setLinkedMessageId(null);
     setFeedbackRating(null);
@@ -144,24 +143,66 @@ export default function SupportScreen() {
   if (showForm) {
     return (
       <Screen>
-        <PageHeader eyebrow="Support" title="Raise a ticket" subtitle="A little context helps us route your request well." action="Cancel" onAction={leaveForm} />
+        <PageHeader eyebrow="Support" title="Raise a ticket" subtitle="A little context helps us route your request to the right engine." action="Cancel" onAction={leaveForm} />
         <KeyboardAwareScrollViewCompat contentContainerStyle={styles.form} bottomOffset={22}>
-          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>WHAT CAN WE HELP WITH?</Text>
-          <View style={styles.categoryWrap}>{categories.map((item) => <Pressable key={item} onPress={() => setCategory(item)} accessibilityRole="button" accessibilityState={{ selected: category === item }} style={[styles.category, { backgroundColor: category === item ? colors.primary : colors.secondary }]}><Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.foreground }]}>{item}</Text></Pressable>)}</View>
+          <View style={[styles.slaBanner, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '30' }]}>
+            <View style={styles.slaBannerHeader}>
+              <KamaloIcon name="clock" size={14} color={colors.primary} />
+              <Text style={[styles.slaBannerTitle, { color: colors.primary }]}>RESOLUTION TIMELINE (SLA)</Text>
+            </View>
+            <Text style={[styles.slaBannerText, { color: colors.foreground }]}>
+              • L1 (24h SLA) for standard requests & general issues{'\n'}
+              • L2 (48h SLA) for Coins / Fincado / Commission engine queries{'\n'}
+              • I.S. (Immediate) for transactions & critical alerts
+            </Text>
+          </View>
+
+          <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>TICKET CATEGORY</Text>
+          <View style={styles.categoryWrap}>
+            {SUPPORT_CATEGORIES.map((item) => (
+              <Pressable
+                key={item}
+                onPress={() => setCategory(item)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: category === item }}
+                style={[
+                  styles.category,
+                  { backgroundColor: category === item ? colors.primary : colors.secondary, borderColor: category === item ? colors.primary : colors.border },
+                ]}
+              >
+                <Text style={[styles.categoryText, { color: category === item ? colors.primaryForeground : colors.foreground }]}>
+                  {item}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <Field label="Summary" value={summary} onChangeText={setSummary} placeholder="What is happening?" maxLength={180} error={errors.summary} />
           <Field label="Details" value={details} onChangeText={setDetails} placeholder="Tell us what you expected and what you saw." multiline numberOfLines={6} textAlignVertical="top" style={styles.details} error={errors.details} />
           <View style={styles.evidenceSection}>
-            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>REFERENCE IMAGE</Text>
+            <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>REFERENCE IMAGE / EVIDENCE</Text>
             {attachment ? (
               <View style={[styles.attachmentCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
                 <Image source={{ uri: attachment.previewUri }} style={styles.attachmentPreview} />
-                <View style={styles.attachmentCopy}><Text style={[styles.attachmentName, { color: colors.foreground }]} numberOfLines={1}>{attachment.item.filename}</Text><Text style={[styles.attachmentMeta, { color: colors.mutedForeground }]}>Attached to this ticket</Text></View>
-                <Pressable accessibilityRole="button" accessibilityLabel="Remove reference image" onPress={() => setAttachment(null)} hitSlop={8}><KamaloIcon name="x" size={18} color={colors.mutedForeground} /></Pressable>
+                <View style={styles.attachmentCopy}>
+                  <Text style={[styles.attachmentName, { color: colors.foreground }]} numberOfLines={1}>{attachment.item.filename}</Text>
+                  <Text style={[styles.attachmentMeta, { color: colors.mutedForeground }]}>Attached to this ticket</Text>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel="Remove reference image" onPress={() => setAttachment(null)} hitSlop={8}>
+                  <KamaloIcon name="x" size={18} color={colors.mutedForeground} />
+                </Pressable>
               </View>
             ) : (
-              <Pressable accessibilityRole="button" onPress={chooseImage} disabled={uploading} style={({ pressed }) => [styles.uploadButton, { backgroundColor: colors.secondary, borderColor: colors.border, opacity: uploading ? 0.5 : pressed ? 0.68 : 1 }]}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={chooseImage}
+                disabled={uploading}
+                style={({ pressed }) => [styles.uploadButton, { backgroundColor: colors.secondary, borderColor: colors.border, opacity: uploading ? 0.5 : pressed ? 0.68 : 1 }]}
+              >
                 <KamaloIcon name={uploading ? 'loader' : 'image'} size={17} color={colors.primary} />
-                <View style={styles.uploadCopy}><Text style={[styles.uploadTitle, { color: colors.foreground }]}>{uploading ? 'Uploading image…' : 'Add a screenshot or reference'}</Text><Text style={[styles.uploadMeta, { color: colors.mutedForeground }]}>JPG or PNG, optional</Text></View>
+                <View style={styles.uploadCopy}>
+                  <Text style={[styles.uploadTitle, { color: colors.foreground }]}>{uploading ? 'Uploading image…' : 'Add screenshot or transaction proof'}</Text>
+                  <Text style={[styles.uploadMeta, { color: colors.mutedForeground }]}>JPG or PNG, optional</Text>
+                </View>
                 <KamaloIcon name="chevron-right" size={16} color={colors.mutedForeground} />
               </Pressable>
             )}
@@ -175,8 +216,15 @@ export default function SupportScreen() {
 
   return (
     <Screen>
-      <PageHeader eyebrow="Help, when you need it" title="Support" subtitle="Track requests and keep the conversation moving." action="New ticket" onAction={() => setShowForm(true)} />
-      {tickets.isLoading ? <LoadingState /> : tickets.isError ? <ErrorState onRetry={() => tickets.refetch()} /> : !tickets.data?.length ? <EmptyState icon="life-buoy" title="Nothing in the queue" body="If KAMALO cannot answer a question, raise a ticket and we will keep it moving." action={<Button label="Raise a ticket" icon="plus" onPress={() => setShowForm(true)} />} /> : (
+      <PageHeader eyebrow="Help, when you need it" title="Support" subtitle="Track requests, SLA timelines, and resolved issues." action="New ticket" onAction={() => setShowForm(true)} />
+      {tickets.isLoading ? <LoadingState /> : tickets.isError ? <ErrorState onRetry={() => tickets.refetch()} /> : !tickets.data?.length ? (
+        <EmptyState
+          icon="life-buoy"
+          title="Nothing in the queue"
+          body="If KAMALO cannot answer a question, raise a ticket and our review team will resolve it within SLA."
+          action={<Button label="Raise a ticket" icon="plus" onPress={() => setShowForm(true)} />}
+        />
+      ) : (
         <FlatList
           data={tickets.data}
           keyExtractor={(item) => item.id}
@@ -191,22 +239,48 @@ export default function SupportScreen() {
 
 function TicketRow({ ticket, onPress }: { ticket: SupportTicket; onPress: () => void }) {
   const colors = useColors();
-  return <Card onPress={onPress} style={styles.ticketCard}><View style={styles.ticketHeader}><Text style={[styles.ticketNumber, { color: colors.primary }]}>{ticket.ticketNumber}</Text><Badge label={ticket.status.replace('_', ' ')} tone={statusTone(ticket.status)} /></View><Text style={[styles.ticketSummary, { color: colors.foreground }]} numberOfLines={2}>{ticket.summary}</Text><View style={styles.ticketMeta}><Text style={[styles.meta, { color: colors.mutedForeground }]}>{ticket.category}</Text><Text style={[styles.meta, { color: colors.mutedForeground }]}>{formatDate(ticket.updatedAt, true)}</Text><KamaloIcon name="chevron-right" size={15} color={colors.mutedForeground} /></View></Card>;
+  const sla = calculateSlaStatus(ticket.createdAt, ticket.level, ticket.resolvedAt);
+
+  return (
+    <Card onPress={onPress} style={styles.ticketCard}>
+      <View style={styles.ticketHeader}>
+        <View style={styles.numberRow}>
+          <Text style={[styles.ticketNumber, { color: colors.primary }]}>{ticket.ticketNumber}</Text>
+          <Badge label={sla.slaLabel} tone={sla.badgeTone} />
+        </View>
+        <Badge label={ticket.status.replace('_', ' ')} tone={statusTone(ticket.status)} />
+      </View>
+      <Text style={[styles.ticketSummary, { color: colors.foreground }]} numberOfLines={2}>{ticket.summary}</Text>
+      <View style={styles.ticketMeta}>
+        <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>{ticket.category}</Text>
+        <Text style={[styles.slaMeta, { color: sla.isOverdue ? colors.destructive : colors.primary }]}>
+          {sla.statusText}
+        </Text>
+        <KamaloIcon name="chevron-right" size={15} color={colors.mutedForeground} />
+      </View>
+    </Card>
+  );
 }
 
 const styles = StyleSheet.create({
   list: { paddingHorizontal: 16, paddingBottom: 28, gap: 10 },
   ticketCard: { padding: 15 },
-  ticketHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  ticketHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  numberRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   ticketNumber: { fontFamily: 'Inter_600SemiBold', fontSize: 11, letterSpacing: 1 },
   ticketSummary: { fontFamily: 'Inter_600SemiBold', fontSize: 15, lineHeight: 21, marginTop: 12 },
   ticketMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 14 },
   meta: { fontFamily: 'Inter_400Regular', fontSize: 11, flex: 1 },
+  slaMeta: { fontFamily: 'Inter_600SemiBold', fontSize: 10 },
   form: { paddingHorizontal: 20, paddingBottom: 40 },
+  slaBanner: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 18 },
+  slaBannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  slaBannerTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.1 },
+  slaBannerText: { fontFamily: 'Inter_400Regular', fontSize: 12, lineHeight: 18 },
   sectionLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.1, marginBottom: 9 },
   categoryWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
-  category: { overflow: 'hidden', borderRadius: 7, paddingHorizontal: 10, paddingVertical: 9 },
-  categoryText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
+  category: { borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10 },
+  categoryText: { fontFamily: 'Inter_600SemiBold', fontSize: 12 },
   details: { minHeight: 124 },
   evidenceSection: { marginBottom: 16 },
   attachmentCard: { borderWidth: 1, borderRadius: 10, padding: 9, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -218,4 +292,4 @@ const styles = StyleSheet.create({
   uploadCopy: { flex: 1 },
   uploadTitle: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
   uploadMeta: { fontFamily: 'Inter_400Regular', fontSize: 11, marginTop: 3 },
-});
+});

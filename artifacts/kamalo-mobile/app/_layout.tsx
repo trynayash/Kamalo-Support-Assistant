@@ -14,14 +14,11 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setBaseUrl } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { getApiBaseUrl } from '@/lib/apiConfig';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
-setBaseUrl(
-  process.env.EXPO_PUBLIC_DOMAIN
-    ? `https://${process.env.EXPO_PUBLIC_DOMAIN}`
-    : null,
-);
+setBaseUrl(getApiBaseUrl());
 
 const queryClient = new QueryClient();
 
@@ -37,8 +34,9 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="ticket/[id]" options={{ title: 'Ticket', headerShown: true }} />
-      <Stack.Screen name="admin" options={{ title: 'Test admin', headerShown: true }} />
+      <Stack.Screen name="ticket/[id]" options={{ title: 'Ticket Details', headerShown: true }} />
+      <Stack.Screen name="admin" options={{ title: 'Support Operations', headerShown: true }} />
+      <Stack.Screen name="admin/knowledge" options={{ title: 'Knowledge Base Admin', headerShown: true }} />
     </Stack>
   );
 }

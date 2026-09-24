@@ -39,13 +39,13 @@ export function FeedbackOverlay({
 
   useEffect(() => {
     if (visible) {
-      setScore(null);
+      setScore(rating === 'helpful' ? 5 : 1);
       setNote('');
     }
   }, [visible, rating]);
 
   const isHelpful = rating === 'helpful';
-  const canSubmit = score !== null && (!isHelpful ? note.trim().length >= 3 : true);
+  const canSubmit = score !== null || note.trim().length > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -53,17 +53,50 @@ export function FeedbackOverlay({
         <Pressable style={styles.backdrop} onPress={onClose} />
         <View style={[styles.sheet, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <View style={styles.sheetHeader}>
-            <View style={[styles.iconWrap, { backgroundColor: isHelpful ? colors.primary + '18' : colors.accent + '24' }]}>
-              <KamaloIcon name={isHelpful ? 'thumbs-up' : 'thumbs-down'} size={18} color={isHelpful ? colors.primary : colors.accentForeground} />
+            <View style={[styles.iconWrap, { backgroundColor: isHelpful ? colors.primary + '18' : colors.destructive + '18' }]}>
+              <KamaloIcon
+                name={isHelpful ? 'thumbs-up' : 'thumbs-down'}
+                size={20}
+                color={isHelpful ? colors.primary : colors.destructive}
+                filled
+              />
             </View>
             <Pressable accessibilityRole="button" accessibilityLabel="Close feedback" onPress={onClose} hitSlop={10} style={styles.closeButton}>
               <KamaloIcon name="x" size={20} color={colors.mutedForeground} />
             </Pressable>
           </View>
-          <Text style={[styles.title, { color: colors.foreground }]}>{isHelpful ? 'Glad that helped' : 'Help us improve'}</Text>
-          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {isHelpful ? 'How would you rate this answer?' : 'What happened with this answer? Your feedback helps us fix the gaps.'}
+          <Text style={[styles.title, { color: colors.foreground }]}>
+            {isHelpful ? 'Glad that was helpful!' : 'How can we resolve this?'}
           </Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
+            {isHelpful
+              ? 'Your feedback helps KAMALO learn which answers are accurate.'
+              : 'Our human support team can review this question directly or you can send us quick feedback.'}
+          </Text>
+
+          {!isHelpful ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Escalate to human support ticket"
+              disabled={submitting}
+              onPress={() => onRaiseTicket(score ?? 1, note.trim())}
+              style={({ pressed }) => [
+                styles.ticketActionCard,
+                { backgroundColor: colors.primary, opacity: submitting ? 0.45 : pressed ? 0.8 : 1 },
+              ]}
+            >
+              <View style={styles.ticketActionIcon}>
+                <KamaloIcon name="life-buoy" size={20} color={colors.primaryForeground} />
+              </View>
+              <View style={styles.ticketActionCopy}>
+                <Text style={[styles.ticketActionTitle, { color: colors.primaryForeground }]}>Raise Support Ticket</Text>
+                <Text style={[styles.ticketActionBody, { color: colors.primaryForeground + 'cc' }]}>
+                  Escalate to specialist with question context attached
+                </Text>
+              </View>
+              <KamaloIcon name="arrow-right" size={16} color={colors.primaryForeground} />
+            </Pressable>
+          ) : null}
 
           <View style={styles.stars} accessibilityRole="radiogroup" accessibilityLabel="Rate this answer from one to five stars">
             {[1, 2, 3, 4, 5].map((value) => {
@@ -78,13 +111,18 @@ export function FeedbackOverlay({
                   hitSlop={6}
                   style={styles.starButton}
                 >
-                  <KamaloIcon name="star" size={28} color={selected ? colors.accentForeground : colors.border} />
+                  <KamaloIcon
+                    name="star"
+                    size={28}
+                    color={selected ? '#eab308' : colors.border}
+                    filled={selected}
+                  />
                 </Pressable>
               );
             })}
           </View>
           <Text style={[styles.ratingHint, { color: colors.mutedForeground }]}>
-            {score ? `${score} out of 5 stars` : 'Select a star rating'}
+            {score ? `${score} of 5 stars` : 'Select a rating'}
           </Text>
 
           <TextInput
@@ -93,33 +131,35 @@ export function FeedbackOverlay({
             multiline
             maxLength={1000}
             textAlignVertical="top"
-            placeholder={isHelpful ? 'Optional: what worked well?' : 'Tell us what went wrong or what you expected.'}
+            placeholder={isHelpful ? 'Optional: what worked well?' : 'Optional: what went wrong or what did you expect?'}
             placeholderTextColor={colors.mutedForeground}
             style={[styles.noteInput, { color: colors.foreground, backgroundColor: colors.background, borderColor: colors.border }]}
           />
-          {!isHelpful && note.trim().length > 0 && note.trim().length < 3 ? <Text style={[styles.validation, { color: colors.destructive }]}>Add at least a few words about what happened.</Text> : null}
           {error ? <Text style={[styles.validation, { color: colors.destructive }]}>{error}</Text> : null}
 
           <Pressable
             accessibilityRole="button"
             disabled={!canSubmit || submitting}
-            onPress={() => onSubmit(score!, note.trim())}
-            style={({ pressed }) => [styles.primaryButton, { backgroundColor: colors.primary, opacity: !canSubmit || submitting ? 0.45 : pressed ? 0.78 : 1 }]}
+            onPress={() => onSubmit(score ?? (isHelpful ? 5 : 1), note.trim())}
+            style={({ pressed }) => [
+              styles.primaryButton,
+              {
+                backgroundColor: isHelpful ? colors.primary : colors.secondary,
+                borderColor: colors.border,
+                borderWidth: isHelpful ? 0 : 1,
+                opacity: !canSubmit || submitting ? 0.45 : pressed ? 0.78 : 1,
+              },
+            ]}
           >
-            {submitting ? <ActivityIndicator color={colors.primaryForeground} /> : <KamaloIcon name="send" size={15} color={colors.primaryForeground} />}
-            <Text style={[styles.primaryButtonText, { color: colors.primaryForeground }]}>Submit feedback</Text>
+            {submitting ? (
+              <ActivityIndicator color={isHelpful ? colors.primaryForeground : colors.foreground} />
+            ) : (
+              <KamaloIcon name="send" size={15} color={isHelpful ? colors.primaryForeground : colors.foreground} />
+            )}
+            <Text style={[styles.primaryButtonText, { color: isHelpful ? colors.primaryForeground : colors.foreground }]}>
+              {isHelpful ? 'Submit feedback' : 'Send feedback note'}
+            </Text>
           </Pressable>
-          {!isHelpful ? (
-            <Pressable
-              accessibilityRole="button"
-              disabled={submitting}
-              onPress={() => onRaiseTicket(score ?? 1, note.trim())}
-              style={({ pressed }) => [styles.ticketButton, { borderColor: colors.border, opacity: submitting ? 0.45 : pressed ? 0.65 : 1 }]}
-            >
-              <KamaloIcon name="life-buoy" size={15} color={colors.foreground} />
-              <Text style={[styles.ticketButtonText, { color: colors.foreground }]}>Raise a ticket instead</Text>
-            </Pressable>
-          ) : null}
         </View>
       </KeyboardAvoidingView>
     </Modal>
@@ -144,4 +184,34 @@ const styles = StyleSheet.create({
   primaryButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 14 },
   ticketButton: { minHeight: 44, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, marginTop: 9 },
   ticketButtonText: { fontFamily: 'Inter_600SemiBold', fontSize: 13 },
+  ticketActionCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 14,
+    gap: 12,
+  },
+  ticketActionIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  ticketActionCopy: {
+    flex: 1,
+  },
+  ticketActionTitle: {
+    fontFamily: 'Inter_700Bold',
+    fontSize: 14,
+  },
+  ticketActionBody: {
+    fontFamily: 'Inter_400Regular',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 2,
+  },
 });

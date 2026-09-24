@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { requireOptionalNativeModule } from 'expo';
 import type {
   ExpoSpeechRecognitionErrorEvent,
   ExpoSpeechRecognitionOptions,
@@ -25,13 +26,24 @@ export type SpeechRecognitionModule = {
 let cachedModule: SpeechRecognitionModule | null | undefined;
 
 /**
- * Expo Go does not always include optional third-party native modules.
- * Keep the module out of the initial import path so text chat can still start.
+ * Expo Go does not include custom native modules like ExpoSpeechRecognition.
+ * We check requireOptionalNativeModule first so Expo Go does not throw or log
+ * an unhandled native module error, while development builds can still use voice.
  */
 export function getSpeechRecognitionModule(): SpeechRecognitionModule | null {
   if (cachedModule !== undefined) return cachedModule;
 
   try {
+    const nativeModule =
+      typeof requireOptionalNativeModule === 'function'
+        ? requireOptionalNativeModule('ExpoSpeechRecognition')
+        : null;
+
+    if (!nativeModule) {
+      cachedModule = null;
+      return null;
+    }
+
     const speechPackage = require('expo-speech-recognition') as {
       ExpoSpeechRecognitionModule?: SpeechRecognitionModule;
     };

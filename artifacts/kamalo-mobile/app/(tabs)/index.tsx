@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, FlatList, Image, Keyboard, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -383,16 +383,48 @@ export default function ChatScreen() {
       </View>
       <KeyboardAvoidingView style={styles.chat} behavior="padding" keyboardVerticalOffset={0}>
         {conversationsLoading && !conversationId ? <LoadingState label="Preparing your assistant" /> : messages.length === 0 && !isStreaming ? (
-          <FlatList
-            data={[]}
-            renderItem={() => null}
-            scrollEnabled={false}
+          <ScrollView
             style={styles.listViewport}
-            ListEmptyComponent={
-              <EmptyState icon="message-square" illustration={require('../../assets/kamalo-welcome-illustration.png')} title="How can I help you today?" body="Ask a question. KAMALO answers from approved product knowledge and keeps your earlier conversations in History." />
-            }
             contentContainerStyle={styles.emptyList}
-          />
+            keyboardShouldPersistTaps="handled"
+          >
+            <EmptyState
+              icon="message-square"
+              illustration={require('../../assets/kamalo-welcome-illustration.png')}
+              title="How can I help you today?"
+              body="Ask a question. KAMALO answers from approved product knowledge and keeps your earlier conversations in History."
+            />
+            <View style={styles.suggestionsContainer}>
+              <Text style={[styles.suggestionsLabel, { color: colors.mutedForeground }]}>POPULAR QUESTIONS</Text>
+              <View style={styles.suggestionsWrap}>
+                {[
+                  'How does Auto KAMALO work?',
+                  'Explain Coins and rewards',
+                  'Fincado Engine rules',
+                  'Raise transaction dispute',
+                ].map((suggestion) => (
+                  <Pressable
+                    key={suggestion}
+                    onPress={() => {
+                      setDraft(suggestion);
+                      inputRef.current?.focus();
+                    }}
+                    style={({ pressed }) => [
+                      styles.suggestionChip,
+                      {
+                        backgroundColor: colors.card,
+                        borderColor: colors.border,
+                        opacity: pressed ? 0.72 : 1,
+                      },
+                    ]}
+                  >
+                    <KamaloIcon name="message-circle" size={13} color={colors.primary} />
+                    <Text style={[styles.suggestionText, { color: colors.foreground }]}>{suggestion}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
         ) : (
           <FlatList
             data={visibleMessages}
@@ -628,4 +660,9 @@ const styles = StyleSheet.create({
   attachmentText: { fontFamily: 'Inter_500Medium', fontSize: 12, marginLeft: 6, maxWidth: 180 },
   errorBanner: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8, marginBottom: 8 },
   errorBannerText: { flex: 1, fontFamily: 'Inter_500Medium', fontSize: 12 },
+  suggestionsContainer: { paddingHorizontal: 20, paddingTop: 10, paddingBottom: 24 },
+  suggestionsLabel: { fontFamily: 'Inter_600SemiBold', fontSize: 10, letterSpacing: 1.1, marginBottom: 10, textAlign: 'center' },
+  suggestionsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  suggestionChip: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, paddingVertical: 8 },
+  suggestionText: { fontFamily: 'Inter_500Medium', fontSize: 12 },
 });

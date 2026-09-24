@@ -1,12 +1,7 @@
 import { fetch } from 'expo/fetch';
+import { getApiBaseUrl } from './apiConfig';
 
 export type AssistantResponseOutcome = 'complete' | 'unknown' | 'provider_error' | 'grounding_fallback' | 'image_only' | 'prompt_extraction' | 'greeting';
-
-function getApiBaseUrl(): string {
-  const domain = process.env.EXPO_PUBLIC_DOMAIN?.trim().replace(/^https?:\/\//i, '').replace(/\/+$/, '');
-  if (!domain) throw new Error('KAMALO is not connected to its support server.');
-  return `https://${domain}`;
-}
 
 async function getResponseError(response: Response): Promise<string> {
   try {
@@ -32,7 +27,7 @@ export async function streamConversationMessage(
   onChunk: (chunk: string) => void,
   inputMode: 'text' | 'voice' = 'text',
   language: 'en' | 'hi' | 'mr' = 'en',
-): Promise<{ outcome: AssistantResponseOutcome | null }> {
+): Promise<{ outcome: AssistantResponseOutcome | null; messageId: string | null }> {
   let response: Response;
   try {
     response = await fetch(`${getApiBaseUrl()}/api/conversations/${conversationId}/messages`, {
@@ -58,12 +53,19 @@ export async function streamConversationMessage(
   let receivedDone = false;
   let receivedContent = false;
   let outcome: AssistantResponseOutcome | null = null;
+  let messageId: string | null = null;
   const consumeLine = (line: string) => {
     if (!line.startsWith('data:')) return;
     const data = line.slice(5).trim();
     if (!data) return;
     try {
-      const parsed = JSON.parse(data) as { content?: string; error?: string; done?: boolean; outcome?: AssistantResponseOutcome };
+      const parsed = JSON.parse(data) as {
+        content?: string;
+        error?: string;
+        done?: boolean;
+        outcome?: AssistantResponseOutcome;
+        messageId?: string;
+      };
       if (parsed.error) throw new Error(parsed.error);
       if (parsed.content) {
         receivedContent = true;
@@ -71,6 +73,7 @@ export async function streamConversationMessage(
       }
       if (parsed.done === true) receivedDone = true;
       if (parsed.outcome) outcome = parsed.outcome;
+      if (parsed.messageId) messageId = parsed.messageId;
     } catch (error) {
       if (error instanceof Error && error.message !== 'Unexpected end of JSON input') throw error;
     }
@@ -87,5 +90,5 @@ export async function streamConversationMessage(
   if (buffer) buffer.split(/\r?\n/).forEach(consumeLine);
   if (!receivedDone) throw new Error('The assistant response ended before completion. Please try again.');
   if (!receivedContent) throw new Error('The assistant returned an empty response. Please try again.');
-  return { outcome };
+  return { outcome, messageId };
 }

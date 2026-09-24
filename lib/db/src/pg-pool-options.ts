@@ -27,12 +27,19 @@ export type SupabaseDirectHostError = Error & {
   projectRef: string;
 };
 
+/** Detect Render deployment via the RENDER env var or NODE_ENV=production. */
+function isProductionLikeHost(): boolean {
+  return process.env.RENDER === "true" || process.env.NODE_ENV === "production";
+}
+
 export function createSupabaseDirectHostError(projectRef: string): SupabaseDirectHostError {
   const error = new Error(
     [
-      `Render cannot connect to Supabase direct host db.${projectRef}.supabase.co (IPv6 only).`,
+      `Render deploy — ENETUNREACH to Supabase: DATABASE_URL uses the direct host`,
+      `db.${projectRef}.supabase.co which resolves to IPv6. Render has no IPv6 egress,`,
+      "so the connection fails with ENETUNREACH.",
       "",
-      "Fix: In Render → Environment, set DATABASE_URL to the Session pooler URI from:",
+      "Fix: In Render → Environment, set DATABASE_URL to the Session pooler URI (IPv4):",
       "Supabase → Project Settings → Database → Connect → Session mode (port 5432).",
       "",
       "Example shape:",
@@ -68,7 +75,7 @@ export function normalizeSupabaseDatabaseUrl(rawUrl: string): string {
   const projectRef = directMatch[1];
   const region = process.env.SUPABASE_DB_REGION?.trim();
   if (!region) {
-    if (process.env.NODE_ENV === "production") {
+    if (isProductionLikeHost()) {
       throw createSupabaseDirectHostError(projectRef);
     }
     console.warn(

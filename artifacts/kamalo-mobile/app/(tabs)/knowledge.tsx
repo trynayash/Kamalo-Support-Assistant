@@ -14,9 +14,50 @@ export default function KnowledgeScreen() {
   const articles = useListKnowledgeArticles(articleParams, { query: { queryKey: getListKnowledgeArticlesQueryKey(articleParams) } });
   return (
     <Screen>
-      <PageHeader eyebrow="The KAMALO guide" title="Knowledge" subtitle="Approved answers, kept clear and current." action="Test admin" onAction={() => router.push('/admin')} />
-      <View style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border }]}><KamaloIcon name="search" size={17} color={colors.mutedForeground} /><TextInput value={search} onChangeText={setSearch} placeholder="Search the guide" placeholderTextColor={colors.mutedForeground} style={[styles.searchInput, { color: colors.foreground }]} returnKeyType="search" /><IconButton icon="x" label="Clear search" onPress={() => setSearch('')} /></View>
-      {articles.isLoading ? <LoadingState label="Loading approved knowledge" /> : articles.isError ? <ErrorState onRetry={() => articles.refetch()} /> : !articles.data?.length ? <EmptyState icon="book-open" title="No matching articles" body={search ? 'Try a different phrase or browse the full guide.' : 'Approved KAMALO knowledge will appear here.'} /> : <FlatList data={articles.data} keyExtractor={(item) => item.id} refreshControl={<RefreshControl refreshing={articles.isRefetching} onRefresh={() => articles.refetch()} tintColor={colors.primary} />} contentContainerStyle={styles.list} renderItem={({ item }) => <ArticleCard article={item} open={openId === item.id} onToggle={() => setOpenId(openId === item.id ? null : item.id)} />} />}
+      <PageHeader
+        eyebrow="The KAMALO guide"
+        title="Knowledge"
+        subtitle="Approved product guidance, kept clear and current."
+        action="Manage Source"
+        onAction={() => router.push('/admin/knowledge')}
+      />
+      <View style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <KamaloIcon name="search" size={17} color={colors.mutedForeground} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search the guide"
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.searchInput, { color: colors.foreground }]}
+          returnKeyType="search"
+        />
+        <IconButton icon="x" label="Clear search" onPress={() => setSearch('')} />
+      </View>
+      {articles.isLoading ? (
+        <LoadingState label="Loading approved knowledge" />
+      ) : articles.isError ? (
+        <ErrorState onRetry={() => articles.refetch()} />
+      ) : !articles.data?.length ? (
+        <EmptyState
+          icon="book-open"
+          title="No matching articles"
+          body={search ? 'Try a different phrase or browse the full guide.' : 'Approved KAMALO knowledge will appear here.'}
+        />
+      ) : (
+        <FlatList
+          data={articles.data}
+          keyExtractor={(item) => item.id}
+          refreshControl={<RefreshControl refreshing={articles.isRefetching} onRefresh={() => articles.refetch()} tintColor={colors.primary} />}
+          contentContainerStyle={styles.list}
+          renderItem={({ item }) => (
+            <ArticleCard
+              article={item}
+              open={openId === item.id}
+              onToggle={() => setOpenId(openId === item.id ? null : item.id)}
+            />
+          )}
+        />
+      )}
     </Screen>
   );
 }

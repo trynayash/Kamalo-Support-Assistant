@@ -10,6 +10,8 @@ const items = [
   { label: 'History', icon: 'clock' as KamaloIconName, href: '/(tabs)/history' },
   { label: 'Support', icon: 'message-circle' as KamaloIconName, href: '/(tabs)/support' },
   { label: 'Guide', icon: 'book-open' as KamaloIconName, href: '/(tabs)/knowledge' },
+  { label: 'Control Room', icon: 'inbox' as KamaloIconName, href: '/admin' },
+  { label: 'Knowledge Admin', icon: 'cpu' as KamaloIconName, href: '/admin/knowledge' },
 ];
 
 export function NavigationMenu() {

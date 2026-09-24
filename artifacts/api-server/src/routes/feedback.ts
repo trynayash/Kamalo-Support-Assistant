@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { Router, type IRouter } from "express";
 import {
   CreateMessageFeedbackBody,
@@ -19,10 +19,20 @@ router.post("/messages/:messageId/feedback", async (req, res): Promise<void> => 
     res.status(400).json({ error: "Invalid feedback." });
     return;
   }
-  const [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId, content: messagesTable.content }).from(messagesTable)
+  let [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId, content: messagesTable.content }).from(messagesTable)
     .innerJoin(conversationsTable, eq(conversationsTable.id, messagesTable.conversationId))
     .where(and(eq(messagesTable.id, params.data.messageId), eq(conversationsTable.userId, DEMO_USER_ID)))
     .limit(1);
+
+  if (!message) {
+    // If client had a temporary client ID or late sync, fallback to the latest assistant message
+    [message] = await db.select({ id: messagesTable.id, conversationId: messagesTable.conversationId, content: messagesTable.content }).from(messagesTable)
+      .innerJoin(conversationsTable, eq(conversationsTable.id, messagesTable.conversationId))
+      .where(and(eq(messagesTable.role, "assistant"), eq(conversationsTable.userId, DEMO_USER_ID)))
+      .orderBy(desc(messagesTable.createdAt))
+      .limit(1);
+  }
+
   if (!message) {
     res.status(404).json({ error: "Message not found." });
     return;
