@@ -1,108 +1,196 @@
-# KAMALO AI
+# KAMALO AI Support Assistant
 
-KAMALO AI is a Stage 1, knowledge-grounded support assistant for explaining KAMALO concepts in a clear and trustworthy way.
+A knowledge-grounded AI support assistant and operations portal for KAMALO. Built as a pnpm monorepo featuring a React 19 web frontend, an Express 5 API backend, Drizzle ORM on PostgreSQL with pgvector, and deterministic retrieval against verified knowledge base articles.
 
-## What is included
+---
 
-- Premium responsive chat UI at `/`
-- Conversation history with PostgreSQL persistence
-- Streaming answers from an OpenRouter provider abstraction
-- Approved KAMALO knowledge articles with version and status
-- Knowledge management at `/admin/knowledge`
-- Helpful / not helpful feedback
-- Controlled prompt-injection and fake-account-claim protections
-- Future-ready account context and tool registry interfaces
-- A 100+ case evaluation dataset in `scripts/src/evaluation-dataset.ts`
+## Stage 1 Scope & Boundaries
 
-Stage 1 deliberately does not include live customer account lookup, transaction lookup, Coin changes, refunds, mandates, ticketing, or financial writes.
+KAMALO AI operates under explicit Stage 1 system boundaries:
 
-## Run locally (Windows, macOS, Linux)
+- **Allowed:** Explaining approved KAMALO knowledge articles, answering customer questions, maintaining conversation history, capturing user feedback, submitting support tickets, and transcribing voice input.
+- **Strictly Blocked:** No live customer account queries, balance checks, transaction lookups, refunds, mandate changes, or financial writes.
+- **Safety Guardrails:** Hardened prompt-injection defenses and guardrails prevent synthetic claims of account access, private customer data exposure, or automated balance adjustments.
 
-Requirements: Node.js 20+ (LTS recommended; Node 25 works), pnpm 10.28+, Docker Desktop running (for local PostgreSQL with pgvector).
+---
 
-Install pnpm **without Corepack** (avoids signature errors on Windows and read-only errors on Render):
+## System Architecture & Data Flow
+
+```text
+[ Browser / Client ]
+        │  (HTTP / SSE Stream)
+        ▼
+[ Express API Server (:8081) ]
+        │
+        ├── 1. Session & Auth Validation
+        ├── 2. Input Sanitization & Injection Guardrails
+        ├── 3. Intent Routing & Query Extraction (OpenRouter)
+        │
+        ▼
+[ PostgreSQL / Supabase + pgvector ]
+        │  (Deterministic lexical retrieval on status = 'approved')
+        ▼
+[ Grounded Answer Synthesis (OpenRouter) ]
+        │  (Strict system policy: citations grounded in retrieved chunks)
+        ▼
+[ Streamed SSE Response to Web Client (:5173) ]
+```
+
+---
+
+## Repository Structure
+
+```text
+KAMALO-AI-Support-Assistant/
+├── artifacts/                     # Core deployable packages & applications
+│   ├── kamalo-ai/                 # [Production] React 19 + Vite web frontend (Chat, History, Admin KB, Support Tickets)
+│   ├── api-server/                # [Production] Express 5 + TypeScript backend (Orchestrator, DB, OpenRouter, Resend)
+│   ├── kamalo-mobile/             # [Dev Only] Expo Router companion app (React Native preview)
+│   └── mockup-sandbox/            # [Dev Only] UI prototyping & design sandbox preview server
+├── lib/                           # Shared monorepo packages
+│   ├── api-spec/                  # OpenAPI contract definitions and schema specs
+│   ├── api-client-react/          # Generated React Query hooks and client bindings
+│   ├── api-zod/                   # Shared Zod validation schemas for request/response payloads
+│   ├── db/                        # Drizzle ORM schema definitions, relations, and Postgres client
+│   └── kamalo-icons/              # Shared SVG icon component definitions
+├── scripts/                       # Developer tooling, lifecycle, and automation scripts
+│   ├── dev.mjs                    # Concurrent dev launcher for API (:8081) and Vite (:5173)
+│   ├── setup-local.mjs            # Automated installer, Drizzle schema push, and API build
+│   ├── stop-dev.mjs               # Cross-platform utility to kill dangling dev processes
+│   ├── prepare-supabase-sql.mjs   # Formatter to convert DB dump to Supabase SQL editor scripts
+│   ├── verify-database.mjs        # Database connectivity and row-count verification script
+│   └── test-intent.mjs            # Evaluation runner for intent classification dataset
+├── supabase/                      # Prepared SQL migrations and data seeds for Supabase
+├── docs/                          # In-depth architectural and integration guides
+│   ├── architecture.md            # Detailed module boundaries and future Stage 2-4 tool seams
+│   └── supabase.md                # Complete Supabase setup and migration walkthrough
+├── docker-compose.yml             # Local PostgreSQL 16 container with pgvector
+├── render.yaml                    # Production deployment blueprint for Render (Single-service web app)
+└── threat_model.md                # Security model, scan anchors, and trust boundaries
+```
+
+---
+
+## Quick Start (Local Development)
+
+### 1. Prerequisites
+- **Node.js**: v20 or higher (LTS recommended)
+- **pnpm**: v10.28+ (install globally via npm to avoid Windows/Render Corepack signature issues)
+- **Docker Desktop**: Running locally (for PostgreSQL + pgvector)
 
 ```bash
+# Install pnpm directly and disable Corepack
 npm install -g pnpm@10.28.2
-# If `pnpm` still invokes Corepack, run once:
 corepack disable
 ```
 
+### 2. Environment Configuration
+Copy the template environment file:
+
 ```bash
 cp .env.example .env
-# Fill in OPENROUTER_API_KEY, GROQ_API_KEY (free voice transcription), and email settings in .env
-
-pnpm run dev:db          # starts PostgreSQL with pgvector
-pnpm run setup:local     # install deps, push schema, build API
-pnpm run dev             # API on :8081, web UI on :5173 (see API_PORT in .env)
 ```
 
-Open http://localhost:5173. The Vite dev server proxies `/api` to the API port in `API_PROXY_TARGET`.
+Key environment variables:
+- `DATABASE_URL`: Defaults to local Docker Postgres (`postgresql://kamalo:kamalo@127.0.0.1:5432/kamalo`).
+- `OPENROUTER_API_KEY`: Required for LLM answer generation and routing.
+- `GROQ_API_KEY`: Required for voice audio transcription via Whisper.
+- `RESEND_API_KEY`: Required for support ticket and feedback email alerts.
 
-If chat shows **"Message not sent"**, check that nothing else is using the API port (Apache/XAMPP often uses 8080). Set `API_PORT=8081` and `API_PROXY_TARGET=http://127.0.0.1:8081` in `.env`, then restart `pnpm run dev`.
-
-To run services separately:
-
+### 3. Start Database & App
 ```bash
-pnpm --filter @workspace/api-server run dev
-pnpm --filter @workspace/kamalo-ai run dev
+# 1. Start local PostgreSQL with pgvector
+pnpm run dev:db
+
+# 2. Install dependencies, apply database schema, and compile API
+pnpm run setup:local
+
+# 3. Start both the API server (:8081) and Vite frontend (:5173)
+pnpm run dev
 ```
 
-Set `PORT`, `BASE_PATH`, and `DATABASE_URL` in the target environment.
+Open **http://localhost:5173**. The Vite dev server automatically proxies `/api` requests to the Express backend on `:8081`.
 
-## Supabase
+---
 
-To load the bundled development knowledge and conversation data:
+## Database Setup
 
-```bash
-pnpm run supabase:prepare-sql
-```
+### Option A: Local Docker (Default)
+Local development runs via `docker-compose.yml` using `pgvector/pgvector:pg16`:
+- **Start DB:** `pnpm run dev:db`
+- **Push Schema Changes:** `pnpm run db:push`
+- **Verify Connection:** `pnpm run db:verify`
 
-Then run `supabase/01-schema.sql` and the `supabase/02-data-*.sql` files in the Supabase SQL editor (not the old single-file dump — Supabase does not support `COPY` blocks). Set `DATABASE_URL` to your Supabase Session pooler URI, then run `pnpm run db:verify`.
+### Option B: Supabase
+To connect to a managed Supabase database:
+1. Enable the `vector` extension in Supabase (**Database -> Extensions -> vector**).
+2. Generate the prepared SQL batches:
+   ```bash
+   pnpm run supabase:prepare-sql
+   ```
+3. Run `supabase/01-schema.sql` followed by `supabase/02-data-*.sql` files in the Supabase SQL Editor.
+4. Set `DATABASE_URL` in `.env` to your Supabase **Session pooler** URI (port `5432`).
+5. Verify connection:
+   ```bash
+   pnpm run db:verify
+   ```
+Full details are in [docs/supabase.md](docs/supabase.md).
 
-Full steps: [docs/supabase.md](docs/supabase.md)
+---
 
-## Deploy on Render
+## Environment Variables Reference
 
-This repo includes a `render.yaml` blueprint for a single web service that serves both the API and the built web UI.
+| Variable | Description | Default / Example | Required |
+| :--- | :--- | :--- | :---: |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://kamalo:kamalo@127.0.0.1:5432/kamalo` | Yes |
+| `API_PORT` | Express backend port | `8081` | Yes |
+| `WEB_PORT` | Vite frontend dev port | `5173` | Yes |
+| `API_PROXY_TARGET` | Proxy target for Vite dev server | `http://127.0.0.1:8081` | Yes |
+| `OPENROUTER_API_KEY` | OpenRouter API authentication token | `sk-or-v1-...` | Yes (for AI) |
+| `OPENROUTER_ANSWER_MODEL` | Model ID for knowledge synthesis | `openrouter/free` | No |
+| `OPENROUTER_ROUTING_MODEL`| Model ID for intent understanding | `openrouter/free` | No |
+| `GROQ_API_KEY` | Groq API token for Whisper voice transcription | `gsk_...` | Optional |
+| `RESEND_API_KEY` | Resend API key for support ticket delivery | `re_...` | Optional |
+| `RESEND_FROM_EMAIL` | Verified sender email address | `support@example.com` | Optional |
+| `KAMALO_FEEDBACK_EMAIL` | Recipient address for feedback alerts | `ops@example.com` | Optional |
+| `STATIC_DIR` | Static assets directory for single-service deploy | `artifacts/kamalo-ai/dist/public` | Production |
 
-1. Push the repo to GitHub.
-2. In Render, create a **Blueprint** from `render.yaml`.
-3. Set the secret env vars when prompted: `DATABASE_URL`, `OPENROUTER_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `KAMALO_FEEDBACK_EMAIL`.
-4. For Supabase, use the **Session pooler** URI (`pooler.supabase.com`, port 5432) — not the direct `db.*.supabase.co` host. Render cannot reach Supabase over IPv6; the pooler URI avoids that failure.
-5. After deploy, open the Render URL. Health checks use `/api/healthz`.
+---
 
-The production service sets `STATIC_DIR=artifacts/kamalo-ai/dist/public` so Express serves the SPA and API from one origin.
+## Monorepo Scripts
 
-On Render PostgreSQL, enable the `vector` extension once after the database is created:
+Run these commands from the repository root:
 
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
+| Command | Action |
+| :--- | :--- |
+| `pnpm run dev` | Concurrently launches backend (`:8081`) and frontend (`:5173`) |
+| `pnpm run dev:stop` | Terminates background dev processes on active ports |
+| `pnpm run dev:db` | Starts local PostgreSQL container with pgvector |
+| `pnpm run setup:local` | Runs `pnpm install`, pushes Drizzle schema, and builds API |
+| `pnpm run db:push` | Pushes Drizzle schema directly to the configured database |
+| `pnpm run db:verify` | Verifies database connectivity and displays record counts |
+| `pnpm run test:intent` | Executes intent classifier test suite against evaluation dataset |
+| `pnpm run typecheck` | Type-checks shared libraries, artifacts, and script files |
+| `pnpm run build` | Builds all workspace packages |
+| `pnpm run build:production` | Compiles API bundle and Vite SPA production distribution |
+| `pnpm run start:production` | Boots compiled Express server in production mode |
 
-## Environment
+---
 
-Required for generated responses:
+## Production Deployment (Render)
 
-- `OPENROUTER_API_KEY` — server-side OpenRouter API key
-- `DATABASE_URL` — PostgreSQL connection string
-- `RESEND_API_KEY` — server-side Resend API key for ticket and feedback email
-- `RESEND_FROM_EMAIL` — verified sender address
-- `KAMALO_FEEDBACK_EMAIL` — recipient for answer-review notifications
+The repo includes a `render.yaml` blueprint configuring a single web service that hosts both the Express API and the built React SPA:
 
-The API never sends provider keys to the browser. Responses currently use OpenRouter's `openrouter/free` router, which selects from the free models available at request time.
+1. Connect the repository to Render as a **Blueprint**.
+2. Supply environment secrets: `DATABASE_URL`, `OPENROUTER_API_KEY`, `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `KAMALO_FEEDBACK_EMAIL`.
+3. **Important for Supabase:** Always provide the **Session pooler** URI (`pooler.supabase.com`, port 5432). Do not use direct connection hostnames (`db.*.supabase.co`) because Render cannot route to Supabase over IPv6.
+4. Health check endpoint: `/api/healthz`.
 
-## Architecture
+---
 
-```text
-KAMALO chat
-  -> Support API
-  -> OpenRouter routing model (understand intent + retrieval query)
-  -> Approved knowledge retrieval
-  -> OpenRouter answer model (grounded synthesis)
-  -> Streamed response
-```
+## Troubleshooting & Common Pitfalls
 
-Knowledge articles are versioned and filtered to `approved` before retrieval. Knowledge chunks include a pgvector-ready embedding column so an embedding provider can be added later without changing the chat contract. Stage 1 uses deterministic lexical retrieval because the configured OpenRouter chat integration does not provide embeddings.
-
-See `docs/architecture.md` for the Stage 1 boundaries and future tool-gateway seam.
+- **"Message not sent" / Port Conflict:** Port `8080` is often reserved by Apache/XAMPP or Docker. The repo defaults to `API_PORT=8081` and `API_PROXY_TARGET=http://127.0.0.1:8081`. If you encounter connection errors, ensure both values match.
+- **Port already in use:** Run `pnpm run dev:stop` to kill lingering Node processes.
+- **Render deployment hangs or network unreachable:** Ensure your database connection string uses the Supabase Session pooler (`aws-0-[region].pooler.supabase.com:5432`) rather than the direct database hostname.
+- **pnpm EROFS or signature errors:** Avoid `corepack enable`. Install pnpm globally using `npm install -g pnpm@10.28.2` and run `corepack disable`.

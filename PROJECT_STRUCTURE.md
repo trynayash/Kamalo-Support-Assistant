@@ -1,88 +1,73 @@
-# KAMALO AI project structure
+# KAMALO AI Project Structure
 
-This repository is a pnpm monorepo containing the KAMALO web workspace, its
-Express support API, an Expo Go companion app, and a small design-preview
-service. The web app is the published product; the mobile app is development
-only for now.
+This repository is a pnpm monorepo consisting of a React 19 web frontend, an Express 5 backend API, shared TypeScript libraries, and database management tooling.
 
-## Product artifacts
+---
 
-```text
-artifacts/
-├── kamalo-ai/          # Published React + Vite web app
-│   ├── src/            # Pages, components, hooks, and web styling
-│   └── dist/public/    # Generated web output; rebuilt for publishing
-├── api-server/         # Express + TypeScript support backend
-│   ├── src/            # Routes, Support Core, retrieval, providers, and DB access
-│   └── dist/           # Generated API bundle; rebuilt for publishing
-├── kamalo-mobile/      # Expo Router mobile companion
-│   ├── app/            # File-based native routes and screens
-│   ├── components/     # Native UI components
-│   ├── lib/            # Mobile-only streaming and helpers
-│   └── assets/         # Mobile icon and image assets
-└── mockup-sandbox/     # Design/mockup preview server; not part of production
-```
-
-### Runtime routing
-
-- `/` serves `artifacts/kamalo-ai/dist/public`.
-- `/api` is served by `artifacts/api-server` on the API workflow.
-- `/kamalo-mobile/` is reserved for the Expo development preview.
-- The mobile artifact has a development service only. It is not included in
-  the production deployment.
-
-## Shared workspace packages
+## Workspace Layout
 
 ```text
-lib/
-├── api-spec/           # OpenAPI contract and generated schema inputs
-├── api-client-react/   # Generated React Query client used by web and mobile
-├── api-zod/            # Shared request/response validation types
-├── db/                 # Shared Drizzle database schema and utilities
-└── integrations/       # Connector-specific shared integration code
+KAMALO-AI-Support-Assistant/
+├── artifacts/                     # Deployable packages and frontend/backend services
+│   ├── kamalo-ai/                 # Production web application (React 19 + Vite)
+│   ├── api-server/                # Production backend service (Express 5 + TypeScript)
+│   ├── kamalo-mobile/             # Development companion app (Expo Router / React Native)
+│   └── mockup-sandbox/            # Local UI component and layout preview sandbox
+├── lib/                           # Shared internal workspace libraries
+│   ├── api-spec/                  # OpenAPI 3.0 specifications and API contracts
+│   ├── api-client-react/          # Generated TanStack React Query client library
+│   ├── api-zod/                   # Shared Zod validation schemas
+│   ├── db/                        # Drizzle ORM schema, relations, and database client
+│   └── kamalo-icons/              # Shared SVG icon component definitions
+├── scripts/                       # Build orchestration, database seeding, and testing scripts
+├── supabase/                      # Supabase schema and batch SQL migration files
+├── docs/                          # Architectural documentation and setup guides
+└── threat_model.md                # System threat model and security boundaries
 ```
 
-The API contract is the source of truth for generated clients. When an API
-shape changes, update `lib/api-spec` and regenerate the shared client before
-using the new endpoint in either frontend.
+---
 
-## Assets, tooling, and configuration
+## Package Details
 
-```text
-attached_assets/       # Approved uploaded/source assets shared by artifacts
-scripts/                # Workspace build, validation, and maintenance scripts
-vendor-handoff/         # Portable vendor handoff documentation and assets
-.local/                 # Optional local tooling (not required for deploy)
-```
+### 1. Applications (`artifacts/`)
 
-Important root files:
+- **`artifacts/kamalo-ai`** (Production Web Frontend)
+  - `src/pages/home.tsx`: Customer chat assistant with streaming SSE, image attachments, voice transcription, and feedback.
+  - `src/pages/history.tsx`: Saved conversation session viewer.
+  - `src/pages/knowledge.tsx`: Knowledge base management portal (article review, editing, approval lifecycle).
+  - `src/pages/support.tsx` & `src/pages/support-ticket-detail.tsx`: Customer ticket submission and status tracking.
+  - `src/pages/admin-tickets.tsx`: Internal support operations queue and ticket resolution.
+  - `dist/public/`: Production static build output served directly by the Express API in production.
 
-- `pnpm-workspace.yaml` defines workspace packages, catalogs, and package-age
-  protections.
-- `package.json` and `pnpm-lock.yaml` define the workspace toolchain.
-- `render.yaml` defines the Render production blueprint.
-- `docker-compose.yml` runs local PostgreSQL with pgvector.
+- **`artifacts/api-server`** (Production Backend)
+  - `src/app.ts` & `src/index.ts`: Express application bootstrap and middleware configuration.
+  - `src/routes/conversations.ts`: Conversation persistence and SSE streaming completions.
+  - `src/routes/knowledge.ts`: Knowledge article CRUD, approval workflow, and retrieval endpoints.
+  - `src/routes/support.ts`: Support ticket creation, file attachment handling, and Resend email alerts.
+  - `src/routes/transcribe.ts`: Audio file transcription using Groq Whisper.
+  - `src/lib/safety.ts` & `src/lib/orchestrator.ts`: Stage 1 guardrails, injection prevention, and query routing.
+  - `src/lib/llm.ts`: OpenRouter provider integration.
 
-## Development commands
+- **`artifacts/kamalo-mobile`** (Development Preview)
+  - React Native / Expo companion app for mobile testing. Excluded from production builds.
 
-From the repo root:
+- **`artifacts/mockup-sandbox`** (Design Preview)
+  - Isolated preview sandbox for UI design and mockup validation.
 
-```bash
-pnpm run dev:db      # local PostgreSQL (Docker)
-pnpm run setup:local
-pnpm run dev         # API + web UI
-```
+---
 
-Useful package checks:
+## Shared Monorepo Libraries (`lib/`)
 
-```bash
-pnpm --filter @workspace/kamalo-ai run typecheck
-pnpm --filter @workspace/kamalo-ai run build
-pnpm --filter @workspace/api-server run typecheck
-pnpm --filter @workspace/api-server run build
-pnpm --filter @workspace/kamalo-mobile run typecheck
-```
+- **`lib/api-spec`**: Central OpenAPI contract. All API surface changes originate here before regenerating clients.
+- **`lib/api-client-react`**: React Query hooks generated from `lib/api-spec`.
+- **`lib/api-zod`**: Strongly-typed Zod schemas shared between frontend form validations and backend route handlers.
+- **`lib/db`**: Database layer using Drizzle ORM. Defines tables for `conversations`, `messages`, `message_attachments`, `message_feedback`, `knowledge_articles`, `knowledge_chunks` (with pgvector support), and `support_tickets`.
+- **`lib/kamalo-icons`**: Shared UI icon definitions.
 
-The mobile workflow uses Expo Go over the managed development/LAN preview.
-Do not treat the Expo artifact as a production web service until a separate
-mobile release decision is made.
+---
+
+## Runtime Routing & Port Allocation
+
+- **Port `5173` (Vite Dev Server)**: Serves `kamalo-ai` in development. Proxies `/api` requests to port `8081`.
+- **Port `8081` (Express API Server)**: Hosts backend routes under `/api` and health check at `/api/healthz`. (Defaulted to `8081` to avoid common `8080` conflicts with Apache/XAMPP).
+- **Single-Service Production (Render)**: Express serves `/api` routes and statically hosts `artifacts/kamalo-ai/dist/public` at `/`.
