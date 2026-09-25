@@ -1,8 +1,10 @@
 import React, { ReactNode } from 'react';
 import { ActivityIndicator, Animated, Image, ImageSourcePropType, Pressable, StyleProp, StyleSheet, Text, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { KamaloIcon, type KamaloIconName } from '@/components/kamalo-icon';
 import { useColors } from '@/hooks/useColors';
 import { NavigationMenu } from '@/components/NavigationMenu';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export function Screen({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   const colors = useColors();
@@ -23,19 +25,21 @@ export function PageHeader({
   onAction?: () => void;
 }) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, { paddingTop: Math.max(insets.top + 8, 18) }]}>
       <View style={styles.headerCopy}>
-        {eyebrow ? <Text style={[styles.eyebrow, { color: colors.primary }]}>{eyebrow.toUpperCase()}</Text> : null}
+        {eyebrow ? <Text style={[styles.eyebrow, { color: colors.foreground }]}>{eyebrow.toUpperCase()}</Text> : null}
         <Text style={[styles.pageTitle, { color: colors.foreground }]}>{title}</Text>
         {subtitle ? <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>{subtitle}</Text> : null}
       </View>
       <View style={styles.headerActions}>
         {action && onAction ? (
           <Pressable testID="header-action" onPress={onAction} hitSlop={10} style={({ pressed }) => [styles.headerAction, { opacity: pressed ? 0.58 : 1 }]}>
-            <Text style={[styles.headerActionText, { color: colors.primary }]}>{action}</Text>
+            <Text style={[styles.headerActionText, { color: colors.foreground }]}>{action}</Text>
           </Pressable>
         ) : null}
+        <ThemeToggle />
         <NavigationMenu />
       </View>
     </View>
@@ -96,14 +100,14 @@ export function Card({ children, style, onPress }: { children: ReactNode; style?
 
 export function Badge({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'teal' | 'amber' | 'red' }) {
   const colors = useColors();
-  const palette = tone === 'teal'
-    ? { backgroundColor: colors.primary + '20', color: colors.primary }
-    : tone === 'amber'
-      ? { backgroundColor: colors.accent + '28', color: colors.accentForeground }
-      : tone === 'red'
-        ? { backgroundColor: colors.destructive + '20', color: colors.destructive }
-        : { backgroundColor: colors.muted, color: colors.mutedForeground };
-  return <View style={[styles.badge, { backgroundColor: palette.backgroundColor }]}><Text style={[styles.badgeText, { color: palette.color }]}>{label}</Text></View>;
+  const palette = tone === 'red'
+    ? { backgroundColor: colors.destructive + '20', color: colors.destructive }
+    : { backgroundColor: colors.secondary, color: colors.foreground };
+  return (
+    <View style={[styles.badge, { backgroundColor: palette.backgroundColor, borderColor: colors.border, borderWidth: 1 }]}>
+      <Text style={[styles.badgeText, { color: palette.color }]}>{label}</Text>
+    </View>
+  );
 }
 
 export function Field({ label, error, style, ...props }: TextInputProps & { label: string; error?: string }) {

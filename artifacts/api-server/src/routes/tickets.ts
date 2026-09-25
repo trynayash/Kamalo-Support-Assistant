@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or } from "drizzle-orm";
 import { Router, type IRouter, type Request } from "express";
 import {
   AnalyzeSupportTicketBody,
@@ -24,6 +24,14 @@ import { llmProvider } from "../lib/llm";
 import { capAssistantOutput, isPromptExtractionAttempt, sanitizeAssistantOutput, sanitizeProviderText } from "../lib/safety";
 import { retrieveKnowledge } from "../lib/knowledge";
 import { DEMO_USER_ID } from "../lib/context";
+import {
+  runEscalationPipeline,
+  escalateToL2,
+  escalateToIS,
+  resolveTicket,
+  getEscalationHistory,
+} from "../lib/escalation-engine";
+import { ticketEscalationsTable } from "@workspace/db";
 
 const router: IRouter = Router();
 
@@ -214,19 +222,37 @@ async function sendTicketNotification(ticket: TicketRow): Promise<TicketNotifica
   }
 }
 
+function getRequesterRole(req: Request): string {
+  return (req.header("x-user-role") || "").toLowerCase().trim() || "customer";
+}
+
+function getRequesterUserId(req: Request): string {
+  return (req.header("x-user-id") || "").toLowerCase().trim() || DEMO_USER_ID;
+}
+
+function isStaffRole(role: string): boolean {
+  return role === "super_admin" || role === "admin" || role === "human_reviewer" || role === "editor";
+}
+
 async function persistEmailStatus(ticketId: string, emailStatus: "sent" | "failed" | "skipped"): Promise<TicketRow | null> {
   await db.update(supportTicketsTable).set({ emailStatus, updatedAt: new Date() }).where(eq(supportTicketsTable.id, ticketId));
   return ticketById(ticketId);
 }
 
 router.get("/tickets", async (req, res): Promise<void> => {
+  const userId = getRequesterUserId(req);
   const tickets = await db.select().from(supportTicketsTable)
-    .where(eq(supportTicketsTable.userId, DEMO_USER_ID))
+    .where(or(eq(supportTicketsTable.userId, userId), eq(supportTicketsTable.userId, DEMO_USER_ID)))
     .orderBy(desc(supportTicketsTable.createdAt));
   res.json(ListSupportTicketsResponse.parse(await ticketResponses(tickets)));
 });
 
-router.get("/tickets/admin", async (_req, res): Promise<void> => {
+router.get("/tickets/admin", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (!isStaffRole(role)) {
+    res.status(403).json({ error: "Access denied. Authorized staff credentials required to view the operations queue." });
+    return;
+  }
   const tickets = await db.select().from(supportTicketsTable).orderBy(desc(supportTicketsTable.createdAt));
   res.json(ListSupportTicketsResponse.parse(await ticketResponses(tickets)));
 });
@@ -277,7 +303,7 @@ router.post("/tickets", async (req, res): Promise<void> => {
   const ticket = {
     id: crypto.randomUUID(),
     ticketNumber: `KAM-${now.toISOString().slice(0, 10).replaceAll("-", "")}-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-    userId: DEMO_USER_ID,
+    userId: getRequesterUserId(req),
     conversationId: input.conversationId,
     messageId: input.messageId || null,
     category: input.category.trim(),
@@ -346,6 +372,11 @@ router.post("/tickets", async (req, res): Promise<void> => {
   }
 
   res.status(201).json(CreateSupportTicketResponse.parse(await ticketResponse(ticket)));
+
+  // Fire-and-forget: start the AI auto-resolution & escalation pipeline
+  runEscalationPipeline(ticket.id, req.log).catch((err) => {
+    req.log.warn({ err, ticketId: ticket.id }, "Escalation pipeline error (non-blocking)");
+  });
 });
 
 router.get("/tickets/:ticketId", async (req, res): Promise<void> => {
@@ -363,6 +394,11 @@ router.get("/tickets/:ticketId", async (req, res): Promise<void> => {
 });
 
 router.post("/tickets/:ticketId/analyze", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (!isStaffRole(role)) {
+    res.status(403).json({ error: "Access denied. Staff credentials required to analyze support tickets." });
+    return;
+  }
   const params = GetSupportTicketParams.safeParse(req.params);
   const parsed = AnalyzeSupportTicketBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -461,6 +497,11 @@ router.post("/tickets/:ticketId/email", async (req, res): Promise<void> => {
 });
 
 router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (!isStaffRole(role)) {
+    res.status(403).json({ error: "Access denied. Staff credentials required to update tickets." });
+    return;
+  }
   const params = GetSupportTicketParams.safeParse(req.params);
   const parsed = UpdateSupportTicketBody.safeParse(req.body);
   if (!params.success || !parsed.success) {
@@ -516,6 +557,122 @@ router.patch("/tickets/:ticketId", async (req, res): Promise<void> => {
 
   const refreshed = await ticketById(ticket.id);
   res.json(UpdateSupportTicketResponse.parse(await ticketResponse(refreshed || ticket)));
+});
+
+// ─── Escalation Endpoints ───────────────────────────────────────────
+
+/**
+ * Get escalation history for a ticket
+ */
+router.get("/tickets/:ticketId/escalations", async (req, res): Promise<void> => {
+  const params = GetSupportTicketParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const ticket = await ticketById(params.data.ticketId);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const history = await getEscalationHistory(ticket.id);
+  res.json(history.map((e) => ({
+    id: e.id,
+    ticketId: e.ticketId,
+    fromLevel: e.fromLevel,
+    toLevel: e.toLevel,
+    fromStatus: e.fromStatus,
+    toStatus: e.toStatus,
+    actor: e.actor,
+    actorName: e.actorName,
+    reason: e.reason,
+    resolution: e.resolution,
+    slaDeadline: e.slaDeadline?.toISOString() || null,
+    createdAt: e.createdAt.toISOString(),
+  })));
+});
+
+/**
+ * Escalate ticket to L2 (from Human Reviewer)
+ */
+router.post("/tickets/:ticketId/escalate/l2", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (!isStaffRole(role)) {
+    res.status(403).json({ error: "Access denied. Staff credentials required to escalate tickets." });
+    return;
+  }
+  const params = GetSupportTicketParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const ticket = await ticketById(params.data.ticketId);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const reason = typeof req.body?.reason === "string" ? req.body.reason : "Escalated by Human Reviewer";
+  const reviewerName = typeof req.body?.reviewerName === "string" ? req.body.reviewerName : undefined;
+  await escalateToL2(ticket.id, reason, reviewerName);
+  const refreshed = await ticketById(ticket.id);
+  res.json(await ticketResponse(refreshed || ticket));
+});
+
+/**
+ * Escalate ticket to I.S. Immediate Supervision (from L2)
+ */
+router.post("/tickets/:ticketId/escalate/is", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (role !== "super_admin" && role !== "admin") {
+    res.status(403).json({ error: "Access denied. Only Super Admin and Operations Admin can escalate directly to Immediate Supervision (I.S.)." });
+    return;
+  }
+  const params = GetSupportTicketParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const ticket = await ticketById(params.data.ticketId);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const reason = typeof req.body?.reason === "string" ? req.body.reason : "Escalated to Immediate Supervision";
+  const reviewerName = typeof req.body?.reviewerName === "string" ? req.body.reviewerName : undefined;
+  await escalateToIS(ticket.id, reason, reviewerName);
+  const refreshed = await ticketById(ticket.id);
+  res.json(await ticketResponse(refreshed || ticket));
+});
+
+/**
+ * Resolve ticket (from any reviewer level)
+ */
+router.post("/tickets/:ticketId/resolve", async (req, res): Promise<void> => {
+  const role = getRequesterRole(req);
+  if (!isStaffRole(role)) {
+    res.status(403).json({ error: "Access denied. Staff credentials required to resolve tickets." });
+    return;
+  }
+  const params = GetSupportTicketParams.safeParse(req.params);
+  if (!params.success) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const ticket = await ticketById(params.data.ticketId);
+  if (!ticket) {
+    res.status(404).json({ error: "Ticket not found." });
+    return;
+  }
+  const resolution = typeof req.body?.resolution === "string" ? req.body.resolution.trim() : "";
+  if (!resolution) {
+    res.status(400).json({ error: "Resolution text is required." });
+    return;
+  }
+  const source = req.body?.source === "ai" ? "ai" as const : req.body?.source === "super_admin" ? "super_admin" as const : "human" as const;
+  const resolverName = typeof req.body?.resolverName === "string" ? req.body.resolverName : undefined;
+  await resolveTicket(ticket.id, resolution, source, resolverName);
+  const refreshed = await ticketById(ticket.id);
+  res.json(await ticketResponse(refreshed || ticket));
 });
 
 export default router;

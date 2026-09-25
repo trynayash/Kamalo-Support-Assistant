@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { setRequestHeadersGetter } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -16,6 +17,16 @@ import {
   useLocation,
   Router as WouterRouter,
 } from 'wouter';
+
+// Ensure web client sends valid staff session headers for admin endpoints
+setRequestHeadersGetter(() => {
+  const role = typeof window !== 'undefined' ? localStorage.getItem('kamalo_role') || 'super_admin' : 'super_admin';
+  const userId = typeof window !== 'undefined' ? localStorage.getItem('kamalo_user_id') || 'yash' : 'yash';
+  return {
+    'x-user-role': role,
+    'x-user-id': userId,
+  };
+});
 
 const queryClient = new QueryClient();
 

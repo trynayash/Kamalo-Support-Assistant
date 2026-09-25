@@ -13,6 +13,9 @@ import {
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { setBaseUrl } from '@workspace/api-client-react';
+import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ToastProvider } from '@/contexts/ToastContext';
 import { useColors } from '@/hooks/useColors';
 import { getApiBaseUrl } from '@/lib/apiConfig';
 
@@ -24,11 +27,15 @@ const queryClient = new QueryClient();
 
 function RootLayoutNav() {
   const colors = useColors();
+  const { isDark } = useTheme();
+
   return (
     <Stack
       screenOptions={{
         headerBackTitle: 'Back',
-        headerTintColor: colors.primary,
+        headerTintColor: colors.foreground,
+        headerStyle: { backgroundColor: colors.background },
+        headerShadowVisible: false,
         headerTitleStyle: { fontFamily: 'Inter_600SemiBold', color: colors.foreground },
         contentStyle: { backgroundColor: colors.background },
       }}
@@ -61,8 +68,14 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <ErrorBoundary>
         <QueryClientProvider client={queryClient}>
-          <GestureHandlerRootView>
-            <RootLayoutNav />
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <ThemeProvider>
+              <AuthProvider>
+                <ToastProvider>
+                  <RootLayoutNav />
+                </ToastProvider>
+              </AuthProvider>
+            </ThemeProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </ErrorBoundary>

@@ -4,10 +4,12 @@ import { router } from 'expo-router';
 import { KamaloIcon } from '@/components/kamalo-icon';
 import { getListKnowledgeArticlesQueryKey, useListKnowledgeArticles, KnowledgeArticle } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge, Card, EmptyState, ErrorState, IconButton, LoadingState, PageHeader, Screen } from '@/components/ui';
 
 export default function KnowledgeScreen() {
   const colors = useColors();
+  const { isStaff } = useAuth();
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
   const articleParams = { search: search.trim() || undefined, status: 'approved' as const };
@@ -18,8 +20,8 @@ export default function KnowledgeScreen() {
         eyebrow="The KAMALO guide"
         title="Knowledge"
         subtitle="Approved product guidance, kept clear and current."
-        action="Manage Source"
-        onAction={() => router.push('/admin/knowledge')}
+        action={isStaff ? 'Manage Source' : undefined}
+        onAction={isStaff ? () => router.push('/admin/knowledge') : undefined}
       />
       <View style={[styles.search, { backgroundColor: colors.card, borderColor: colors.border }]}>
         <KamaloIcon name="search" size={17} color={colors.mutedForeground} />

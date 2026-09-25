@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, or } from "drizzle-orm";
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request } from "express";
 import {
   ApproveKnowledgeArticleParams,
   ApproveKnowledgeArticleResponse,
@@ -17,6 +17,11 @@ import { db, knowledgeArticlesTable, knowledgeChunksTable } from "@workspace/db"
 import { ensureSeedKnowledge } from "../lib/knowledge";
 
 const router: IRouter = Router();
+
+function canManageKnowledge(req: Request): boolean {
+  const role = (req.header("x-user-role") || "").toLowerCase().trim();
+  return role === "super_admin" || role === "admin" || role === "editor";
+}
 
 function responseArticle(article: typeof knowledgeArticlesTable.$inferSelect) {
   return {
@@ -49,6 +54,10 @@ router.get("/knowledge/articles", async (req, res): Promise<void> => {
 });
 
 router.post("/knowledge/articles", async (req, res): Promise<void> => {
+  if (!canManageKnowledge(req)) {
+    res.status(403).json({ error: "Access denied. Content Editor, Admin, or Super Admin authorization required." });
+    return;
+  }
   const parsed = CreateKnowledgeArticleBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid article." });
@@ -73,6 +82,10 @@ router.post("/knowledge/articles", async (req, res): Promise<void> => {
 });
 
 router.patch("/knowledge/articles/:articleId", async (req, res): Promise<void> => {
+  if (!canManageKnowledge(req)) {
+    res.status(403).json({ error: "Access denied. Content Editor, Admin, or Super Admin authorization required." });
+    return;
+  }
   const params = UpdateKnowledgeArticleParams.safeParse(req.params);
   const body = UpdateKnowledgeArticleBody.safeParse(req.body);
   if (!params.success || !body.success) {
@@ -97,6 +110,10 @@ router.patch("/knowledge/articles/:articleId", async (req, res): Promise<void> =
 });
 
 router.post("/knowledge/articles/:articleId/approve", async (req, res): Promise<void> => {
+  if (!canManageKnowledge(req)) {
+    res.status(403).json({ error: "Access denied. Content Editor, Admin, or Super Admin authorization required." });
+    return;
+  }
   const params = ApproveKnowledgeArticleParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid article." });
@@ -111,6 +128,10 @@ router.post("/knowledge/articles/:articleId/approve", async (req, res): Promise<
 });
 
 router.post("/knowledge/articles/:articleId/archive", async (req, res): Promise<void> => {
+  if (!canManageKnowledge(req)) {
+    res.status(403).json({ error: "Access denied. Content Editor, Admin, or Super Admin authorization required." });
+    return;
+  }
   const params = ArchiveKnowledgeArticleParams.safeParse(req.params);
   if (!params.success) {
     res.status(400).json({ error: "Invalid article." });

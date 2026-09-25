@@ -38,6 +38,10 @@ import {
   statusTone,
 } from '@/components/ui';
 
+import { router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/contexts/ToastContext';
+
 type ArticleFilterStatus = 'all' | 'draft' | 'approved' | 'archived';
 
 interface ArticleEditorForm {
@@ -56,12 +60,58 @@ const emptyForm: ArticleEditorForm = {
 export default function AdminKnowledgeScreen() {
   const colors = useColors();
   const queryClient = useQueryClient();
+  const { isStaff, role, logActivity } = useAuth();
+  const { showToast } = useToast();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<ArticleFilterStatus>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [editorOpen, setEditorOpen] = useState(false);
   const [form, setForm] = useState<ArticleEditorForm>(emptyForm);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+
+  if (!isStaff) {
+    return (
+      <Screen>
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 24, alignItems: 'center', backgroundColor: colors.card, width: '100%', gap: 12 }}>
+            <KamaloIcon name="shield" size={32} color={colors.foreground} />
+            <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 18, color: colors.foreground }}>Staff Only Area</Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: colors.mutedForeground, textAlign: 'center' }}>
+              Knowledge Base Administration is restricted to Super Admins, Admins, and Content Editors.
+            </Text>
+            <Pressable
+              onPress={() => router.replace('/(tabs)')}
+              style={{ width: '100%', height: 44, borderRadius: 8, backgroundColor: colors.foreground, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}
+            >
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 14, color: colors.background }}>Go to Home</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (role === 'human_reviewer') {
+    return (
+      <Screen>
+        <View style={{ flex: 1, padding: 24, justifyContent: 'center', alignItems: 'center' }}>
+          <View style={{ borderWidth: 1, borderColor: colors.border, borderRadius: 16, padding: 24, alignItems: 'center', backgroundColor: colors.card, width: '100%', gap: 12 }}>
+            <KamaloIcon name="book-open" size={32} color={colors.foreground} />
+            <Text style={{ fontFamily: 'Inter_700Bold', fontSize: 18, color: colors.foreground }}>Support Reviewer Access</Text>
+            <Text style={{ fontFamily: 'Inter_400Regular', fontSize: 13, color: colors.mutedForeground, textAlign: 'center' }}>
+              Your role focuses on reviewing tickets and drafting verified resolutions. Knowledge Base administration is reserved for Content Editors, Admins, and Super Admins.
+            </Text>
+            <Pressable
+              onPress={() => router.replace('/admin')}
+              style={{ width: '100%', height: 44, borderRadius: 8, backgroundColor: colors.foreground, alignItems: 'center', justifyContent: 'center', marginTop: 8 }}
+            >
+              <Text style={{ fontFamily: 'Inter_600SemiBold', fontSize: 14, color: colors.background }}>Go to Operations Queue</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Screen>
+    );
+  }
 
   const params = useMemo<ListKnowledgeArticlesParams>(
     () => ({
@@ -136,6 +186,13 @@ export default function AdminKnowledgeScreen() {
         });
       }
       await queryClient.invalidateQueries({ queryKey: getListKnowledgeArticlesQueryKey() });
+      const actionName = form.id ? 'KNOWLEDGE_UPDATED' : 'KNOWLEDGE_CREATED';
+      logActivity(actionName, `Article "${form.title.trim()}" in ${form.category.trim()}`);
+      showToast({
+        title: form.id ? 'Article Updated' : 'Article Created',
+        message: `"${form.title.trim()}" saved.`,
+        type: 'success',
+      });
       setEditorOpen(false);
       setForm(emptyForm);
       Alert.alert('Success', form.id ? 'Article updated.' : 'Draft article created.');
@@ -148,6 +205,12 @@ export default function AdminKnowledgeScreen() {
     try {
       await approveArticle.mutateAsync({ articleId: article.id });
       await queryClient.invalidateQueries({ queryKey: getListKnowledgeArticlesQueryKey() });
+      logActivity('KNOWLEDGE_APPROVED', `Article "${article.title}" approved for live bot grounding`);
+      showToast({
+        title: 'Article Approved',
+        message: `"${article.title}" is now live in AI knowledge.`,
+        type: 'success',
+      });
       Alert.alert('Approved', `"${article.title}" is now approved and grounded in AI chat.`);
     } catch {
       Alert.alert('Error', 'Failed to approve article.');
@@ -164,6 +227,12 @@ export default function AdminKnowledgeScreen() {
           try {
             await archiveArticle.mutateAsync({ articleId: article.id });
             await queryClient.invalidateQueries({ queryKey: getListKnowledgeArticlesQueryKey() });
+            logActivity('KNOWLEDGE_ARCHIVED', `Article "${article.title}" moved to archive`);
+            showToast({
+              title: 'Article Archived',
+              message: `"${article.title}" removed from active guidance.`,
+              type: 'info',
+            });
             Alert.alert('Archived', 'Article moved to archive.');
           } catch {
             Alert.alert('Error', 'Failed to archive article.');

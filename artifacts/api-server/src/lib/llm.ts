@@ -124,6 +124,12 @@ async function fetchWithRetry(request: LLMRequest, stream: boolean): Promise<Res
 
       if (response.ok) return response;
 
+      if (response.status === 404 && (!request.model || request.model === OPENROUTER_MODEL) && attempt < MAX_RETRIES) {
+        request.model = "openrouter/auto";
+        await response.body?.cancel().catch(() => undefined);
+        continue;
+      }
+
       const error = await responseError(response);
       if (!error.retryable || attempt === MAX_RETRIES) throw error;
       await response.body?.cancel();

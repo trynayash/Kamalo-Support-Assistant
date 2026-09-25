@@ -1,61 +1,84 @@
 /**
- * Semantic design tokens for the mobile app.
- *
- * These tokens mirror the naming conventions used in web artifacts (index.css)
- * so that multi-artifact projects share a cohesive visual identity.
- *
- * Replace the placeholder values below with values that match the project's
- * brand. If a sibling web artifact exists, read its index.css and convert the
- * HSL values to hex so both artifacts use the same palette.
- *
- * To add dark mode, add a `dark` key with the same token names.
- * The useColors() hook will automatically pick it up.
+ * Semantic design tokens for KAMALO Mobile.
+ * Two distinct themes:
+ * - Light: Pure White & Solid Pitch-Black text (zero bluish tint, 100% crisp neutral monochrome).
+ * - Dark: Deep Pitch Black (#000000 / #121212) with Pure White text (zero bluish tint).
  */
+
+export interface ColorPalette {
+  text: string;
+  tint: string;
+  background: string;
+  foreground: string;
+  card: string;
+  cardForeground: string;
+  primary: string;
+  primaryForeground: string;
+  secondary: string;
+  secondaryForeground: string;
+  muted: string;
+  mutedForeground: string;
+  accent: string;
+  accentForeground: string;
+  destructive: string;
+  destructiveForeground: string;
+  border: string;
+  input: string;
+  headerDark: string;
+  headerDarkText: string;
+  radius: number;
+}
 
 const colors = {
   light: {
-    text: '#15383a',
-    tint: '#2c756d',
-    background: '#f5f0e7',
-    foreground: '#15383a',
-    card: '#fbf8f1',
-    cardForeground: '#15383a',
-    primary: '#2c756d',
-    primaryForeground: '#fbf8f1',
-    secondary: '#e7ded0',
-    secondaryForeground: '#15383a',
-    muted: '#ece5da',
-    mutedForeground: '#6d7771',
-    accent: '#d99b43',
-    accentForeground: '#382818',
-    destructive: '#b4544b',
-    destructiveForeground: '#fff8ee',
-    border: '#d8cec0',
-    input: '#cfc3b3',
+    text: '#000000',
+    tint: '#000000',
+    background: '#ffffff',
+    foreground: '#000000',
+    card: '#f9f9fa',
+    cardForeground: '#000000',
+    primary: '#000000',
+    primaryForeground: '#ffffff',
+    secondary: '#f0f0f2',
+    secondaryForeground: '#000000',
+    muted: '#f0f0f2',
+    mutedForeground: '#555558',
+    accent: '#000000',
+    accentForeground: '#ffffff',
+    destructive: '#dc2626',
+    destructiveForeground: '#ffffff',
+    border: '#e2e2e5',
+    input: '#ffffff',
+    headerDark: '#0a0a0c',
+    headerDarkText: '#ffffff',
+    radius: 12,
   },
 
   dark: {
-    text: '#f5f0e7',
-    tint: '#80b8aa',
-    background: '#173638',
-    foreground: '#f5f0e7',
-    card: '#204245',
-    cardForeground: '#f5f0e7',
-    primary: '#80b8aa',
-    primaryForeground: '#173638',
-    secondary: '#2b4c4d',
-    secondaryForeground: '#f5f0e7',
-    muted: '#28484a',
-    mutedForeground: '#b6c2b8',
-    accent: '#e1ac59',
-    accentForeground: '#382818',
-    destructive: '#df8074',
-    destructiveForeground: '#231d18',
-    border: '#3d5b59',
-    input: '#55706b',
+    text: '#ffffff',
+    tint: '#ffffff',
+    background: '#000000',
+    foreground: '#ffffff',
+    card: '#121214',
+    cardForeground: '#ffffff',
+    primary: '#ffffff',
+    primaryForeground: '#000000',
+    secondary: '#1c1c1f',
+    secondaryForeground: '#ffffff',
+    muted: '#1c1c1f',
+    mutedForeground: '#9e9ea3',
+    accent: '#ffffff',
+    accentForeground: '#000000',
+    destructive: '#ef4444',
+    destructiveForeground: '#ffffff',
+    border: '#26262a',
+    input: '#121214',
+    headerDark: '#000000',
+    headerDarkText: '#ffffff',
+    radius: 12,
   },
 
-  radius: 10,
+  radius: 12,
 };
 
 export default colors;

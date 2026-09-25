@@ -15,8 +15,11 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 // Module-level configuration
 // ---------------------------------------------------------------------------
 
+export type RequestHeadersGetter = () => Record<string, string> | Promise<Record<string, string>>;
+
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
+let _requestHeadersGetter: RequestHeadersGetter | null = null;
 
 /**
  * Set a base URL that is prepended to every relative request URL
@@ -42,6 +45,13 @@ export function setBaseUrl(url: string | null): void {
  */
 export function setAuthTokenGetter(getter: AuthTokenGetter | null): void {
   _authTokenGetter = getter;
+}
+
+/**
+ * Register a getter that supplies arbitrary request headers (e.g. x-user-id, x-user-role).
+ */
+export function setRequestHeadersGetter(getter: RequestHeadersGetter | null): void {
+  _requestHeadersGetter = getter;
 }
 
 function isRequest(input: RequestInfo | URL): input is Request {
@@ -355,6 +365,18 @@ export async function customFetch<T = unknown>(
     const token = await _authTokenGetter();
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
+    }
+  }
+
+  // Attach dynamic headers (e.g. x-user-id, x-user-role)
+  if (_requestHeadersGetter) {
+    const extraHeaders = await _requestHeadersGetter();
+    if (extraHeaders) {
+      for (const [key, value] of Object.entries(extraHeaders)) {
+        if (!headers.has(key) && value) {
+          headers.set(key, value);
+        }
+      }
     }
   }
 

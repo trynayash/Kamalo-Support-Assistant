@@ -20,6 +20,8 @@ export type KamaloIconName =
   | 'edit'
   | 'edit-3'
   | 'external-link'
+  | 'eye'
+  | 'eye-off'
   | 'globe'
   | 'home'
   | 'image'
@@ -43,6 +45,8 @@ export type KamaloIconName =
   | 'sparkles'
   | 'square'
   | 'star'
+  | 'sun'
+  | 'moon'
   | 'thumbs-down'
   | 'thumbs-up'
   | 'trash-2'
@@ -68,6 +72,8 @@ const paths: Record<KamaloIconName, string[]> = {
   edit: ['M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7', 'M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z'],
   'edit-3': ['M12 20h9', 'M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'],
   'external-link': ['M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6', 'M15 3h6v6', 'M10 14 21 3'],
+  eye: ['M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z', 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z'],
+  'eye-off': ['M9.88 9.88a3 3 0 1 0 4.24 4.24', 'M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68', 'M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61', 'm2 2 20 20'],
   globe: ['M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0', 'M3.6 9h16.8', 'M3.6 15h16.8', 'M12 3c2 2.4 3 5.4 3 9s-1 6.6-3 9c-2-2.4-3-5.4-3-9s1-6.6 3-9'],
   home: ['M3 10.5 12 3l9 7.5V20a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z', 'M9 22v-6h6v6'],
   image: ['M4 5a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z', 'M8.5 10a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3', 'm21 15-5-5L5 21'],
@@ -89,8 +95,22 @@ const paths: Record<KamaloIconName, string[]> = {
   shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
   sliders: ['M4 21v-7', 'M4 10V3', 'M12 21v-9', 'M12 8V3', 'M20 21v-5', 'M20 12V3', 'M1 14h6', 'M9 8h6', 'M17 16h6'],
   sparkles: ['M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z', 'M20 3v4', 'M22 5h-4'],
-  square: ['M5 5h14v14H5z'],
+  square: ['M3 5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5z'],
   star: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'],
+  sun: [
+    'M12 2v2',
+    'M12 20v2',
+    'm4.93 4.93 1.41 1.41',
+    'm17.66 17.66 1.41 1.41',
+    'M2 12h2',
+    'M20 12h2',
+    'm6.34 17.66-1.41 1.41',
+    'm19.07 4.93-1.41 1.41',
+    'M12 7a5 5 0 1 0 0 10 5 5 0 0 0 0-10z',
+  ],
+  moon: [
+    'M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z',
+  ],
   // Authentic Lucide Thumbs Up & Thumbs Down:
   'thumbs-up': [
     'M7 10v12',
@@ -109,7 +129,7 @@ const paths: Record<KamaloIconName, string[]> = {
 export function KamaloIcon({
   name,
   size = 18,
-  color = '#173d43',
+  color = 'currentColor',
   filled = false,
   style,
   accessibilityLabel,
