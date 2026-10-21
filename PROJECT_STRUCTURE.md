@@ -17,8 +17,7 @@ KAMALO-AI-Support-Assistant/
 │   ├── api-spec/                  # OpenAPI 3.0 specifications and API contracts
 │   ├── api-client-react/          # Generated TanStack React Query client library
 │   ├── api-zod/                   # Shared Zod validation schemas
-│   ├── db/                        # Drizzle ORM schema, relations, and database client
-│   └── kamalo-icons/              # Shared SVG icon component definitions
+│   └── db/                        # Drizzle ORM schema, relations, and database client
 ├── scripts/                       # Build orchestration, database seeding, and testing scripts
 ├── supabase/                      # Supabase schema and batch SQL migration files
 ├── docs/                          # Architectural documentation and setup guides
@@ -43,7 +42,7 @@ KAMALO-AI-Support-Assistant/
   - `src/app.ts` & `src/index.ts`: Express application bootstrap and middleware configuration.
   - `src/routes/conversations.ts`: Conversation persistence and SSE streaming completions.
   - `src/routes/knowledge.ts`: Knowledge article CRUD, approval workflow, and retrieval endpoints.
-  - `src/routes/support.ts`: Support ticket creation, file attachment handling, and Resend email alerts.
+  - `src/routes/tickets.ts`: Support ticket creation, file attachment handling, and Resend email alerts.
   - `src/routes/transcribe.ts`: Audio file transcription using Groq Whisper.
   - `src/lib/safety.ts` & `src/lib/orchestrator.ts`: Stage 1 guardrails, injection prevention, and query routing.
   - `src/lib/llm.ts`: OpenRouter provider integration.
@@ -62,7 +61,6 @@ KAMALO-AI-Support-Assistant/
 - **`lib/api-client-react`**: React Query hooks generated from `lib/api-spec`.
 - **`lib/api-zod`**: Strongly-typed Zod schemas shared between frontend form validations and backend route handlers.
 - **`lib/db`**: Database layer using Drizzle ORM. Defines tables for `conversations`, `messages`, `message_attachments`, `message_feedback`, `knowledge_articles`, `knowledge_chunks` (with pgvector support), and `support_tickets`.
-- **`lib/kamalo-icons`**: Shared UI icon definitions.
 
 ---
 

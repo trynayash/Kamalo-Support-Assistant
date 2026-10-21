@@ -2,7 +2,9 @@
 
 ## Project Overview
 
-KAMALO AI is a React and Vite support chat backed by an Express API, PostgreSQL with Drizzle, deterministic approved-knowledge retrieval, and a server-only OpenRouter provider. Authenticated customers can ask about KAMALO products and journeys, attach JPG/PNG images for storage, submit feedback, and raise support tickets. Support and admin users have separate operational surfaces.
+KAMALO AI is a React and Vite support chat backed by an Express API, PostgreSQL with Drizzle, deterministic approved-knowledge retrieval, and a server-only OpenRouter provider. Customers can ask about KAMALO products and journeys, attach JPG/PNG images for storage, submit feedback, and raise support tickets. There are separate pages for knowledge review and the admin ticket queue.
+
+**Current state:** the API has no authentication or role checks yet. All routes, including knowledge editing and admin ticket routes, are public. The rules below describe the target design.
 
 The current engine is Stage 1. It explains approved KAMALO guidance and must not claim live account access or perform account, transaction, wallet, reward, refund, or settings actions.
 
@@ -28,7 +30,7 @@ The current engine is Stage 1. It explains approved KAMALO guidance and must not
 
 - Production entry points: `artifacts/api-server/src/app.ts`, `artifacts/api-server/src/routes/`, `artifacts/kamalo-ai/src/`.
 - Highest-risk engine areas: `src/lib/safety.ts`, `src/lib/orchestrator.ts`, `src/lib/knowledge.ts`, `src/lib/llm.ts`, `src/lib/image-attachments.ts`, ticket analysis.
-- Public/authenticated/admin surfaces: health/auth routes are public; conversation, feedback, and customer ticket routes are authenticated; knowledge, admin tickets, role management, and ticket analysis are role-gated.
+- Public/authenticated/admin surfaces: today every route is public. The target is: health routes public; conversation, feedback, and customer ticket routes authenticated; knowledge, admin tickets, and ticket analysis role-gated.
 - Dev-only or synthetic areas: disabled demo engine tools and local test fixtures should not be treated as live integrations.
 
 ## Threat Categories

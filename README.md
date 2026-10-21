@@ -10,7 +10,11 @@ KAMALO AI operates under explicit Stage 1 system boundaries:
 
 - **Allowed:** Explaining approved KAMALO knowledge articles, answering customer questions, maintaining conversation history, capturing user feedback, submitting support tickets, and transcribing voice input.
 - **Strictly Blocked:** No live customer account queries, balance checks, transaction lookups, refunds, mandate changes, or financial writes.
-- **Safety Guardrails:** Hardened prompt-injection defenses and guardrails prevent synthetic claims of account access, private customer data exposure, or automated balance adjustments.
+- **Safety Guardrails:** Prompt-injection checks and response filters (`src/lib/safety.ts`) stop the assistant from claiming account access, exposing private data or promising balance changes.
+
+### Current limitations
+
+- There is no sign-in yet. Every API route is public, including knowledge editing (`/api/knowledge/...`) and the admin ticket queue (`/api/tickets/admin`). Add authentication and role checks before real customer use.
 
 ---
 
@@ -22,9 +26,8 @@ KAMALO AI operates under explicit Stage 1 system boundaries:
         ▼
 [ Express API Server (:8081) ]
         │
-        ├── 1. Session & Auth Validation
-        ├── 2. Input Sanitization & Injection Guardrails
-        ├── 3. Intent Routing & Query Extraction (OpenRouter)
+        ├── 1. Input Sanitization & Injection Guardrails
+        ├── 2. Intent Routing & Query Extraction (OpenRouter)
         │
         ▼
 [ PostgreSQL / Supabase + pgvector ]
@@ -51,8 +54,7 @@ KAMALO-AI-Support-Assistant/
 │   ├── api-spec/                  # OpenAPI contract definitions and schema specs
 │   ├── api-client-react/          # Generated React Query hooks and client bindings
 │   ├── api-zod/                   # Shared Zod validation schemas for request/response payloads
-│   ├── db/                        # Drizzle ORM schema definitions, relations, and Postgres client
-│   └── kamalo-icons/              # Shared SVG icon component definitions
+│   └── db/                        # Drizzle ORM schema definitions, relations, and Postgres client
 ├── scripts/                       # Developer tooling, lifecycle, and automation scripts
 │   ├── dev.mjs                    # Concurrent dev launcher for API (:8081) and Vite (:5173)
 │   ├── setup-local.mjs            # Automated installer, Drizzle schema push, and API build
